@@ -1,4 +1,39 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { ImagePlus, X } from 'lucide-react';
+
+// All question images are normalized to this fixed size on upload, so every
+// question looks identical (same crop/proportions) on mobile, tablet and desktop.
+const IMAGE_WIDTH = 800;
+const IMAGE_HEIGHT = 450;
+
+const resizeImageToFixedDimensions = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = IMAGE_WIDTH;
+        canvas.height = IMAGE_HEIGHT;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas not supported'));
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
+        const scale = Math.min(IMAGE_WIDTH / img.width, IMAGE_HEIGHT / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (IMAGE_WIDTH - w) / 2;
+        const y = (IMAGE_HEIGHT - h) / 2;
+        ctx.drawImage(img, x, y, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => reject(new Error('تعذر قراءة الصورة'));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error('تعذر قراءة الملف'));
+    reader.readAsDataURL(file);
+  });
+};
 
 export function Quizzes() {
   const [lessons, setLessons] = useState<any[]>([]);
@@ -6,7 +41,7 @@ export function Quizzes() {
   
   // Array of 10 questions
   const [questions, setQuestions] = useState(
-    Array(10).fill({ question: '', options: ['', '', '', ''], correct_answer: '0' })
+    Array(10).fill({ question: '', options: ['', '', '', ''], correct_answer: '0', image: '' })
   );
 
   useEffect(() => {
@@ -52,11 +87,35 @@ export function Quizzes() {
       });
       if (res.ok) {
         alert('تم حفظ الاختبار بنجاح');
-        setQuestions(Array(10).fill({ question: '', options: ['', '', '', ''], correct_answer: '0' }));
+        setQuestions(Array(10).fill({ question: '', options: ['', '', '', ''], correct_answer: '0', image: '' }));
       }
     } catch (err) {
       alert('خطأ في حفظ الاختبار');
     }
+  };
+
+  const handleImageChange = async (qIndex: number, e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+      alert('الرجاء اختيار صورة بصيغة PNG أو JPG فقط');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('حجم الصورة كبير جداً، الرجاء اختيار صورة أصغر من 5 ميجابايت');
+      return;
+    }
+    try {
+      const dataUrl = await resizeImageToFixedDimensions(file);
+      updateQuestion(qIndex, 'image', dataUrl);
+    } catch (err) {
+      alert('تعذر معالجة الصورة');
+    }
+  };
+
+  const handleRemoveImage = (qIndex: number) => {
+    updateQuestion(qIndex, 'image', '');
   };
 
   return (
@@ -93,6 +152,36 @@ export function Quizzes() {
                 onChange={e => updateQuestion(qIndex, 'question', e.target.value)}
                 className="w-full px-4 py-2 rounded-xl border border-slate-300"
               />
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">صورة السؤال (اختياري)</label>
+                {q.image ? (
+                  <div className="relative w-full max-w-md">
+                    <div className="w-full aspect-video bg-white rounded-xl overflow-hidden border border-slate-300">
+                      <img src={q.image} alt={`صورة السؤال ${qIndex + 1}`} className="w-full h-full object-contain" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(qIndex)}
+                      className="absolute -top-2 -left-2 bg-red-600 text-white rounded-full p-1.5 shadow-sm hover:bg-red-700 transition-colors"
+                      title="حذف الصورة"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full max-w-md aspect-video border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+                    <ImagePlus className="w-6 h-6 text-slate-400 mb-2" />
+                    <span className="text-sm text-slate-500">إضافة صورة PNG أو JPG</span>
+                    <input
+                      type="file"
+                      accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                      onChange={e => handleImageChange(qIndex, e)}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[0, 1, 2, 3].map(oIndex => (

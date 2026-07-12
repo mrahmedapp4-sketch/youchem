@@ -17,12 +17,37 @@ export function LessonView() {
 
   // Quiz State
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
-  const [answers, setAnswers] = useState<string[]>(Array(10).fill(''));
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [answers, setAnswers] = useState<string[]>([]);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
 
   useEffect(() => {
     fetchLessonData();
   }, [id]);
+
+  useEffect(() => {
+    const shouldFetchQuiz = lesson && lesson.platform === 'vimeo' && access && !access.quizPassed && !access.quizExempt;
+    if (shouldFetchQuiz) {
+      fetchQuiz();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson, access]);
+
+  const fetchQuiz = async () => {
+    setQuizLoading(true);
+    try {
+      const res = await fetch(`/api/student/quiz/${lesson.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const qs = data.questions || [];
+        setQuizQuestions(qs);
+        setAnswers(Array(qs.length).fill(''));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setQuizLoading(false);
+  };
 
   const fetchLessonData = async () => {
     setLoading(true);
@@ -186,43 +211,55 @@ export function LessonView() {
               </div>
             </div>
 
-            {/* Mocked Quiz UI for now, in a real app fetch from /api/student/quizzes for this lesson */}
-            <div className="space-y-8">
-              {Array(10).fill(0).map((_, idx) => (
-                <div key={idx} className="space-y-4 p-6 bg-slate-50 rounded-xl border border-slate-200">
-                  <h3 className="font-bold text-slate-900 text-lg">السؤال رقم {idx + 1}</h3>
-                  <p className="text-slate-700">نص السؤال الافتراضي يظهر هنا؟</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                    {['الخيار الأول', 'الخيار الثاني', 'الخيار الثالث', 'الخيار الرابع'].map((opt, oIdx) => (
-                      <label 
-                        key={oIdx}
-                        className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${answers[idx] === oIdx.toString() ? 'bg-blue-50 border-blue-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}
-                      >
-                        <input 
-                          type="radio" 
-                          name={`q-${idx}`}
-                          value={oIdx.toString()}
-                          checked={answers[idx] === oIdx.toString()}
-                          onChange={(e) => handleOptionSelect(idx, e.target.value)}
-                          className="w-5 h-5 text-blue-600"
-                        />
-                        <span className="font-medium text-slate-700">{opt}</span>
-                      </label>
-                    ))}
-                  </div>
+            {quizLoading ? (
+              <div className="text-center p-8 text-slate-500">جاري تحميل الاختبار...</div>
+            ) : quizQuestions.length === 0 ? (
+              <div className="text-center p-8 text-slate-500">لم يتم إضافة اختبار لهذا الدرس بعد.</div>
+            ) : (
+              <>
+                <div className="space-y-8">
+                  {quizQuestions.map((q, idx) => (
+                    <div key={idx} className="space-y-4 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                      <h3 className="font-bold text-slate-900 text-lg">السؤال رقم {idx + 1}</h3>
+                      <p className="text-slate-700">{q.question}</p>
+                      {q.image && (
+                        <div className="w-full max-w-xl mx-auto aspect-video bg-white rounded-xl overflow-hidden border border-slate-200">
+                          <img src={q.image} alt={`صورة السؤال ${idx + 1}`} className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                        {q.options.map((opt: string, oIdx: number) => (
+                          <label 
+                            key={oIdx}
+                            className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${answers[idx] === oIdx.toString() ? 'bg-blue-50 border-blue-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                          >
+                            <input 
+                              type="radio" 
+                              name={`q-${idx}`}
+                              value={oIdx.toString()}
+                              checked={answers[idx] === oIdx.toString()}
+                              onChange={(e) => handleOptionSelect(idx, e.target.value)}
+                              className="w-5 h-5 text-blue-600"
+                            />
+                            <span className="font-medium text-slate-700">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            
-            <div className="mt-8 pt-8 border-t border-slate-100 flex justify-end">
-              <button 
-                onClick={handleSubmitQuiz}
-                disabled={submittingQuiz}
-                className="w-full md:w-auto bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {submittingQuiz ? 'جاري الإرسال...' : 'تسليم الاختبار'}
-              </button>
-            </div>
+                
+                <div className="mt-8 pt-8 border-t border-slate-100 flex justify-end">
+                  <button 
+                    onClick={handleSubmitQuiz}
+                    disabled={submittingQuiz}
+                    className="w-full md:w-auto bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {submittingQuiz ? 'جاري الإرسال...' : 'تسليم الاختبار'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

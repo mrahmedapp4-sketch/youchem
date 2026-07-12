@@ -14,7 +14,8 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 
 app.use(cors());
-app.use(express.json());
+// Quiz questions can include base64-encoded images, so raise the default 100kb JSON limit.
+app.use(express.json({ limit: '15mb' }));
 app.use(cookieParser());
 
 // Mock DB wrapper for safe startup
@@ -297,23 +298,52 @@ app.post('/api/student/validate-code', async (req, res) => {
   }
 });
 
+// Fetch the real quiz for a lesson, with correct answers stripped so students can't see them.
+app.get('/api/student/quiz/:lessonId', async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.lessonId, lessonId));
+    if (!quiz || !Array.isArray(quiz.questions)) return res.json({ questions: [] });
+
+    const sanitized = (quiz.questions as any[]).map((q: any) => ({
+      question: q.question,
+      options: q.options,
+      image: q.image || null,
+    }));
+    res.json({ questions: sanitized });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/student/submit-quiz', async (req, res) => {
   try {
     const { lessonId, answers } = req.body;
     const userId = await getMockUserId(); // Dev mode bypass
-    
-    // Hardcoded logic for now, or fetch from `quizzes` table
+
+    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.lessonId, lessonId));
+
     let score = 0;
-    // Assuming answers is an array of strings, we'll just mock a pass if they answer everything
-    if (answers && answers.length >= 5) score = 10; 
-    
-    if (score >= 5) {
+    let total = 10;
+    if (quiz && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
+      total = quiz.questions.length;
+      quiz.questions.forEach((q: any, idx: number) => {
+        if (answers?.[idx] !== undefined && answers[idx] === q.correct_answer) score++;
+      });
+    } else {
+      // No quiz configured yet for this lesson: fall back to previous permissive behavior
+      if (answers && answers.length >= 5) score = 10;
+    }
+
+    const passed = score >= Math.ceil(total / 2);
+
+    if (passed) {
       await db.update(studentLessonAccess)
         .set({ quizPassed: true })
         .where(and(eq(studentLessonAccess.userId, userId), eq(studentLessonAccess.lessonId, lessonId)));
     }
-    
-    res.json({ score, passed: score >= 5 });
+
+    res.json({ score, total, passed });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
