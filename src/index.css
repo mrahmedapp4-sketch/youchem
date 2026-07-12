@@ -1,0 +1,31 @@
+@font-face {
+  font-family: 'NaNSuperXSerifDisplayArabicBlack';
+  src: url('/alfont_com_NaNSuperXSerifDisplayArabic-Black-TRIAL.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NaNSuperXSerifDisplayArabicBold';
+  src: url('/alfont_com_NaNSuperXSerifDisplayArabic-Bold-TRIAL.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* You can swap these two to switch between Bold and Black easily! */
+  --font-sans: "NaNSuperXSerifDisplayArabicBold", "NaNSuperXSerifDisplayArabicBlack", "Cairo", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  direction: rtl;
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
+}
+

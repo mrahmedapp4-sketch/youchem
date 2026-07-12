@@ -1,0 +1,6 @@
+{
+  "name": "YouChem",
+  "description": "منصة تعليمية لتقديم المحاضرات والاختبارات لطلاب الكيمياء للثانوية العامة بطريقة آمنة وسهلة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
