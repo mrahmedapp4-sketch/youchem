@@ -57,16 +57,16 @@ export function Students() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">سجل الطلاب</h1>
-        <p className="text-slate-500 mt-1">متابعة الطلاب المسجلين وإدارة استثناءات الاختبارات (Exemptions)</p>
+        <h1 className="text-2xl font-bold text-white">سجل الطلاب</h1>
+        <p className="text-slate-400 mt-1">متابعة الطلاب المسجلين وإدارة استثناءات الاختبارات (Exemptions)</p>
       </div>
       
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-        <label className="font-semibold text-slate-700">اختر الحصة لعرض وإدارة الاستثناءات:</label>
+      <div className="neon-card p-6 rounded-2xl flex items-center gap-4">
+        <label className="font-semibold text-slate-300">اختر الحصة لعرض وإدارة الاستثناءات:</label>
         <select 
           value={selectedLessonId} 
           onChange={(e) => setSelectedLessonId(e.target.value)}
-          className="flex-1 max-w-xs px-4 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500"
+          className="neon-input flex-1 max-w-xs px-4 py-2 rounded-xl"
         >
           {lessons.map(l => (
             <option key={l.id} value={l.id}>{l.title}</option>
@@ -75,13 +75,13 @@ export function Students() {
         </select>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="neon-card rounded-2xl overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-500">جاري التحميل...</div>
+          <div className="p-8 text-center text-slate-400">جاري التحميل...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-right">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+              <thead className="bg-black/20 border-b border-cyan-500/10 text-slate-300">
                 <tr>
                   <th className="p-4 font-semibold">الاسم</th>
                   <th className="p-4 font-semibold">البريد الإلكتروني</th>
@@ -91,10 +91,10 @@ export function Students() {
                   <th className="p-4 font-semibold text-center">إعفاء من الاختبار (Exempt)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-cyan-500/10">
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-500">لا يوجد طلاب مسجلين.</td>
+                    <td colSpan={6} className="p-8 text-center text-slate-400">لا يوجد طلاب مسجلين.</td>
                   </tr>
                 )}
                 {students.map(student => {
@@ -102,12 +102,12 @@ export function Students() {
                   const isExempt = access?.quizExempt || false;
 
                   return (
-                    <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-4 font-bold text-slate-900">{student.name}</td>
-                      <td className="p-4 text-slate-600">{student.email}</td>
-                      <td className="p-4 text-slate-600" dir="ltr">{student.phone || '-'}</td>
-                      <td className="p-4 text-slate-600">{student.school || '-'}</td>
-                      <td className="p-4 text-slate-600">
+                    <tr key={student.id} className="hover:bg-white/5 transition-colors">
+                      <td className="p-4 font-bold text-white">{student.name}</td>
+                      <td className="p-4 text-slate-400">{student.email}</td>
+                      <td className="p-4 text-slate-400" dir="ltr">{student.phone || '-'}</td>
+                      <td className="p-4 text-slate-400">{student.school || '-'}</td>
+                      <td className="p-4 text-slate-400">
                         {student.gradeLevel === '2nd_sec' ? 'الثاني الثانوي' : student.gradeLevel === '3rd_sec' ? 'الثالث الثانوي' : '-'}
                       </td>
                       <td className="p-4 text-center">
@@ -115,8 +115,8 @@ export function Students() {
                           onClick={() => handleToggleExempt(student.id)}
                           className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
                             isExempt 
-                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20' 
+                              : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10'
                           }`}
                         >
                           {isExempt ? (

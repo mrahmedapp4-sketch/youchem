@@ -119,7 +119,7 @@ export function LessonView() {
   };
 
   if (loading || !lesson) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8 text-slate-500">جاري التحميل...</div>;
+    return <div className="min-h-screen flex items-center justify-center p-8 text-slate-400">جاري التحميل...</div>;
   }
 
   const isVideoUnlocked = lesson.isFree || access?.quizPassed || access?.quizExempt;
@@ -132,16 +132,16 @@ export function LessonView() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50" dir="rtl">
+    <div className="min-h-screen" dir="rtl">
       {/* Navbar */}
-      <header className="bg-white border-b border-slate-200">
+      <header className="neon-panel border-b">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-4">
-          <button onClick={() => navigate('/student-dashboard')} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+          <button onClick={() => navigate('/student-dashboard')} className="p-2 text-slate-400 hover:text-cyan-300 hover:bg-white/5 rounded-lg transition-colors">
             <ArrowRight className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="font-bold text-slate-900 line-clamp-1">{lesson.title}</h1>
-            <p className="text-xs text-slate-500">{lesson.platform === 'youtube' ? 'متاح مجاناً' : 'محتوى حصري'}</p>
+            <h1 className="font-bold text-white line-clamp-1">{lesson.title}</h1>
+            <p className="text-xs text-slate-400">{lesson.platform === 'youtube' ? 'متاح مجاناً' : 'محتوى حصري'}</p>
           </div>
         </div>
       </header>
@@ -149,8 +149,8 @@ export function LessonView() {
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-8">
         
         {/* VIDEO PLAYER SECTION */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="aspect-video bg-slate-900 relative">
+        <div className="neon-card rounded-2xl overflow-hidden">
+          <div className="aspect-video bg-black relative">
             {isVideoUnlocked ? (
               lesson.platform === 'youtube' ? (
                 <iframe src={`https://www.youtube.com/embed/${extractYoutubeId(lesson.videoUrl)}`} className="absolute inset-0 w-full h-full" allowFullScreen />
@@ -158,10 +158,10 @@ export function LessonView() {
                 <iframe src={`https://player.vimeo.com/video/${lesson.videoUrl}?dnt=1`} className="absolute inset-0 w-full h-full" allowFullScreen />
               )
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-800">
-                <Lock className="w-16 h-16 text-slate-400 mb-4" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-900 to-black">
+                <Lock className="w-16 h-16 text-cyan-400/70 mb-4" />
                 <h3 className="text-xl font-bold text-white mb-2">المحتوى مغلق</h3>
-                <p className="text-slate-300 max-w-sm">
+                <p className="text-slate-400 max-w-sm">
                   {needsCode ? 'يرجى إدخال كود الوصول الخاص بك لمشاهدة هذا الدرس.' : 'يجب عليك اجتياز الاختبار أولاً لفتح هذا الدرس.'}
                 </p>
               </div>
@@ -171,12 +171,12 @@ export function LessonView() {
 
         {/* ACCESS LOGIC SECTIONS */}
         {needsCode && (
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto">
-            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-6">
+          <div className="neon-card p-8 rounded-2xl max-w-md mx-auto">
+            <div className="w-12 h-12 bg-cyan-400/10 text-cyan-300 rounded-xl flex items-center justify-center mb-6 border border-cyan-400/20">
               <Key className="w-6 h-6" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">كود الوصول</h2>
-            <p className="text-slate-500 mb-6">أدخل الكود الذي حصلت عليه من المعلم لفتح هذا الدرس.</p>
+            <h2 className="text-2xl font-bold text-white mb-2">كود الوصول</h2>
+            <p className="text-slate-400 mb-6">أدخل الكود الذي حصلت عليه من المعلم لفتح هذا الدرس.</p>
             
             <form onSubmit={handleValidateCode} className="space-y-4">
               <div>
@@ -186,15 +186,15 @@ export function LessonView() {
                   placeholder="YCH-XXXXXX"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 text-center font-mono text-xl uppercase tracking-widest"
+                  className="neon-input w-full px-4 py-3 rounded-xl text-center font-mono text-xl uppercase tracking-widest"
                   dir="ltr"
                 />
-                {codeError && <p className="text-red-500 text-sm mt-2 font-semibold">{codeError}</p>}
+                {codeError && <p className="text-red-400 text-sm mt-2 font-semibold">{codeError}</p>}
               </div>
               <button 
                 type="submit" 
                 disabled={validatingCode}
-                className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="neon-btn w-full px-4 py-3 rounded-xl font-bold disabled:opacity-50"
               >
                 {validatingCode ? 'جاري التحقق...' : 'تفعيل الكود'}
               </button>
@@ -203,27 +203,27 @@ export function LessonView() {
         )}
 
         {needsQuiz && (
-          <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
+          <div className="neon-card p-6 md:p-8 rounded-2xl">
+            <div className="flex items-center justify-between mb-8 pb-6 border-b border-cyan-500/10">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">اختبار الدرس</h2>
-                <p className="text-slate-500 mt-1">يجب اجتياز الاختبار (5 من 10) لفتح الفيديو.</p>
+                <h2 className="text-2xl font-bold text-white">اختبار الدرس</h2>
+                <p className="text-slate-400 mt-1">يجب اجتياز الاختبار (5 من 10) لفتح الفيديو.</p>
               </div>
             </div>
 
             {quizLoading ? (
-              <div className="text-center p-8 text-slate-500">جاري تحميل الاختبار...</div>
+              <div className="text-center p-8 text-slate-400">جاري تحميل الاختبار...</div>
             ) : quizQuestions.length === 0 ? (
-              <div className="text-center p-8 text-slate-500">لم يتم إضافة اختبار لهذا الدرس بعد.</div>
+              <div className="text-center p-8 text-slate-400">لم يتم إضافة اختبار لهذا الدرس بعد.</div>
             ) : (
               <>
                 <div className="space-y-8">
                   {quizQuestions.map((q, idx) => (
-                    <div key={idx} className="space-y-4 p-6 bg-slate-50 rounded-xl border border-slate-200">
-                      <h3 className="font-bold text-slate-900 text-lg">السؤال رقم {idx + 1}</h3>
-                      <p className="text-slate-700">{q.question}</p>
+                    <div key={idx} className="space-y-4 p-6 bg-black/20 rounded-xl border border-cyan-500/10">
+                      <h3 className="font-bold text-white text-lg">السؤال رقم {idx + 1}</h3>
+                      <p className="text-slate-300">{q.question}</p>
                       {q.image && (
-                        <div className="w-full max-w-xl mx-auto aspect-video bg-white rounded-xl overflow-hidden border border-slate-200">
+                        <div className="w-full max-w-xl mx-auto aspect-video bg-black/30 rounded-xl overflow-hidden border border-cyan-500/10">
                           <img src={q.image} alt={`صورة السؤال ${idx + 1}`} className="w-full h-full object-contain" />
                         </div>
                       )}
@@ -231,7 +231,7 @@ export function LessonView() {
                         {q.options.map((opt: string, oIdx: number) => (
                           <label 
                             key={oIdx}
-                            className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${answers[idx] === oIdx.toString() ? 'bg-blue-50 border-blue-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                            className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${answers[idx] === oIdx.toString() ? 'bg-cyan-400/10 border-cyan-400 neon-glow-ring' : 'bg-white/5 border-slate-700 hover:border-cyan-500/40'}`}
                           >
                             <input 
                               type="radio" 
@@ -239,9 +239,9 @@ export function LessonView() {
                               value={oIdx.toString()}
                               checked={answers[idx] === oIdx.toString()}
                               onChange={(e) => handleOptionSelect(idx, e.target.value)}
-                              className="w-5 h-5 text-blue-600"
+                              className="w-5 h-5 accent-cyan-400"
                             />
-                            <span className="font-medium text-slate-700">{opt}</span>
+                            <span className="font-medium text-slate-200">{opt}</span>
                           </label>
                         ))}
                       </div>
@@ -249,11 +249,11 @@ export function LessonView() {
                   ))}
                 </div>
                 
-                <div className="mt-8 pt-8 border-t border-slate-100 flex justify-end">
+                <div className="mt-8 pt-8 border-t border-cyan-500/10 flex justify-end">
                   <button 
                     onClick={handleSubmitQuiz}
                     disabled={submittingQuiz}
-                    className="w-full md:w-auto bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="neon-btn w-full md:w-auto px-8 py-3 rounded-xl font-bold disabled:opacity-50"
                   >
                     {submittingQuiz ? 'جاري الإرسال...' : 'تسليم الاختبار'}
                   </button>

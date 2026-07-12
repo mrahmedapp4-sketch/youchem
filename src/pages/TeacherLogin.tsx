@@ -33,22 +33,25 @@ export function TeacherLogin() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-xl shadow-sm w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center mb-6 text-slate-900">لوحة تحكم المدرس</h1>
-        
+      <div className="neon-card p-8 rounded-2xl w-full max-w-sm">
+        <div className="w-16 h-16 mx-auto mb-4">
+          <img src="/logo.png" alt="YouChem Logo" className="w-full h-full object-contain rounded-full neon-glow-ring border-2 border-cyan-400/40 bg-slate-900" />
+        </div>
+        <h1 className="text-2xl font-bold text-center mb-6 text-white">لوحة تحكم المدرس</h1>
+
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm text-center">
+          <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-3 rounded-lg mb-4 text-sm text-center">
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">كلمة المرور</label>
+            <label className="block text-sm font-medium mb-1 text-slate-300">كلمة المرور</label>
             <input
               type="password"
               required
-              className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="neon-input w-full p-3 rounded-lg"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -56,7 +59,7 @@ export function TeacherLogin() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            className="neon-btn w-full font-semibold py-3 rounded-lg"
           >
             دخول
           </button>

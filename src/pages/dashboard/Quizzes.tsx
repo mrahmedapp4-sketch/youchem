@@ -121,17 +121,17 @@ export function Quizzes() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">إدارة الاختبارات (Quizzes)</h1>
-        <p className="text-slate-500 mt-1">إنشاء 10 أسئلة لكل حصة (خاص بحصص Vimeo)</p>
+        <h1 className="text-2xl font-bold text-white">إدارة الاختبارات (Quizzes)</h1>
+        <p className="text-slate-400 mt-1">إنشاء 10 أسئلة لكل حصة (خاص بحصص Vimeo)</p>
       </div>
       
-      <form onSubmit={handleSaveQuiz} className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8">
+      <form onSubmit={handleSaveQuiz} className="neon-card p-8 rounded-2xl space-y-8">
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">اختر الحصة</label>
+          <label className="block text-sm font-semibold text-slate-300 mb-2">اختر الحصة</label>
           <select 
             value={selectedLesson} 
             onChange={e => setSelectedLesson(e.target.value)}
-            className="w-full px-4 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500"
+            className="neon-input w-full px-4 py-2 rounded-xl"
             required
           >
             {lessons.map(l => (
@@ -142,37 +142,37 @@ export function Quizzes() {
 
         <div className="space-y-12">
           {questions.map((q, qIndex) => (
-            <div key={qIndex} className="p-6 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
-              <h3 className="font-bold text-slate-800">السؤال رقم {qIndex + 1}</h3>
+            <div key={qIndex} className="p-6 bg-black/20 rounded-xl border border-cyan-500/10 space-y-4">
+              <h3 className="font-bold text-cyan-300">السؤال رقم {qIndex + 1}</h3>
               <input 
                 type="text" 
                 placeholder="نص السؤال..." 
                 required
                 value={q.question}
                 onChange={e => updateQuestion(qIndex, 'question', e.target.value)}
-                className="w-full px-4 py-2 rounded-xl border border-slate-300"
+                className="neon-input w-full px-4 py-2 rounded-xl"
               />
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-slate-700">صورة السؤال (اختياري)</label>
+                <label className="block text-sm font-semibold text-slate-300">صورة السؤال (اختياري)</label>
                 {q.image ? (
                   <div className="relative w-full max-w-md">
-                    <div className="w-full aspect-video bg-white rounded-xl overflow-hidden border border-slate-300">
+                    <div className="w-full aspect-video bg-black/30 rounded-xl overflow-hidden border border-cyan-500/20">
                       <img src={q.image} alt={`صورة السؤال ${qIndex + 1}`} className="w-full h-full object-contain" />
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveImage(qIndex)}
-                      className="absolute -top-2 -left-2 bg-red-600 text-white rounded-full p-1.5 shadow-sm hover:bg-red-700 transition-colors"
+                      className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full p-1.5 shadow-[0_0_10px_rgba(239,68,68,0.6)] hover:bg-red-600 transition-colors"
                       title="حذف الصورة"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center w-full max-w-md aspect-video border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
-                    <ImagePlus className="w-6 h-6 text-slate-400 mb-2" />
-                    <span className="text-sm text-slate-500">إضافة صورة PNG أو JPG</span>
+                  <label className="flex flex-col items-center justify-center w-full max-w-md aspect-video border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-cyan-400/60 hover:bg-cyan-400/5 transition-colors">
+                    <ImagePlus className="w-6 h-6 text-slate-500 mb-2" />
+                    <span className="text-sm text-slate-400">إضافة صورة PNG أو JPG</span>
                     <input
                       type="file"
                       accept=".png,.jpg,.jpeg,image/png,image/jpeg"
@@ -192,7 +192,7 @@ export function Quizzes() {
                       value={oIndex.toString()}
                       checked={q.correct_answer === oIndex.toString()}
                       onChange={e => updateQuestion(qIndex, 'correct_answer', e.target.value)}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      className="w-4 h-4 accent-cyan-400"
                     />
                     <input 
                       type="text" 
@@ -200,7 +200,7 @@ export function Quizzes() {
                       required
                       value={q.options[oIndex]}
                       onChange={e => updateOption(qIndex, oIndex, e.target.value)}
-                      className="flex-1 px-4 py-2 rounded-xl border border-slate-300"
+                      className="neon-input flex-1 px-4 py-2 rounded-xl"
                     />
                   </div>
                 ))}
@@ -209,8 +209,8 @@ export function Quizzes() {
           ))}
         </div>
 
-        <div className="pt-4 border-t border-slate-200">
-          <button type="submit" className="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm">
+        <div className="pt-4 border-t border-cyan-500/10">
+          <button type="submit" className="neon-btn w-full px-6 py-3 rounded-xl font-bold">
             حفظ الاختبار
           </button>
         </div>

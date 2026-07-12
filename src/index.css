@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
 @font-face {
   font-family: 'NaNSuperXSerifDisplayArabicBlack';
   src: url('/alfont_com_NaNSuperXSerifDisplayArabic-Black-TRIAL.ttf') format('truetype');
@@ -14,18 +17,86 @@
   font-display: swap;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-@import "tailwindcss";
-
 @theme {
   /* You can swap these two to switch between Bold and Black easily! */
   --font-sans: "NaNSuperXSerifDisplayArabicBold", "NaNSuperXSerifDisplayArabicBlack", "Cairo", ui-sans-serif, system-ui, sans-serif;
 }
 
+:root {
+  --neon-cyan: #22e5ff;
+  --neon-blue: #3b82f6;
+  --neon-violet: #a855f7;
+  --bg-void: #05070f;
+  --bg-panel: #0b0f1e;
+  --bg-panel-2: #0f1428;
+  --border-glow: rgba(34, 229, 255, 0.25);
+}
+
 body {
   font-family: var(--font-sans);
   direction: rtl;
-  background-color: #f8fafc; /* slate-50 */
-  color: #0f172a; /* slate-900 */
+  background-color: var(--bg-void);
+  color: #e6f1ff;
+  background-image:
+    radial-gradient(600px circle at 15% 0%, rgba(59, 130, 246, 0.18), transparent 60%),
+    radial-gradient(700px circle at 100% 20%, rgba(168, 85, 247, 0.14), transparent 55%),
+    radial-gradient(900px circle at 50% 100%, rgba(34, 229, 255, 0.1), transparent 60%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Shared neon UI primitives — used across pages to keep the look consistent
+   without touching fonts or layout structure. */
+.neon-card {
+  background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel));
+  border: 1px solid var(--border-glow);
+  box-shadow: 0 0 0 1px rgba(34, 229, 255, 0.04), 0 8px 30px -10px rgba(34, 229, 255, 0.15), 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.neon-panel {
+  background: var(--bg-panel);
+  border: 1px solid rgba(34, 229, 255, 0.12);
+}
+
+.neon-input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #e6f1ff;
+}
+.neon-input::placeholder {
+  color: rgba(148, 163, 184, 0.6);
+}
+.neon-input:focus {
+  outline: none;
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 3px rgba(34, 229, 255, 0.18), 0 0 16px rgba(34, 229, 255, 0.25);
+}
+
+.neon-btn {
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan));
+  color: #04101a;
+  box-shadow: 0 0 20px rgba(34, 229, 255, 0.35), 0 0 2px rgba(34, 229, 255, 0.6);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+}
+.neon-btn:hover:not(:disabled) {
+  box-shadow: 0 0 30px rgba(34, 229, 255, 0.55), 0 0 4px rgba(34, 229, 255, 0.8);
+  filter: brightness(1.08);
+}
+.neon-btn:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.neon-text {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px rgba(34, 229, 255, 0.5);
+}
+
+.neon-border {
+  border-color: rgba(34, 229, 255, 0.3) !important;
+}
+
+.neon-glow-ring {
+  box-shadow: 0 0 0 4px rgba(34, 229, 255, 0.08), 0 0 24px rgba(34, 229, 255, 0.35);
 }
 
