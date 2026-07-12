@@ -22,7 +22,7 @@ export function TeacherLogin() {
       });
       
       if (res.ok) {
-        navigate('/youchem/lessons');
+        navigate('/youchem');
       } else {
         setError('كلمة المرور غير صحيحة');
       }
