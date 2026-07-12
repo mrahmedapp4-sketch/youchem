@@ -6,7 +6,6 @@ import { UploadVideo } from './pages/dashboard/Upload';
 import { Quizzes } from './pages/dashboard/Quizzes';
 import { Students } from './pages/dashboard/Students';
 import { Emails } from './pages/dashboard/Emails';
-import { StudentLogin } from './pages/StudentLogin';
 import { TeacherLogin } from './pages/TeacherLogin';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { LessonView } from './pages/LessonView';

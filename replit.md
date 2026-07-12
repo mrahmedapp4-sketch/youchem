@@ -5,20 +5,24 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 ## Stack
 - **Frontend:** React 19 + React Router 7, Vite 6, Tailwind CSS 4
 - **Backend:** Express (server.ts), served together with Vite in one process
-- **Database:** PostgreSQL via Drizzle ORM (Replit's built-in database) — schema in `src/db/schema.ts`
-- **Auth:** JWT cookies for teacher/student sessions (`server.ts`)
-- **Other integrations referenced but not yet wired up:** Google Gemini (`@google/genai`), Firebase, Vimeo TUS uploads — no server code currently calls these, they're leftover from the AI Studio scaffold
+- **Database:** a single JSON file at `data/db.json` (not committed to git — contains student PII), read/written through `src/db/jsonStore.ts`. Holds `users`, `lessons`, `quizzes`, `codes`, `studentLessonAccess`. No Postgres/Drizzle anymore — that layer was fully removed.
+- **Auth:**
+  - Teachers: password login → JWT cookie (`server.ts`).
+  - Students: Google sign-in. Frontend uses the Firebase client SDK (`src/lib/firebase.ts`, config in `firebase-applet-config.json` — public client config, not secret) to run `signInWithPopup`, then sends the Google ID token to `POST /api/student/google-login`, which verifies it server-side with `google-auth-library`'s `OAuth2Client.verifyIdToken` (audience = the Firebase project's OAuth web client ID) and issues a JWT cookie. First-time students are prompted to complete their profile (phone, school, grade) via `POST /api/student/complete-profile`.
+- **Other integrations referenced but not yet wired up:** Google Gemini (`@google/genai`), Vimeo TUS uploads — no server code currently calls these, they're leftover from the AI Studio scaffold
 
 ## Running the app
 - Workflow **"Start application"** runs `npm run dev` (tsx server.ts), serving on port 5000.
-- Drizzle schema is pushed to the dev database with `npx drizzle-kit push --force` (already applied); rerun after schema changes in `src/db/schema.ts`.
 - Default teacher login password used by `server.ts` is a hardcoded value (`port5`) — should be replaced with a real credential/secret before going live.
+- `data/db.json` is created automatically on first run if missing; back it up before making risky changes since it's the only copy of lesson/quiz/student data.
 
 ## Notes from import setup (July 2026)
-- Fixed a bug where `src/db/index.ts` connected using unset `SQL_HOST`/`SQL_USER`/`SQL_PASSWORD`/`SQL_DB_NAME` vars; it now uses Replit's `DATABASE_URL`.
+- Fixed a bug where `src/db/index.ts` connected using unset `SQL_HOST`/`SQL_USER`/`SQL_PASSWORD`/`SQL_DB_NAME` vars; it now uses Replit's `DATABASE_URL`. (This file no longer exists — superseded by the JSON migration below.)
 - Changed the server port from a hardcoded 3000 to 5000 (via `process.env.PORT` fallback) to match Replit's webview requirement.
 - `JWT_SECRET` secret has not been set yet — the app currently falls back to an insecure default string baked into `server.ts`. Set it as a Replit secret before relying on auth in any real deployment.
 - `GEMINI_API_KEY` and `VIMEO_ACCESS_TOKEN` are not required to run the app today (no server code calls those APIs yet), but the frontend references a `/api/vimeo/init` endpoint that doesn't exist in `server.ts` — Vimeo uploads are not functional.
+- Migrated all data storage from PostgreSQL/Drizzle to a JSON file (`data/db.json`) and removed `drizzle-orm`, `drizzle-kit`, `pg` entirely — the app has no database dependency now. The Replit Postgres database itself was left untouched (not deleted), just unused.
+- Replaced the old scratch-card/name-entry student flow (`StudentLogin.tsx`, dead code, never routed) with real Google sign-in. The AI Studio export had already baked a working Firebase Web App config into `firebase-applet-config.json`, including the Google OAuth web client ID, so no new secrets were needed for this.
 
 ## User preferences
 - Communicate in Arabic when the user writes in Arabic.

@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Contains student personal data (name, phone, email) — never commit.
+/data/

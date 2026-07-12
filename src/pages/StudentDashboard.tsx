@@ -29,8 +29,13 @@ export function StudentDashboard() {
     fetchLessons();
   }, [navigate]);
 
-  const handleLogout = () => {
-    navigate('/student-login');
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/student/logout', { method: 'POST' });
+    } catch (err) {
+      console.error(err);
+    }
+    navigate('/');
   };
 
   return (

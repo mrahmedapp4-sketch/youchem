@@ -1,66 +1,203 @@
-import { useState } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ArrowLeft, ArrowRight } from 'lucide-react';
+import { GraduationCap, ArrowLeft } from 'lucide-react';
+import { signInWithGoogle } from '../lib/firebase';
 
 export function GradeSelection() {
-  const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [needsProfile, setNeedsProfile] = useState(false);
+  const [error, setError] = useState('');
+
+  const [phone, setPhone] = useState('');
+  const [school, setSchool] = useState('');
+  const [gradeLevel, setGradeLevel] = useState('2nd_sec');
+
   const navigate = useNavigate();
 
-  const handleSelectGrade = async (grade: string) => {
-    setLoading(true);
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/student/check-auth');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.needsProfile) {
+            setNeedsProfile(true);
+          } else {
+            navigate('/student-dashboard');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      setCheckingAuth(false);
+    };
+    checkAuth();
+  }, [navigate]);
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setSigningIn(true);
     try {
-      // SERVER ACTION: Set grade
-      const res = await fetch('/api/student/set-grade', {
+      const { idToken } = await signInWithGoogle();
+      const res = await fetch('/api/student/google-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gradeLevel: grade })
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.needsProfile) {
+          setNeedsProfile(true);
+        } else {
+          navigate('/student-dashboard');
+        }
+      } else {
+        setError(data.error || 'فشل تسجيل الدخول بحساب جوجل');
+      }
+    } catch (err) {
+      setError('حدث خطأ أثناء تسجيل الدخول بحساب جوجل');
+    }
+    setSigningIn(false);
+  };
+
+  const handleCompleteProfile = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSavingProfile(true);
+    try {
+      const res = await fetch('/api/student/complete-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, school, gradeLevel }),
       });
       if (res.ok) {
         navigate('/student-dashboard');
+      } else {
+        const data = await res.json();
+        setError(data.error || 'حدث خطأ');
       }
     } catch (err) {
-      alert('حدث خطأ');
+      setError('حدث خطأ');
     }
-    setLoading(false);
+    setSavingProfile(false);
   };
+
+  const Logo = () => (
+    <div className="w-24 h-24 mx-auto mb-4 relative">
+      <img
+        src="/logo.png"
+        alt="YouChem Logo"
+        className="w-full h-full object-contain rounded-full border-4 border-slate-50 shadow-sm"
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.display = 'none';
+          (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+        }}
+      />
+      <div className="w-full h-full bg-blue-100 rounded-full flex items-center justify-center hidden">
+        <GraduationCap className="w-12 h-12 text-blue-600" />
+      </div>
+    </div>
+  );
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500">
+        جاري التحقق...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
       <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="w-24 h-24 mx-auto mb-4 relative">
-            <img src="/logo.png" alt="YouChem Logo" className="w-full h-full object-contain rounded-full border-4 border-slate-50 shadow-sm" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-            }} />
-            <div className="w-full h-full bg-blue-100 rounded-full flex items-center justify-center hidden">
-              <GraduationCap className="w-12 h-12 text-blue-600" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">            مرحباً بك في <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">YouChem</span> Platform          </h1>
+          <Logo />
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">
+            مرحباً بك في{' '}
+            <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+              YouChem
+            </span>{' '}
+            Platform
+          </h1>
           <p className="text-sm font-semibold text-slate-400 mb-2">by Mr.ahmed</p>
-          <p className="text-slate-500">اختر الصف الدراسي الخاص بك للبدء</p>
+          <p className="text-slate-500">{needsProfile ? 'أكمل بياناتك للبدء' : 'سجل دخولك بحساب جوجل للبدء'}</p>
         </div>
 
-        <div className="space-y-4">
-          <button 
-            onClick={() => handleSelectGrade('2nd_sec')}
-            disabled={loading}
-            className="w-full group flex items-center justify-between p-4 rounded-2xl border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50"
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm text-center">{error}</div>
+        )}
+
+        {!needsProfile ? (
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={signingIn}
+            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50 font-bold text-slate-700"
           >
-            <span className="font-bold text-lg text-slate-700 group-hover:text-blue-700">الصف الثاني الثانوي</span>
-            <ArrowLeft className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-transform group-hover:-translate-x-1" />
+            <svg className="w-5 h-5" viewBox="0 0 48 48">
+              <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+              <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+              <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+              <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.084 5.571l6.19 5.238C41.396 35.606 44 30.24 44 24c0-1.341-.138-2.65-.389-3.917z" />
+            </svg>
+            {signingIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول بحساب جوجل'}
           </button>
-          
-          <button 
-            onClick={() => handleSelectGrade('3rd_sec')}
-            disabled={loading}
-            className="w-full group flex items-center justify-between p-4 rounded-2xl border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50"
-          >
-            <span className="font-bold text-lg text-slate-700 group-hover:text-blue-700">الصف الثالث الثانوي</span>
-            <ArrowLeft className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-transform group-hover:-translate-x-1" />
-          </button>
-        </div>
+        ) : (
+          <form onSubmit={handleCompleteProfile} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">رقم الهاتف</label>
+              <input
+                type="tel"
+                required
+                dir="ltr"
+                className="w-full p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="01xxxxxxxxx"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">المدرسة</label>
+              <input
+                type="text"
+                required
+                className="w-full p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600"
+                value={school}
+                onChange={(e) => setSchool(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">الصف الدراسي</label>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setGradeLevel('2nd_sec')}
+                  className={`w-full group flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${gradeLevel === '2nd_sec' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}
+                >
+                  <span className="font-bold text-slate-700">الصف الثاني الثانوي</span>
+                  <ArrowLeft className="w-5 h-5 text-slate-400" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGradeLevel('3rd_sec')}
+                  className={`w-full group flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${gradeLevel === '3rd_sec' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}
+                >
+                  <span className="font-bold text-slate-700">الصف الثالث الثانوي</span>
+                  <ArrowLeft className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={savingProfile}
+              className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {savingProfile ? 'جاري الحفظ...' : 'دخول'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

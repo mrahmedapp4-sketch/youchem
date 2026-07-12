@@ -85,6 +85,8 @@ export function Students() {
                 <tr>
                   <th className="p-4 font-semibold">الاسم</th>
                   <th className="p-4 font-semibold">البريد الإلكتروني</th>
+                  <th className="p-4 font-semibold">رقم الهاتف</th>
+                  <th className="p-4 font-semibold">المدرسة</th>
                   <th className="p-4 font-semibold">الصف</th>
                   <th className="p-4 font-semibold text-center">إعفاء من الاختبار (Exempt)</th>
                 </tr>
@@ -92,7 +94,7 @@ export function Students() {
               <tbody className="divide-y divide-slate-100">
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-8 text-center text-slate-500">لا يوجد طلاب مسجلين.</td>
+                    <td colSpan={6} className="p-8 text-center text-slate-500">لا يوجد طلاب مسجلين.</td>
                   </tr>
                 )}
                 {students.map(student => {
@@ -103,6 +105,8 @@ export function Students() {
                     <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="p-4 font-bold text-slate-900">{student.name}</td>
                       <td className="p-4 text-slate-600">{student.email}</td>
+                      <td className="p-4 text-slate-600" dir="ltr">{student.phone || '-'}</td>
+                      <td className="p-4 text-slate-600">{student.school || '-'}</td>
                       <td className="p-4 text-slate-600">
                         {student.gradeLevel === '2nd_sec' ? 'الثاني الثانوي' : student.gradeLevel === '3rd_sec' ? 'الثالث الثانوي' : '-'}
                       </td>

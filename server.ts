@@ -3,32 +3,26 @@ import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { createServer as createViteServer } from 'vite';
-import { db } from './src/db';
-import { users, lessons, quizzes, codes, studentLessonAccess } from './src/db/schema.ts';
-import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
+import { jsonDb, newId, DbUser, DbLesson, DbQuiz, DbCode, DbStudentLessonAccess } from './src/db/jsonStore.ts';
+import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 
+// Used to verify the Google ID token returned by the frontend Firebase sign-in.
+// This is the public OAuth web client ID Firebase generated for this project
+// (not a secret — it is the expected audience of the token, same as any OAuth client id).
+const GOOGLE_CLIENT_ID = firebaseConfig.oAuthClientId;
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
 app.use(cors());
 // Quiz questions can include base64-encoded images, so raise the default 100kb JSON limit.
 app.use(express.json({ limit: '15mb' }));
 app.use(cookieParser());
-
-// Mock DB wrapper for safe startup
-const safeDbSelect = async (table: any, where?: any) => {
-  if (!process.env.DATABASE_URL) {
-    console.warn('DATABASE_URL is not set. Using mock empty data.');
-    return [];
-  }
-  let query = db.select().from(table);
-  if (where) query = query.where(where) as any;
-  return await query;
-};
-
 
 // Authentication Middleware
 const authenticateTeacher = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -79,8 +73,7 @@ app.post('/api/teacher/logout', (req, res) => {
 // Lessons API
 app.get('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
   try {
-    const allLessons = await safeDbSelect(lessons);
-    res.json(allLessons);
+    res.json(jsonDb.getAll('lessons'));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -90,9 +83,17 @@ app.post('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
   try {
     const { title, gradeLevel, platform, videoUrl } = req.body;
     const isFree = platform === 'youtube';
-    const [lesson] = await db.insert(lessons).values({
-      title, gradeLevel, platform, videoUrl, isFree, isHidden: false
-    }).returning();
+    const lesson: DbLesson = {
+      id: newId(),
+      title,
+      gradeLevel,
+      platform,
+      videoUrl,
+      isFree,
+      isHidden: false,
+      createdAt: new Date().toISOString(),
+    };
+    jsonDb.insert('lessons', lesson);
     res.json(lesson);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -102,13 +103,10 @@ app.post('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
 app.patch('/api/youchem/lessons/:id/toggle-visibility', authenticateTeacher, async (req, res) => {
   try {
     const { id } = req.params;
-    const [lesson] = await db.select().from(lessons).where(eq(lessons.id, id));
+    const lesson = jsonDb.find('lessons', (l: DbLesson) => l.id === id);
     if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
-    
-    const [updated] = await db.update(lessons)
-      .set({ isHidden: !lesson.isHidden })
-      .where(eq(lessons.id, id))
-      .returning();
+
+    const updated = jsonDb.update('lessons', (l: DbLesson) => l.id === id, { isHidden: !lesson.isHidden });
     res.json(updated);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -118,7 +116,9 @@ app.patch('/api/youchem/lessons/:id/toggle-visibility', authenticateTeacher, asy
 app.delete('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => {
   try {
     const { id } = req.params;
-    await db.delete(lessons).where(eq(lessons.id, id));
+    jsonDb.remove('lessons', (l: DbLesson) => l.id === id);
+    jsonDb.remove('quizzes', (q: DbQuiz) => q.lessonId === id);
+    jsonDb.remove('studentLessonAccess', (a: DbStudentLessonAccess) => a.lessonId === id);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -128,8 +128,7 @@ app.delete('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => 
 // Codes API
 app.get('/api/youchem/codes', authenticateTeacher, async (req, res) => {
   try {
-    const allCodes = await safeDbSelect(codes);
-    res.json(allCodes);
+    res.json(jsonDb.getAll('codes'));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -138,11 +137,16 @@ app.get('/api/youchem/codes', authenticateTeacher, async (req, res) => {
 app.post('/api/youchem/codes/generate', authenticateTeacher, async (req, res) => {
   try {
     const { count } = req.body;
-    const newCodes = [];
     for (let i = 0; i < count; i++) {
-      newCodes.push({ codeString: `YCH-${Math.random().toString(36).substring(2, 8).toUpperCase()}` });
+      const code: DbCode = {
+        id: newId(),
+        codeString: `YCH-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+        isUsed: false,
+        usedBy: null,
+        createdAt: new Date().toISOString(),
+      };
+      jsonDb.insert('codes', code);
     }
-    await db.insert(codes).values(newCodes);
     res.json({ success: true, generated: count });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -152,7 +156,7 @@ app.post('/api/youchem/codes/generate', authenticateTeacher, async (req, res) =>
 app.delete('/api/youchem/codes/:id', authenticateTeacher, async (req, res) => {
   try {
     const { id } = req.params;
-    await db.delete(codes).where(eq(codes.id, id));
+    jsonDb.remove('codes', (c: DbCode) => c.id === id);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -162,8 +166,7 @@ app.delete('/api/youchem/codes/:id', authenticateTeacher, async (req, res) => {
 // Quizzes API
 app.get('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
   try {
-    const allQuizzes = await safeDbSelect(quizzes);
-    res.json(allQuizzes);
+    res.json(jsonDb.getAll('quizzes'));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -172,7 +175,8 @@ app.get('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
 app.post('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
   try {
     const { lessonId, questions } = req.body;
-    const [quiz] = await db.insert(quizzes).values({ lessonId, questions }).returning();
+    const quiz: DbQuiz = { id: newId(), lessonId, questions, createdAt: new Date().toISOString() };
+    jsonDb.insert('quizzes', quiz);
     res.json(quiz);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -182,16 +186,14 @@ app.post('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
 // Students & Exemptions API
 app.get('/api/youchem/students', authenticateTeacher, async (req, res) => {
   try {
-    // Basic implementation for now: fetch all students
-    const allStudents = await safeDbSelect(users, eq(users.role, 'student'));
-    // Need lesson accesses too
-    const allAccesses = await safeDbSelect(studentLessonAccess);
-    
-    const studentsWithAccess = allStudents.map((s: any) => ({
+    const allStudents = jsonDb.filter('users', (u: DbUser) => u.role === 'student');
+    const allAccesses = jsonDb.getAll('studentLessonAccess');
+
+    const studentsWithAccess = allStudents.map((s: DbUser) => ({
       ...s,
-      accesses: allAccesses.filter((a: any) => a.userId === s.id)
+      accesses: allAccesses.filter((a: DbStudentLessonAccess) => a.userId === s.id),
     }));
-    
+
     res.json(studentsWithAccess);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -201,23 +203,27 @@ app.get('/api/youchem/students', authenticateTeacher, async (req, res) => {
 app.patch('/api/youchem/students/:userId/lessons/:lessonId/exempt', authenticateTeacher, async (req, res) => {
   try {
     const { userId, lessonId } = req.params;
-    const [access] = await db.select().from(studentLessonAccess)
-      .where(and(eq(studentLessonAccess.userId, userId), eq(studentLessonAccess.lessonId, lessonId)));
-      
+    const access = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === userId && a.lessonId === lessonId
+    );
+
     if (access) {
-      const [updated] = await db.update(studentLessonAccess)
-        .set({ quizExempt: !access.quizExempt })
-        .where(and(eq(studentLessonAccess.userId, userId), eq(studentLessonAccess.lessonId, lessonId)))
-        .returning();
+      const updated = jsonDb.update(
+        'studentLessonAccess',
+        (a: DbStudentLessonAccess) => a.userId === userId && a.lessonId === lessonId,
+        { quizExempt: !access.quizExempt }
+      );
       res.json(updated);
     } else {
-      // Create it if it doesn't exist
-      const [inserted] = await db.insert(studentLessonAccess).values({
+      const inserted: DbStudentLessonAccess = {
         userId,
         lessonId,
+        unlockedAt: new Date().toISOString(),
         quizPassed: false,
-        quizExempt: true
-      }).returning();
+        quizExempt: true,
+      };
+      jsonDb.insert('studentLessonAccess', inserted);
       res.json(inserted);
     }
   } catch (err: any) {
@@ -225,73 +231,117 @@ app.patch('/api/youchem/students/:userId/lessons/:lessonId/exempt', authenticate
   }
 });
 
-// --- STUDENT API ---
-// Note: We bypass strict login for development as requested. 
-// We will mock a user ID for student routes for now.
-const getMockUserId = async () => {
-  let [user] = await db.select().from(users).limit(1);
-  if (!user) {
-    [user] = await db.insert(users).values({ name: 'Test Student', email: 'student@test.com' }).returning();
-  }
-  return user.id;
-};
+// --- STUDENT API (Google Sign-In) ---
 
-app.post('/api/student/set-grade', async (req, res) => {
+app.post('/api/student/google-login', async (req, res) => {
   try {
-    const { gradeLevel } = req.body;
-    const userId = await getMockUserId(); // Dev mode bypass
-    
-    await db.update(users)
-      .set({ gradeLevel })
-      .where(eq(users.id, userId));
-      
-    res.json({ success: true });
+    const { idToken } = req.body;
+    if (!idToken) return res.status(400).json({ error: 'idToken مطلوب' });
+
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) return res.status(401).json({ error: 'فشل التحقق من حساب جوجل' });
+
+    const { sub: googleId, email, name, picture } = payload;
+
+    let user = jsonDb.find('users', (u: DbUser) => u.googleId === googleId || u.email === email);
+    if (!user) {
+      user = {
+        id: newId(),
+        googleId,
+        name: name || 'طالب',
+        email,
+        phone: '',
+        school: '',
+        role: 'student',
+        gradeLevel: null,
+        createdAt: new Date().toISOString(),
+      } as DbUser;
+      jsonDb.insert('users', user);
+    } else if (!user.googleId) {
+      // Backfill googleId for a user record that predates Google sign-in.
+      user = jsonDb.update('users', (u: DbUser) => u.id === user!.id, { googleId });
+    }
+
+    const token = jwt.sign({ role: 'student', studentId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    res.cookie('student_token', token, {
+      httpOnly: true,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    const needsProfile = !user.phone || !user.school || !user.gradeLevel;
+    res.json({ success: true, user, needsProfile, picture });
+  } catch (err: any) {
+    console.error('Google login failed:', err.message);
+    res.status(401).json({ error: 'فشل تسجيل الدخول بحساب جوجل' });
+  }
+});
+
+app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
+  const studentId = (req as any).studentId;
+  const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  const needsProfile = !user.phone || !user.school || !user.gradeLevel;
+  res.json({ success: true, user, needsProfile });
+});
+
+app.post('/api/student/complete-profile', authenticateStudent, async (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const { phone, school, gradeLevel } = req.body;
+    if (!phone || !school || !gradeLevel) {
+      return res.status(400).json({ error: 'الرجاء إدخال رقم الهاتف والمدرسة والصف الدراسي' });
+    }
+    const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, { phone, school, gradeLevel });
+    if (!updated) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    res.json({ success: true, user: updated });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/api/student/lessons', async (req, res) => {
+app.post('/api/student/logout', (req, res) => {
+  res.clearCookie('student_token').json({ success: true });
+});
+
+app.get('/api/student/lessons', authenticateStudent, async (req, res) => {
   try {
-    const userId = await getMockUserId();
-    
-    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    const studentId = (req as any).studentId;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
     if (!user || !user.gradeLevel) return res.status(400).json({ error: 'Grade not set' });
-    
-    // SERVER ACTION: Fetch visible lessons for student's grade
-    const availableLessons = await safeDbSelect(lessons, and(
-      eq(lessons.gradeLevel, user.gradeLevel),
-      eq(lessons.isHidden, false)
-    ));
-    
-    const accesses = await safeDbSelect(studentLessonAccess, eq(studentLessonAccess.userId, userId));
-    
+
+    const availableLessons = jsonDb.filter(
+      'lessons',
+      (l: DbLesson) => l.gradeLevel === user.gradeLevel && !l.isHidden
+    );
+    const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === studentId);
+
     res.json({ lessons: availableLessons, accesses });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/student/validate-code', async (req, res) => {
+app.post('/api/student/validate-code', authenticateStudent, async (req, res) => {
   try {
     const { lessonId, code } = req.body;
-    const userId = await getMockUserId(); // Dev mode bypass
-    
-    const [key] = await db.select().from(codes).where(eq(codes.codeString, code));
+    const studentId = (req as any).studentId;
+
+    const key = jsonDb.find('codes', (c: DbCode) => c.codeString === code);
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
-    
-    // Mark code as used
-    await db.update(codes).set({ isUsed: true, usedBy: userId }).where(eq(codes.id, key.id));
-    
-    // Grant access
-    await db.insert(studentLessonAccess).values({
-      userId,
+
+    jsonDb.update('codes', (c: DbCode) => c.id === key.id, { isUsed: true, usedBy: studentId });
+
+    const access: DbStudentLessonAccess = {
+      userId: studentId,
       lessonId,
+      unlockedAt: new Date().toISOString(),
       quizPassed: false,
-      quizExempt: false
-    });
-    
+      quizExempt: false,
+    };
+    jsonDb.insert('studentLessonAccess', access);
+
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -299,13 +349,13 @@ app.post('/api/student/validate-code', async (req, res) => {
 });
 
 // Fetch the real quiz for a lesson, with correct answers stripped so students can't see them.
-app.get('/api/student/quiz/:lessonId', async (req, res) => {
+app.get('/api/student/quiz/:lessonId', authenticateStudent, async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.lessonId, lessonId));
+    const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
     if (!quiz || !Array.isArray(quiz.questions)) return res.json({ questions: [] });
 
-    const sanitized = (quiz.questions as any[]).map((q: any) => ({
+    const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
       options: q.options,
       image: q.image || null,
@@ -316,12 +366,12 @@ app.get('/api/student/quiz/:lessonId', async (req, res) => {
   }
 });
 
-app.post('/api/student/submit-quiz', async (req, res) => {
+app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
   try {
     const { lessonId, answers } = req.body;
-    const userId = await getMockUserId(); // Dev mode bypass
+    const studentId = (req as any).studentId;
 
-    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.lessonId, lessonId));
+    const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
 
     let score = 0;
     let total = 10;
@@ -330,17 +380,33 @@ app.post('/api/student/submit-quiz', async (req, res) => {
       quiz.questions.forEach((q: any, idx: number) => {
         if (answers?.[idx] !== undefined && answers[idx] === q.correct_answer) score++;
       });
-    } else {
+    } else if (answers && answers.length >= 5) {
       // No quiz configured yet for this lesson: fall back to previous permissive behavior
-      if (answers && answers.length >= 5) score = 10;
+      score = 10;
     }
 
     const passed = score >= Math.ceil(total / 2);
 
     if (passed) {
-      await db.update(studentLessonAccess)
-        .set({ quizPassed: true })
-        .where(and(eq(studentLessonAccess.userId, userId), eq(studentLessonAccess.lessonId, lessonId)));
+      const existing = jsonDb.find(
+        'studentLessonAccess',
+        (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+      );
+      if (existing) {
+        jsonDb.update(
+          'studentLessonAccess',
+          (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
+          { quizPassed: true }
+        );
+      } else {
+        jsonDb.insert('studentLessonAccess', {
+          userId: studentId,
+          lessonId,
+          unlockedAt: new Date().toISOString(),
+          quizPassed: true,
+          quizExempt: false,
+        });
+      }
     }
 
     res.json({ score, total, passed });
