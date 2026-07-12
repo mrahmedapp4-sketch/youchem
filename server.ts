@@ -60,8 +60,8 @@ app.post('/api/teacher/login', async (req, res) => {
   const { password } = req.body;
   const isMatch = await bcrypt.compare(password, await bcrypt.hash('port5', 10));
   if (isMatch) {
-    const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
-    res.cookie('teacher_auth', token, { httpOnly: true }).json({ success: true });
+    const token = jwt.sign({ role: 'teacher' }, JWT_SECRET, { expiresIn: '1d' });
+    res.cookie('teacher_token', token, { httpOnly: true }).json({ success: true });
   } else {
     res.status(401).json({ error: 'Invalid password' });
   }
@@ -72,7 +72,7 @@ app.get('/api/teacher/check-auth', authenticateTeacher, (req, res) => {
 });
 
 app.post('/api/teacher/logout', (req, res) => {
-  res.clearCookie('teacher_auth').json({ success: true });
+  res.clearCookie('teacher_token').json({ success: true });
 });
 
 // Lessons API
