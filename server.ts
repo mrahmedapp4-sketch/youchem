@@ -10,7 +10,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 
 app.use(cors());
@@ -19,7 +19,7 @@ app.use(cookieParser());
 
 // Mock DB wrapper for safe startup
 const safeDbSelect = async (table: any, where?: any) => {
-  if (!process.env.SQL_HOST) {
+  if (!process.env.DATABASE_URL) {
     console.warn('DATABASE_URL is not set. Using mock empty data.');
     return [];
   }
