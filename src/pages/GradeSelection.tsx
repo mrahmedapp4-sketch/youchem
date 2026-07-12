@@ -38,6 +38,7 @@ export function GradeSelection() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">            مرحباً بك في <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">YouChem</span> Platform          </h1>
+          <p className="text-sm font-semibold text-slate-400 mb-2">by Mr.ahmed</p>
           <p className="text-slate-500">اختر الصف الدراسي الخاص بك للبدء</p>
         </div>
 

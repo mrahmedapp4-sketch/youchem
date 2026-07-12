@@ -1,0 +1,1 @@
+- [AI Studio import DB env mismatch](ai-studio-db-env-mismatch.md) — Google AI Studio exports often wire Drizzle db code to unset SQL_HOST/SQL_USER/etc instead of DATABASE_URL; fix on import.
