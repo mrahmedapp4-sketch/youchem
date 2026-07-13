@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "steps": {
+    "install": {
+      "commands": [
+        "export NODE_OPTIONS=--max-old-space-size=4096 && npm ci --omit=dev --legacy-peer-deps"
+      ]
+    },
+    "build": {
+      "inputs": [{ "step": "install" }],
+      "commands": [
+        "export NODE_OPTIONS=--max-old-space-size=4096 && npm run build"
+      ]
+    }
+  },
+  "deploy": {
+    "startCommand": "npm run start"
+  }
+}
