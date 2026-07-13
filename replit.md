@@ -31,5 +31,9 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 - Migrated all data storage from PostgreSQL/Drizzle to a JSON file (`data/db.json`) and removed `drizzle-orm`, `drizzle-kit`, `pg` entirely — the app has no database dependency now. The Replit Postgres database itself was left untouched (not deleted), just unused.
 - Replaced the old scratch-card/name-entry student flow (`StudentLogin.tsx`, dead code, never routed) with real Google sign-in. The AI Studio export had already baked a working Firebase Web App config into `firebase-applet-config.json`, including the Google OAuth web client ID, so no new secrets were needed for this.
 
+## Notes from re-import setup (July 13, 2026, later same day)
+- Project was re-imported into a fresh environment (empty `node_modules`, no secrets carried over). Ran `pnpm install`, asked the user for `TEACHER_PASSWORD` again (secrets don't survive environment recreation), and restarted the workflow. App verified running: login screen renders correctly with the Google sign-in button.
+- The two 401s seen in the browser console on first load are expected — they're auth-check calls (e.g. session/profile check) firing before the user signs in.
+
 ## User preferences
 - Communicate in Arabic when the user writes in Arabic.
