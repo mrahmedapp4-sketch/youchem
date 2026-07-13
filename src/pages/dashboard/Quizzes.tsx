@@ -1,6 +1,8 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { ImagePlus, X } from 'lucide-react';
 
+const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
+
 // All question images are normalized to this fixed size on upload, so every
 // question looks identical (same crop/proportions) on mobile, tablet and desktop.
 const IMAGE_WIDTH = 800;
@@ -41,7 +43,7 @@ export function Quizzes() {
   
   // Array of 10 questions
   const [questions, setQuestions] = useState(
-    Array(10).fill({ question: '', options: ['', '', '', ''], correct_answer: '0', image: '' })
+    Array(10).fill({ question: '', correct_answer: 'A', image: '' })
   );
 
   useEffect(() => {
@@ -67,14 +69,6 @@ export function Quizzes() {
     setQuestions(newQs);
   };
 
-  const updateOption = (qIndex: number, oIndex: number, value: string) => {
-    const newQs = [...questions];
-    const newOptions = [...newQs[qIndex].options];
-    newOptions[oIndex] = value;
-    newQs[qIndex] = { ...newQs[qIndex], options: newOptions };
-    setQuestions(newQs);
-  };
-
   const handleSaveQuiz = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedLesson) return alert('الرجاء اختيار حصة');
@@ -87,7 +81,7 @@ export function Quizzes() {
       });
       if (res.ok) {
         alert('تم حفظ الاختبار بنجاح');
-        setQuestions(Array(10).fill({ question: '', options: ['', '', '', ''], correct_answer: '0', image: '' }));
+        setQuestions(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
       }
     } catch (err) {
       alert('خطأ في حفظ الاختبار');
@@ -183,27 +177,20 @@ export function Quizzes() {
                 )}
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[0, 1, 2, 3].map(oIndex => (
-                  <div key={oIndex} className="flex items-center gap-2">
-                    <input 
-                      type="radio" 
-                      name={`q-${qIndex}-correct`} 
-                      value={oIndex.toString()}
-                      checked={q.correct_answer === oIndex.toString()}
-                      onChange={e => updateQuestion(qIndex, 'correct_answer', e.target.value)}
-                      className="w-4 h-4 accent-cyan-400"
-                    />
-                    <input 
-                      type="text" 
-                      placeholder={`الخيار ${oIndex + 1}`}
-                      required
-                      value={q.options[oIndex]}
-                      onChange={e => updateOption(qIndex, oIndex, e.target.value)}
-                      className="neon-input flex-1 px-4 py-2 rounded-xl"
-                    />
-                  </div>
-                ))}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-300">الإجابة الصحيحة</label>
+                <div className="flex gap-3">
+                  {ANSWER_LETTERS.map(letter => (
+                    <button
+                      key={letter}
+                      type="button"
+                      onClick={() => updateQuestion(qIndex, 'correct_answer', letter)}
+                      className={`w-14 h-14 rounded-xl font-bold text-lg border-2 transition-all ${q.correct_answer === letter ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 neon-glow-ring' : 'bg-white/5 border-slate-700 text-slate-300 hover:border-cyan-500/40'}`}
+                    >
+                      {letter}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ))}

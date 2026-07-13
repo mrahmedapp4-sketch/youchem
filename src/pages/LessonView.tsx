@@ -273,33 +273,30 @@ export function LessonView() {
                   <p className={`text-4xl font-extrabold ${quizResult.passed ? 'text-emerald-300' : 'text-red-300'}`}>
                     {quizResult.score} / {quizResult.total}
                   </p>
+                  <p className="text-lg font-bold text-slate-300 mt-1">
+                    ({Math.round((quizResult.score / quizResult.total) * 100)}%)
+                  </p>
                   <p className="mt-2 font-semibold text-slate-200">
                     {quizResult.passed ? 'مبروك! لقد اجتزت الاختبار وتم فتح الفيديو.' : 'لم تجتز الاختبار بعد.'}
                   </p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {(quizResult.results || []).map((r: any, idx: number) => (
                     <div
                       key={idx}
-                      className={`p-5 rounded-xl border space-y-2 ${r.isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}
+                      className={`p-4 rounded-xl border space-y-1 ${r.isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-2">
                         {r.isCorrect ? (
-                          <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-1" />
+                          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
                         ) : (
-                          <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-1" />
+                          <XCircle className="w-4 h-4 text-red-400 shrink-0" />
                         )}
-                        <div className="space-y-1">
-                          <p className="font-bold text-white">السؤال {idx + 1}: {r.question}</p>
-                          {!r.isCorrect && (
-                            <p className="text-red-300 text-sm">
-                              إجابتك: {r.studentAnswer !== null ? r.options[Number(r.studentAnswer)] : 'لم تجب'}
-                            </p>
-                          )}
-                          <p className="text-emerald-300 text-sm">الإجابة الصحيحة: {r.options[Number(r.correctAnswer)]}</p>
-                        </div>
+                        <span className="font-bold text-white">سؤال {idx + 1}</span>
                       </div>
+                      {!r.isCorrect && <p className="text-red-300 text-sm">إجابتك: {r.studentAnswer || 'لم تجب'}</p>}
+                      <p className="text-emerald-300 text-sm">الإجابة الصحيحة: {r.correctAnswer}</p>
                     </div>
                   ))}
                 </div>
@@ -320,22 +317,16 @@ export function LessonView() {
                           <img src={q.image} alt={`صورة السؤال ${idx + 1}`} className="w-full h-full object-contain" />
                         </div>
                       )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                        {q.options.map((opt: string, oIdx: number) => (
-                          <label 
-                            key={oIdx}
-                            className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${answers[idx] === oIdx.toString() ? 'bg-cyan-400/10 border-cyan-400 neon-glow-ring' : 'bg-white/5 border-slate-700 hover:border-cyan-500/40'}`}
+                      <div className="flex gap-3 mt-4">
+                        {ANSWER_LETTERS.map((letter) => (
+                          <button
+                            key={letter}
+                            type="button"
+                            onClick={() => handleOptionSelect(idx, letter)}
+                            className={`flex-1 py-4 rounded-xl border-2 font-bold text-lg transition-all ${answers[idx] === letter ? 'bg-cyan-400/10 border-cyan-400 text-cyan-300 neon-glow-ring' : 'bg-white/5 border-slate-700 text-slate-200 hover:border-cyan-500/40'}`}
                           >
-                            <input 
-                              type="radio" 
-                              name={`q-${idx}`}
-                              value={oIdx.toString()}
-                              checked={answers[idx] === oIdx.toString()}
-                              onChange={(e) => handleOptionSelect(idx, e.target.value)}
-                              className="w-5 h-5 accent-cyan-400"
-                            />
-                            <span className="font-medium text-slate-200">{opt}</span>
-                          </label>
+                            {letter}
+                          </button>
                         ))}
                       </div>
                     </div>

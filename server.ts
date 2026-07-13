@@ -476,7 +476,6 @@ app.get('/api/student/quiz/:lessonId', authenticateStudent, async (req, res) => 
 
     const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
-      options: q.options,
       image: q.image || null,
     }));
     res.json({ questions: sanitized });
@@ -496,17 +495,16 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
     let total = 10;
     // Per-question breakdown so the student can see what they got right/wrong
     // and what the correct answer was, right after submitting.
-    let results: Array<{ question: string; options: string[]; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }> = [];
+    let results: Array<{ question: string; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }> = [];
 
     if (quiz && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
       total = quiz.questions.length;
       results = quiz.questions.map((q: any, idx: number) => {
-        const studentAnswer = answers?.[idx] !== undefined ? answers[idx] : null;
+        const studentAnswer = answers?.[idx] !== undefined && answers[idx] !== '' ? answers[idx] : null;
         const isCorrect = studentAnswer !== null && studentAnswer === q.correct_answer;
         if (isCorrect) score++;
         return {
           question: q.question,
-          options: q.options,
           studentAnswer,
           correctAnswer: q.correct_answer,
           isCorrect,
