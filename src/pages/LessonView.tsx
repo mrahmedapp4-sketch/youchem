@@ -386,6 +386,9 @@ export function LessonView() {
                   <p className="text-4xl font-extrabold text-cyan-300">
                     {homeworkResult.score} / {homeworkResult.total}
                   </p>
+                  <p className="text-lg font-bold text-slate-300 mt-1">
+                    ({Math.round((homeworkResult.score / homeworkResult.total) * 100)}%)
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
