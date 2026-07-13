@@ -13,6 +13,7 @@ export interface DbUser {
   name: string;
   email: string;
   phone?: string;
+  guardianPhone?: string;
   school?: string;
   role: 'student' | 'admin';
   gradeLevel?: '2nd_sec' | '3rd_sec' | null;

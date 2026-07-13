@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Video, CheckCircle, Lock, LogOut, PlayCircle } from 'lucide-react';
+import { Video, CheckCircle, Lock, LogOut, PlayCircle, FileText, Download, ClipboardList } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+
+type Section = 'lessons' | 'homework';
 
 export function StudentDashboard() {
   const navigate = useNavigate();
+  const [section, setSection] = useState<Section>('lessons');
   const [lessons, setLessons] = useState<any[]>([]);
   const [accesses, setAccesses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [homeworks, setHomeworks] = useState<any[]>([]);
+  const [homeworksLoading, setHomeworksLoading] = useState(true);
 
   useEffect(() => {
     const fetchLessons = async () => {
@@ -28,6 +34,22 @@ export function StudentDashboard() {
     };
     fetchLessons();
   }, [navigate]);
+
+  useEffect(() => {
+    const fetchHomeworks = async () => {
+      try {
+        const res = await fetch('/api/student/homeworks');
+        if (res.ok) {
+          setHomeworks(await res.json());
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setHomeworksLoading(false);
+      }
+    };
+    fetchHomeworks();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -69,7 +91,33 @@ export function StudentDashboard() {
           <p className="text-slate-400 mt-2">استكمل رحلة التعلم الخاصة بك.</p>
         </div>
 
-        {loading ? (
+        {/* Section Tabs */}
+        <div className="flex gap-3 mb-8 border-b border-cyan-500/10 pb-1">
+          <button
+            onClick={() => setSection('lessons')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-t-xl font-bold transition-colors ${
+              section === 'lessons'
+                ? 'text-cyan-300 border-b-2 border-cyan-400 bg-cyan-400/5'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Video className="w-5 h-5" />
+            الحصص
+          </button>
+          <button
+            onClick={() => setSection('homework')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-t-xl font-bold transition-colors ${
+              section === 'homework'
+                ? 'text-cyan-300 border-b-2 border-cyan-400 bg-cyan-400/5'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ClipboardList className="w-5 h-5" />
+            واجباتي
+          </button>
+        </div>
+
+        {section === 'lessons' && (loading ? (
           <div className="text-center p-8 text-slate-400">جاري التحميل...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -125,7 +173,56 @@ export function StudentDashboard() {
               </div>
             )}
           </div>
-        )}
+        ))}
+
+        {section === 'homework' && (homeworksLoading ? (
+          <div className="text-center p-8 text-slate-400">جاري التحميل...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {homeworks.map((hw) => (
+              <div key={hw.homeworkId} className="neon-card rounded-2xl overflow-hidden h-full flex flex-col p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-cyan-400/10 flex items-center justify-center shrink-0">
+                    <FileText className="w-6 h-6 text-cyan-300" />
+                  </div>
+                  <h3 className="font-bold text-lg text-white">{hw.lessonTitle}</h3>
+                </div>
+
+                <a
+                  href={hw.pdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-cyan-300 hover:text-cyan-200 font-semibold text-sm mb-4"
+                >
+                  <Download className="w-4 h-4" />
+                  تحميل ملف الواجب
+                </a>
+
+                <div className="mt-auto pt-4 flex items-center justify-between">
+                  {hw.submission ? (
+                    <span className="text-sm font-bold text-emerald-400">
+                      تم التصحيح: {hw.submission.score} / {hw.submission.total}
+                    </span>
+                  ) : (
+                    <span className="text-sm font-semibold text-slate-500">لم تتم الإجابة بعد</span>
+                  )}
+                  <Link
+                    to={`/lessons/${hw.lessonId}`}
+                    className="neon-btn px-4 py-2 rounded-lg text-sm font-bold"
+                  >
+                    {hw.submission ? 'عرض الواجب' : 'حل الواجب'}
+                  </Link>
+                </div>
+              </div>
+            ))}
+
+            {homeworks.length === 0 && (
+              <div className="col-span-full p-8 text-center text-slate-400 neon-card rounded-2xl">
+                لا توجد واجبات متاحة حالياً.
+              </div>
+            )}
+          </div>
+        ))}
       </main>
     </div>
   );

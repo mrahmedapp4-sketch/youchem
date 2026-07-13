@@ -370,6 +370,7 @@ app.post('/api/student/google-login', async (req, res) => {
         name: name || 'طالب',
         email,
         phone: '',
+        guardianPhone: '',
         school: '',
         role: 'student',
         gradeLevel: null,
@@ -387,7 +388,7 @@ app.post('/api/student/google-login', async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
-    const needsProfile = !user.phone || !user.school || !user.gradeLevel;
+    const needsProfile = !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
     res.json({ success: true, user, needsProfile, picture });
   } catch (err: any) {
     console.error('Google login failed:', err.message);
@@ -399,18 +400,18 @@ app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
   const studentId = (req as any).studentId;
   const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const needsProfile = !user.phone || !user.school || !user.gradeLevel;
+  const needsProfile = !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
   res.json({ success: true, user, needsProfile });
 });
 
 app.post('/api/student/complete-profile', authenticateStudent, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
-    const { phone, school, gradeLevel } = req.body;
-    if (!phone || !school || !gradeLevel) {
-      return res.status(400).json({ error: 'الرجاء إدخال رقم الهاتف والمدرسة والصف الدراسي' });
+    const { phone, guardianPhone, school, gradeLevel } = req.body;
+    if (!phone || !guardianPhone || !school || !gradeLevel) {
+      return res.status(400).json({ error: 'الرجاء إدخال رقم الهاتف ورقم ولي الأمر والمدرسة والصف الدراسي' });
     }
-    const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, { phone, school, gradeLevel });
+    const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, { phone, guardianPhone, school, gradeLevel });
     if (!updated) return res.status(404).json({ error: 'المستخدم غير موجود' });
     res.json({ success: true, user: updated });
   } catch (err: any) {
@@ -560,6 +561,44 @@ app.get('/api/student/homework/:lessonId', authenticateStudent, async (req, res)
         numQuestions: homework.numQuestions,
       },
     });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Aggregated homework list across all of the student's lessons, with submission status,
+// used to power the "واجباتي" (My Homework) section of the student dashboard.
+app.get('/api/student/homeworks', authenticateStudent, async (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
+    if (!user || !user.gradeLevel) return res.status(400).json({ error: 'Grade not set' });
+
+    const lessons = jsonDb.filter(
+      'lessons',
+      (l: DbLesson) => l.gradeLevel === user.gradeLevel && !l.isHidden
+    );
+    const lessonIds = new Set(lessons.map((l: DbLesson) => l.id));
+    const homeworks = jsonDb.filter('homeworks', (h: DbHomework) => lessonIds.has(h.lessonId));
+    const submissions = jsonDb.filter(
+      'homeworkSubmissions',
+      (s: DbHomeworkSubmission) => s.userId === studentId
+    );
+
+    const result = homeworks.map((h: DbHomework) => {
+      const lesson = lessons.find((l: DbLesson) => l.id === h.lessonId);
+      const submission = submissions.find((s: DbHomeworkSubmission) => s.homeworkId === h.id);
+      return {
+        homeworkId: h.id,
+        lessonId: h.lessonId,
+        lessonTitle: lesson?.title || '',
+        pdfUrl: h.pdfUrl,
+        numQuestions: h.numQuestions,
+        submission: submission ? { score: submission.score, total: submission.total } : null,
+      };
+    });
+
+    res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

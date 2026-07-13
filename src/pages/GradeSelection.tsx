@@ -11,6 +11,7 @@ export function GradeSelection() {
   const [error, setError] = useState('');
 
   const [phone, setPhone] = useState('');
+  const [guardianPhone, setGuardianPhone] = useState('');
   const [school, setSchool] = useState('');
   const [gradeLevel, setGradeLevel] = useState('2nd_sec');
 
@@ -71,7 +72,7 @@ export function GradeSelection() {
       const res = await fetch('/api/student/complete-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, school, gradeLevel }),
+        body: JSON.stringify({ phone, guardianPhone, school, gradeLevel }),
       });
       if (res.ok) {
         navigate('/student-dashboard');
@@ -153,6 +154,18 @@ export function GradeSelection() {
                 className="neon-input w-full p-3 rounded-xl"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                placeholder="01xxxxxxxxx"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-300">رقم ولي الأمر</label>
+              <input
+                type="tel"
+                required
+                dir="ltr"
+                className="neon-input w-full p-3 rounded-xl"
+                value={guardianPhone}
+                onChange={(e) => setGuardianPhone(e.target.value)}
                 placeholder="01xxxxxxxxx"
               />
             </div>
