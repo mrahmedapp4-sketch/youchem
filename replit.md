@@ -12,7 +12,7 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 - **Other integrations referenced but not yet wired up:** Google Gemini (`@google/genai`), Vimeo TUS uploads — no server code currently calls these, they're leftover from the AI Studio scaffold
 
 ## Running the app
-- Workflow **"Start application"** runs `npm run dev` (tsx server.ts), serving on port 5000.
+- Workflow **"Start application"** runs `pnpm run dev` (tsx server.ts), serving on port 5000. Deployment build/run also use `pnpm` (`pnpm run build` / `pnpm run start`).
 - Default teacher login password used by `server.ts` is a hardcoded value (`port5`) — should be replaced with a real credential/secret before going live.
 - `data/db.json` is created automatically on first run if missing; back it up before making risky changes since it's the only copy of lesson/quiz/student data.
 
