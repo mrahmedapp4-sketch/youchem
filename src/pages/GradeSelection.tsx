@@ -59,7 +59,13 @@ export function GradeSelection() {
         setError(data.error || 'فشل تسجيل الدخول بحساب جوجل');
       }
     } catch (err) {
-      setError('حدث خطأ أثناء تسجيل الدخول بحساب جوجل');
+      console.error('Google sign-in failed:', err);
+      const code = (err as { code?: string })?.code;
+      setError(
+        code
+          ? `حدث خطأ أثناء تسجيل الدخول بحساب جوجل (${code})`
+          : 'حدث خطأ أثناء تسجيل الدخول بحساب جوجل',
+      );
     }
     setSigningIn(false);
   };
