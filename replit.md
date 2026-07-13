@@ -35,5 +35,11 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 - Project was re-imported into a fresh environment (empty `node_modules`, no secrets carried over). Ran `pnpm install`, asked the user for `TEACHER_PASSWORD` again (secrets don't survive environment recreation), and restarted the workflow. App verified running: login screen renders correctly with the Google sign-in button.
 - The two 401s seen in the browser console on first load are expected — they're auth-check calls (e.g. session/profile check) firing before the user signs in.
 
+## Notes on Google sign-in setup (July 13, 2026)
+- The original `firebase-applet-config.json` pointed at an AI-Studio-provisioned Firebase project (`iconic-academy-n07pf`) on the locked "Starter Tier" — nobody has edit access to it (Authentication → Settings shows "ask a project owner for the necessary permission", no Add-domain button), so the Replit dev domain could never be authorized and Google sign-in always failed with a generic error.
+- Fixed by pointing the app at a new Firebase project the user actually owns (`youchem-platform`): replaced `firebase-applet-config.json` with its config (apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId, oAuthClientId), enabled the Google sign-in provider there, and added the Replit dev domain to that project's Authorized domains.
+- `oAuthClientId` in `firebase-applet-config.json` is the Google **Web client ID** (`...apps.googleusercontent.com`) found under Firebase Authentication → Sign-in method → Google → Web SDK configuration — it's the audience `server.ts` uses to verify Google ID tokens via `google-auth-library`. It must match whichever Firebase project's Google provider issued the token.
+- If the Replit dev domain ever changes (e.g. new Repl, or after publishing), the new domain must be added again under Authentication → Settings → Authorized domains in the `youchem-platform` Firebase project, or Google sign-in will fail the same way.
+
 ## User preferences
 - Communicate in Arabic when the user writes in Arabic.
