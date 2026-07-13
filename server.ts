@@ -6,12 +6,28 @@ import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
+import { randomBytes } from 'crypto';
 import { jsonDb, newId, DbUser, DbLesson, DbQuiz, DbCode, DbStudentLessonAccess } from './src/db/jsonStore.ts';
 import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
+
+// JWT_SECRET falls back to SESSION_SECRET (a real managed secret) so tokens
+// can never be forged using a hardcoded, publicly-visible default.
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET or SESSION_SECRET must be set to sign auth tokens.');
+}
+
+// Teacher login password lives only in the TEACHER_PASSWORD secret, never in
+// source. We hash it once at startup and compare hashes on every login
+// attempt instead of hashing the plaintext on every request.
+const TEACHER_PASSWORD = process.env.TEACHER_PASSWORD;
+if (!TEACHER_PASSWORD) {
+  throw new Error('TEACHER_PASSWORD secret must be set for teacher login.');
+}
+const teacherPasswordHashPromise = bcrypt.hash(TEACHER_PASSWORD, 10);
 
 // Used to verify the Google ID token returned by the frontend Firebase sign-in.
 // This is the public OAuth web client ID Firebase generated for this project
@@ -53,7 +69,7 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
 // --- TEACHER API ---
 app.post('/api/teacher/login', async (req, res) => {
   const { password } = req.body;
-  const isMatch = await bcrypt.compare(password, await bcrypt.hash('port5', 10));
+  const isMatch = typeof password === 'string' && await bcrypt.compare(password, await teacherPasswordHashPromise);
   if (isMatch) {
     const token = jwt.sign({ role: 'teacher' }, JWT_SECRET, { expiresIn: '1d' });
     res.cookie('teacher_token', token, { httpOnly: true }).json({ success: true });
@@ -140,7 +156,7 @@ app.post('/api/youchem/codes/generate', authenticateTeacher, async (req, res) =>
     for (let i = 0; i < count; i++) {
       const code: DbCode = {
         id: newId(),
-        codeString: `YCH-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+        codeString: `YCH-${randomBytes(4).toString('hex').toUpperCase()}`,
         isUsed: false,
         usedBy: null,
         createdAt: new Date().toISOString(),
