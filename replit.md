@@ -16,6 +16,10 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 - Default teacher login password used by `server.ts` is a hardcoded value (`port5`) — should be replaced with a real credential/secret before going live.
 - `data/db.json` is created automatically on first run if missing; back it up before making risky changes since it's the only copy of lesson/quiz/student data.
 
+## Notes from import setup (July 13, 2026)
+- `TEACHER_PASSWORD` secret is now set (server.ts throws on boot without it). `JWT_SECRET` still falls back to `SESSION_SECRET` if unset.
+- App verified running and reachable (login screen renders, Google sign-in button present).
+
 ## Notes from import setup (July 2026)
 - Fixed a bug where `src/db/index.ts` connected using unset `SQL_HOST`/`SQL_USER`/`SQL_PASSWORD`/`SQL_DB_NAME` vars; it now uses Replit's `DATABASE_URL`. (This file no longer exists — superseded by the JSON migration below.)
 - Changed the server port from a hardcoded 3000 to 5000 (via `process.env.PORT` fallback) to match Replit's webview requirement.
