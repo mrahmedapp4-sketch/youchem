@@ -1,13 +1,25 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import multer from 'multer';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import { randomBytes } from 'crypto';
-import { jsonDb, newId, DbUser, DbLesson, DbQuiz, DbCode, DbStudentLessonAccess } from './src/db/jsonStore.ts';
+import {
+  jsonDb,
+  newId,
+  DbUser,
+  DbLesson,
+  DbQuiz,
+  DbCode,
+  DbStudentLessonAccess,
+  DbHomework,
+  DbHomeworkSubmission,
+} from './src/db/jsonStore.ts';
 import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
 
 const app = express();
@@ -39,6 +51,24 @@ app.use(cors());
 // Quiz questions can include base64-encoded images, so raise the default 100kb JSON limit.
 app.use(express.json({ limit: '15mb' }));
 app.use(cookieParser());
+
+// Homework PDFs are stored on disk under data/uploads (gitignored, contains
+// no student PII by itself) and served back as static files.
+const UPLOADS_DIR = path.join(process.cwd(), 'data', 'uploads', 'homeworks');
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+app.use('/uploads/homeworks', express.static(UPLOADS_DIR));
+
+const homeworkUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => cb(null, `${newId()}.pdf`),
+  }),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype !== 'application/pdf') return cb(new Error('يجب أن يكون الملف بصيغة PDF'));
+    cb(null, true);
+  },
+});
 
 // Authentication Middleware
 const authenticateTeacher = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -135,6 +165,15 @@ app.delete('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => 
     jsonDb.remove('lessons', (l: DbLesson) => l.id === id);
     jsonDb.remove('quizzes', (q: DbQuiz) => q.lessonId === id);
     jsonDb.remove('studentLessonAccess', (a: DbStudentLessonAccess) => a.lessonId === id);
+
+    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === id);
+    if (homework) {
+      const filePath = path.join(UPLOADS_DIR, path.basename(homework.pdfUrl));
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      jsonDb.remove('homeworkSubmissions', (s: DbHomeworkSubmission) => s.homeworkId === homework.id);
+    }
+    jsonDb.remove('homeworks', (h: DbHomework) => h.lessonId === id);
+
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -194,6 +233,69 @@ app.post('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
     const quiz: DbQuiz = { id: newId(), lessonId, questions, createdAt: new Date().toISOString() };
     jsonDb.insert('quizzes', quiz);
     res.json(quiz);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Homework API (bubble-sheet PDF homework)
+app.get('/api/youchem/homeworks', authenticateTeacher, async (req, res) => {
+  try {
+    res.json(jsonDb.getAll('homeworks'));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/youchem/homework', authenticateTeacher, homeworkUpload.single('pdf'), async (req, res) => {
+  try {
+    const { lessonId, numQuestions, answerKey } = req.body;
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'ملف PDF مطلوب' });
+
+    const parsedAnswerKey = JSON.parse(answerKey);
+    const parsedNumQuestions = parseInt(numQuestions, 10);
+    if (!Array.isArray(parsedAnswerKey) || parsedAnswerKey.length !== parsedNumQuestions) {
+      fs.unlinkSync(file.path);
+      return res.status(400).json({ error: 'عدد الأسئلة لا يطابق نموذج الإجابة' });
+    }
+
+    // Only one homework per lesson: replace any previous one (and its file).
+    const existing = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === lessonId);
+    if (existing) {
+      const oldPath = path.join(UPLOADS_DIR, path.basename(existing.pdfUrl));
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      jsonDb.remove('homeworks', (h: DbHomework) => h.id === existing.id);
+      jsonDb.remove('homeworkSubmissions', (s: DbHomeworkSubmission) => s.homeworkId === existing.id);
+    }
+
+    const homework: DbHomework = {
+      id: newId(),
+      lessonId,
+      pdfUrl: `/uploads/homeworks/${file.filename}`,
+      pdfFileName: file.originalname,
+      numQuestions: parsedNumQuestions,
+      answerKey: parsedAnswerKey,
+      createdAt: new Date().toISOString(),
+    };
+    jsonDb.insert('homeworks', homework);
+    res.json(homework);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/youchem/homework/:id', authenticateTeacher, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.id === id);
+    if (homework) {
+      const filePath = path.join(UPLOADS_DIR, path.basename(homework.pdfUrl));
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+    jsonDb.remove('homeworks', (h: DbHomework) => h.id === id);
+    jsonDb.remove('homeworkSubmissions', (s: DbHomeworkSubmission) => s.homeworkId === id);
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -391,10 +493,23 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
 
     let score = 0;
     let total = 10;
+    // Per-question breakdown so the student can see what they got right/wrong
+    // and what the correct answer was, right after submitting.
+    let results: Array<{ question: string; options: string[]; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }> = [];
+
     if (quiz && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
       total = quiz.questions.length;
-      quiz.questions.forEach((q: any, idx: number) => {
-        if (answers?.[idx] !== undefined && answers[idx] === q.correct_answer) score++;
+      results = quiz.questions.map((q: any, idx: number) => {
+        const studentAnswer = answers?.[idx] !== undefined ? answers[idx] : null;
+        const isCorrect = studentAnswer !== null && studentAnswer === q.correct_answer;
+        if (isCorrect) score++;
+        return {
+          question: q.question,
+          options: q.options,
+          studentAnswer,
+          correctAnswer: q.correct_answer,
+          isCorrect,
+        };
       });
     } else if (answers && answers.length >= 5) {
       // No quiz configured yet for this lesson: fall back to previous permissive behavior
@@ -425,7 +540,63 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
       }
     }
 
-    res.json({ score, total, passed });
+    res.json({ score, total, passed, results });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Homework: fetch the PDF + question count for a lesson, without the answer key.
+app.get('/api/student/homework/:lessonId', authenticateStudent, async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === lessonId);
+    if (!homework) return res.json({ homework: null });
+    res.json({
+      homework: {
+        id: homework.id,
+        pdfUrl: homework.pdfUrl,
+        pdfFileName: homework.pdfFileName,
+        numQuestions: homework.numQuestions,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/student/submit-homework', authenticateStudent, async (req, res) => {
+  try {
+    const { lessonId, answers } = req.body;
+    const studentId = (req as any).studentId;
+
+    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === lessonId);
+    if (!homework) return res.status(404).json({ error: 'لا يوجد واجب لهذا الدرس' });
+    if (!Array.isArray(answers) || answers.length !== homework.numQuestions) {
+      return res.status(400).json({ error: 'الرجاء الإجابة على جميع الأسئلة' });
+    }
+
+    let score = 0;
+    const results = homework.answerKey.map((correctAnswer, idx) => {
+      const studentAnswer = answers[idx] ?? null;
+      const isCorrect = studentAnswer === correctAnswer;
+      if (isCorrect) score++;
+      return { questionNumber: idx + 1, studentAnswer, correctAnswer, isCorrect };
+    });
+
+    const submission: DbHomeworkSubmission = {
+      id: newId(),
+      userId: studentId,
+      homeworkId: homework.id,
+      lessonId,
+      answers,
+      score,
+      total: homework.numQuestions,
+      createdAt: new Date().toISOString(),
+    };
+    jsonDb.insert('homeworkSubmissions', submission);
+
+    res.json({ score, total: homework.numQuestions, results });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

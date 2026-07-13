@@ -1,1 +1,2 @@
 - [AI Studio import DB env mismatch](ai-studio-db-env-mismatch.md) — Google AI Studio exports often wire Drizzle db code to unset SQL_HOST/SQL_USER/etc instead of DATABASE_URL; fix on import.
+- [tsx dev server has no hot-reload](tsx-no-server-hmr.md) — `tsx server.ts` (no --watch) needs a workflow restart after any server-side edit; Vite's "page reload" log is frontend-only and misleading.

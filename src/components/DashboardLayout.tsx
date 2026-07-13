@@ -1,11 +1,12 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Key, Upload, FileQuestion, Users, Mail, Menu, X, LogOut } from 'lucide-react';
+import { BookOpen, Key, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const navItems = [
   { path: '/youchem/upload', label: 'إدارة الفيديوهات', icon: Upload },
   { path: '/youchem/codes', label: 'أكواد', icon: Key },
   { path: '/youchem/quizzes', label: 'Quizzes', icon: FileQuestion },
+  { path: '/youchem/homework', label: 'الواجبات', icon: FileText },
   { path: '/youchem/students', label: 'طلاب', icon: Users },
   { path: '/youchem/emails', label: 'Gmails', icon: Mail },
 ];

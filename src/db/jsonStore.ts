@@ -53,12 +53,38 @@ export interface DbStudentLessonAccess {
   quizExempt: boolean;
 }
 
+// A homework is a PDF the teacher publishes for a lesson, plus a bubble-sheet
+// answer key (one letter per question number). Students solve the PDF on
+// paper, then pick their answer per question number on the platform.
+export interface DbHomework {
+  id: string;
+  lessonId: string;
+  pdfUrl: string;
+  pdfFileName: string;
+  numQuestions: number;
+  answerKey: string[]; // e.g. ['A', 'C', 'B', ...], one entry per question
+  createdAt: string;
+}
+
+export interface DbHomeworkSubmission {
+  id: string;
+  userId: string;
+  homeworkId: string;
+  lessonId: string;
+  answers: string[];
+  score: number;
+  total: number;
+  createdAt: string;
+}
+
 interface DBShape {
   users: DbUser[];
   lessons: DbLesson[];
   quizzes: DbQuiz[];
   codes: DbCode[];
   studentLessonAccess: DbStudentLessonAccess[];
+  homeworks: DbHomework[];
+  homeworkSubmissions: DbHomeworkSubmission[];
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -70,6 +96,8 @@ const emptyData = (): DBShape => ({
   quizzes: [],
   codes: [],
   studentLessonAccess: [],
+  homeworks: [],
+  homeworkSubmissions: [],
 });
 
 let cache: DBShape | null = null;

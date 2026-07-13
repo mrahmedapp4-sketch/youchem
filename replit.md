@@ -19,6 +19,9 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 ## Notes from import setup (July 13, 2026)
 - `TEACHER_PASSWORD` secret is now set (server.ts throws on boot without it). `JWT_SECRET` still falls back to `SESSION_SECRET` if unset.
 - App verified running and reachable (login screen renders, Google sign-in button present).
+- **tsx does not hot-reload server-side code.** `npm run dev` runs `tsx server.ts` with no `--watch`; editing `server.ts` or files it imports (e.g. `src/db/jsonStore.ts`) requires restarting the "Start application" workflow to take effect. Only frontend files get Vite HMR.
+- Added a quiz-results feature: `/api/student/submit-quiz` now returns a per-question `results` array (student answer, correct answer, right/wrong), shown to the student immediately after submitting in `src/pages/LessonView.tsx`.
+- Added a homework feature (bubble-sheet PDF homework): teachers upload a PDF + set question count + per-question answer key (A/B/C/D) from a new "الواجبات" dashboard tab (`src/pages/dashboard/Homework.tsx`, `/youchem/homework`). Students see the section on their lesson page, download the PDF, pick an answer per question number, and get instant score + right/wrong feedback (`/api/student/homework/:lessonId`, `/api/student/submit-homework`). PDFs are stored on disk under `data/uploads/homeworks/` (uses `multer`) and served at `/uploads/homeworks/*`. One homework per lesson; deleting a lesson also deletes its homework file/record.
 
 ## Notes from import setup (July 2026)
 - Fixed a bug where `src/db/index.ts` connected using unset `SQL_HOST`/`SQL_USER`/`SQL_PASSWORD`/`SQL_DB_NAME` vars; it now uses Replit's `DATABASE_URL`. (This file no longer exists — superseded by the JSON migration below.)

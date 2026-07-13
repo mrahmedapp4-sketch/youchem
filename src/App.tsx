@@ -4,6 +4,7 @@ import { TeacherAuthGuard } from './components/TeacherAuthGuard';
 import { Codes } from './pages/dashboard/Codes';
 import { UploadVideo } from './pages/dashboard/Upload';
 import { Quizzes } from './pages/dashboard/Quizzes';
+import { Homework } from './pages/dashboard/Homework';
 import { Students } from './pages/dashboard/Students';
 import { Emails } from './pages/dashboard/Emails';
 import { TeacherLogin } from './pages/TeacherLogin';
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="codes" element={<Codes />} />
             <Route path="upload" element={<UploadVideo />} />
             <Route path="quizzes" element={<Quizzes />} />
+            <Route path="homework" element={<Homework />} />
             <Route path="students" element={<Students />} />
             <Route path="emails" element={<Emails />} />
           </Route>

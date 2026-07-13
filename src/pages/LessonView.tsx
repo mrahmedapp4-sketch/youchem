@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Key, CheckCircle, Video } from 'lucide-react';
+import { ArrowRight, Lock, Key, CheckCircle, XCircle, Video, FileText, Download } from 'lucide-react';
+
+const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 
 export function LessonView() {
   const { id } = useParams();
@@ -20,9 +22,18 @@ export function LessonView() {
   const [quizLoading, setQuizLoading] = useState(false);
   const [answers, setAnswers] = useState<string[]>([]);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
+  const [quizResult, setQuizResult] = useState<any>(null);
+
+  // Homework State
+  const [homework, setHomework] = useState<any>(null);
+  const [homeworkLoading, setHomeworkLoading] = useState(false);
+  const [homeworkAnswers, setHomeworkAnswers] = useState<string[]>([]);
+  const [submittingHomework, setSubmittingHomework] = useState(false);
+  const [homeworkResult, setHomeworkResult] = useState<any>(null);
 
   useEffect(() => {
     fetchLessonData();
+    fetchHomework();
   }, [id]);
 
   useEffect(() => {
@@ -32,6 +43,48 @@ export function LessonView() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson, access]);
+
+  const fetchHomework = async () => {
+    setHomeworkLoading(true);
+    try {
+      const res = await fetch(`/api/student/homework/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHomework(data.homework);
+        if (data.homework) setHomeworkAnswers(Array(data.homework.numQuestions).fill(''));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setHomeworkLoading(false);
+  };
+
+  const handleHomeworkOptionSelect = (qIndex: number, letter: string) => {
+    const next = [...homeworkAnswers];
+    next[qIndex] = letter;
+    setHomeworkAnswers(next);
+  };
+
+  const handleSubmitHomework = async () => {
+    if (homeworkAnswers.includes('')) return alert('الرجاء الإجابة على جميع الأسئلة');
+    setSubmittingHomework(true);
+    try {
+      const res = await fetch('/api/student/submit-homework', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lessonId: id, answers: homeworkAnswers }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setHomeworkResult(data);
+      } else {
+        alert(data.error || 'حدث خطأ');
+      }
+    } catch (err) {
+      alert('خطأ');
+    }
+    setSubmittingHomework(false);
+  };
 
   const fetchQuiz = async () => {
     setQuizLoading(true);
@@ -109,7 +162,9 @@ export function LessonView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lessonId: lesson.id, answers })
       });
+      const data = await res.json();
       if (res.ok) {
+        setQuizResult(data);
         fetchLessonData();
       }
     } catch (err) {
@@ -211,7 +266,45 @@ export function LessonView() {
               </div>
             </div>
 
-            {quizLoading ? (
+            {quizResult ? (
+              <div className="space-y-6">
+                <div className={`p-6 rounded-xl border text-center ${quizResult.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                  <p className="text-slate-300 mb-1">درجتك في الاختبار</p>
+                  <p className={`text-4xl font-extrabold ${quizResult.passed ? 'text-emerald-300' : 'text-red-300'}`}>
+                    {quizResult.score} / {quizResult.total}
+                  </p>
+                  <p className="mt-2 font-semibold text-slate-200">
+                    {quizResult.passed ? 'مبروك! لقد اجتزت الاختبار وتم فتح الفيديو.' : 'لم تجتز الاختبار بعد.'}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {(quizResult.results || []).map((r: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className={`p-5 rounded-xl border space-y-2 ${r.isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {r.isCorrect ? (
+                          <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-1" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-1" />
+                        )}
+                        <div className="space-y-1">
+                          <p className="font-bold text-white">السؤال {idx + 1}: {r.question}</p>
+                          {!r.isCorrect && (
+                            <p className="text-red-300 text-sm">
+                              إجابتك: {r.studentAnswer !== null ? r.options[Number(r.studentAnswer)] : 'لم تجب'}
+                            </p>
+                          )}
+                          <p className="text-emerald-300 text-sm">الإجابة الصحيحة: {r.options[Number(r.correctAnswer)]}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : quizLoading ? (
               <div className="text-center p-8 text-slate-400">جاري تحميل الاختبار...</div>
             ) : quizQuestions.length === 0 ? (
               <div className="text-center p-8 text-slate-400">لم يتم إضافة اختبار لهذا الدرس بعد.</div>
@@ -256,6 +349,96 @@ export function LessonView() {
                     className="neon-btn w-full md:w-auto px-8 py-3 rounded-xl font-bold disabled:opacity-50"
                   >
                     {submittingQuiz ? 'جاري الإرسال...' : 'تسليم الاختبار'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* HOMEWORK SECTION */}
+        {homeworkLoading ? null : homework && (
+          <div className="neon-card p-6 md:p-8 rounded-2xl">
+            <div className="flex items-center justify-between mb-8 pb-6 border-b border-cyan-500/10">
+              <div>
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <FileText className="w-6 h-6 text-cyan-300" />
+                  واجب الدرس
+                </h2>
+                <p className="text-slate-400 mt-1">حمّل ملف الواجب، حله، ثم سجل إجاباتك هنا للتصحيح.</p>
+              </div>
+            </div>
+
+            <a
+              href={homework.pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="neon-btn inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold mb-8"
+            >
+              <Download className="w-5 h-5" />
+              تحميل ملف الواجب (PDF)
+            </a>
+
+            {homeworkResult ? (
+              <div className="space-y-6">
+                <div className="p-6 rounded-xl border bg-cyan-400/10 border-cyan-400/30 text-center">
+                  <p className="text-slate-300 mb-1">درجتك في الواجب</p>
+                  <p className="text-4xl font-extrabold text-cyan-300">
+                    {homeworkResult.score} / {homeworkResult.total}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {(homeworkResult.results || []).map((r: any) => (
+                    <div
+                      key={r.questionNumber}
+                      className={`p-4 rounded-xl border space-y-1 ${r.isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {r.isCorrect ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                        )}
+                        <span className="font-bold text-white">سؤال {r.questionNumber}</span>
+                      </div>
+                      {!r.isCorrect && <p className="text-red-300 text-sm">إجابتك: {r.studentAnswer || 'لم تجب'}</p>}
+                      <p className="text-emerald-300 text-sm">الإجابة الصحيحة: {r.correctAnswer}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {Array.from({ length: homework.numQuestions }).map((_, idx) => (
+                    <div key={idx} className="p-3 bg-black/20 rounded-xl border border-cyan-500/10 space-y-2">
+                      <span className="text-xs font-bold text-slate-400">سؤال {idx + 1}</span>
+                      <div className="flex gap-1">
+                        {ANSWER_LETTERS.map((letter) => (
+                          <button
+                            type="button"
+                            key={letter}
+                            onClick={() => handleHomeworkOptionSelect(idx, letter)}
+                            className={`flex-1 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                              homeworkAnswers[idx] === letter ? 'bg-cyan-400 text-black' : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                            }`}
+                          >
+                            {letter}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 pt-8 border-t border-cyan-500/10 flex justify-end">
+                  <button
+                    onClick={handleSubmitHomework}
+                    disabled={submittingHomework}
+                    className="neon-btn w-full md:w-auto px-8 py-3 rounded-xl font-bold disabled:opacity-50"
+                  >
+                    {submittingHomework ? 'جاري التصحيح...' : 'تصحيح'}
                   </button>
                 </div>
               </>
