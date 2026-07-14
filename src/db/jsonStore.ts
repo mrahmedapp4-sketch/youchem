@@ -53,6 +53,11 @@ export interface DbStudentLessonAccess {
   unlockedAt: string;
   quizPassed: boolean;
   quizExempt: boolean;
+  // Persist the student's latest quiz attempt so the result can be shown
+  // again whenever they revisit the lesson, not just right after submitting.
+  quizScore?: number;
+  quizTotal?: number;
+  quizResults?: Array<{ question: string; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }>;
 }
 
 // A homework is a PDF the teacher publishes for a lesson, plus a bubble-sheet

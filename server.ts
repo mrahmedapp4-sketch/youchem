@@ -583,26 +583,29 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
 
     const passed = score >= Math.ceil(total / 2);
 
-    if (passed) {
-      const existing = jsonDb.find(
+    // Always persist the latest attempt (score/results) so the student can
+    // see it again when they come back to the lesson, whether they passed or not.
+    const existing = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+    );
+    if (existing) {
+      jsonDb.update(
         'studentLessonAccess',
-        (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+        (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
+        { quizPassed: passed || existing.quizPassed, quizScore: score, quizTotal: total, quizResults: results }
       );
-      if (existing) {
-        jsonDb.update(
-          'studentLessonAccess',
-          (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
-          { quizPassed: true }
-        );
-      } else {
-        jsonDb.insert('studentLessonAccess', {
-          userId: studentId,
-          lessonId,
-          unlockedAt: new Date().toISOString(),
-          quizPassed: true,
-          quizExempt: false,
-        });
-      }
+    } else {
+      jsonDb.insert('studentLessonAccess', {
+        userId: studentId,
+        lessonId,
+        unlockedAt: new Date().toISOString(),
+        quizPassed: passed,
+        quizExempt: false,
+        quizScore: score,
+        quizTotal: total,
+        quizResults: results,
+      });
     }
 
     res.json({ score, total, passed, results });
@@ -615,8 +618,26 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
 app.get('/api/student/homework/:lessonId', authenticateStudent, async (req, res) => {
   try {
     const { lessonId } = req.params;
+    const studentId = (req as any).studentId;
     const homework = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === lessonId);
     if (!homework) return res.json({ homework: null });
+
+    // If the student already submitted this homework, return their past
+    // result too so it shows again instead of a blank form on revisit.
+    const submission = jsonDb.find(
+      'homeworkSubmissions',
+      (s: DbHomeworkSubmission) => s.homeworkId === homework.id && s.userId === studentId
+    );
+    let pastResult: any = null;
+    if (submission) {
+      const results = homework.answerKey.map((correctAnswer, idx) => {
+        const studentAnswer = submission.answers[idx] ?? null;
+        const isCorrect = studentAnswer === correctAnswer;
+        return { questionNumber: idx + 1, studentAnswer, correctAnswer, isCorrect };
+      });
+      pastResult = { score: submission.score, total: submission.total, results };
+    }
+
     res.json({
       homework: {
         id: homework.id,
@@ -624,6 +645,7 @@ app.get('/api/student/homework/:lessonId', authenticateStudent, async (req, res)
         pdfFileName: homework.pdfFileName,
         numQuestions: homework.numQuestions,
       },
+      pastResult,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

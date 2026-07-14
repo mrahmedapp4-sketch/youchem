@@ -52,6 +52,7 @@ export function LessonView() {
         const data = await res.json();
         setHomework(data.homework);
         if (data.homework) setHomeworkAnswers(Array(data.homework.numQuestions).fill(''));
+        if (data.pastResult) setHomeworkResult(data.pastResult);
       }
     } catch (err) {
       console.error(err);
@@ -114,7 +115,16 @@ export function LessonView() {
           return;
         }
         setLesson(foundLesson);
-        setAccess(data.accesses.find((a: any) => a.lessonId === id));
+        const foundAccess = data.accesses.find((a: any) => a.lessonId === id);
+        setAccess(foundAccess);
+        if (foundAccess && foundAccess.quizScore !== undefined) {
+          setQuizResult({
+            score: foundAccess.quizScore,
+            total: foundAccess.quizTotal,
+            passed: foundAccess.quizPassed,
+            results: foundAccess.quizResults || [],
+          });
+        }
       }
     } catch (err) {
       console.error(err);
@@ -279,6 +289,18 @@ export function LessonView() {
                   <p className="mt-2 font-semibold text-slate-200">
                     {quizResult.passed ? 'مبروك! لقد اجتزت الاختبار وتم فتح الفيديو.' : 'لم تجتز الاختبار بعد.'}
                   </p>
+                  {!quizResult.passed && (
+                    <button
+                      onClick={() => {
+                        setQuizResult(null);
+                        setAnswers([]);
+                        fetchQuiz();
+                      }}
+                      className="neon-btn mt-4 px-6 py-2.5 rounded-xl font-bold"
+                    >
+                      إعادة المحاولة
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
