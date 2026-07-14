@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Video, Trash2, Eye, EyeOff, Plus, PlayCircle } from 'lucide-react';
+import { Video, Trash2, Eye, EyeOff, Plus, PlayCircle, Pencil, X } from 'lucide-react';
 
 export function UploadVideo() {
   const [lessons, setLessons] = useState<any[]>([]);
@@ -11,6 +11,14 @@ export function UploadVideo() {
   const [lessonGrade, setLessonGrade] = useState('2nd_sec');
   const [lessonPlatform, setLessonPlatform] = useState('youtube');
   const [lessonUrl, setLessonUrl] = useState('');
+
+  // Editing an existing lesson (platform/link/title/grade)
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editGrade, setEditGrade] = useState('2nd_sec');
+  const [editPlatform, setEditPlatform] = useState('youtube');
+  const [editUrl, setEditUrl] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     fetchLessons();
@@ -63,6 +71,43 @@ export function UploadVideo() {
     } catch (err) {
       alert('فشل في الحذف');
     }
+  };
+
+  const openEditLesson = (lesson: any) => {
+    setEditingLessonId(lesson.id);
+    setEditTitle(lesson.title);
+    setEditGrade(lesson.gradeLevel);
+    setEditPlatform(lesson.platform);
+    setEditUrl(lesson.videoUrl);
+  };
+
+  const closeEditLesson = () => setEditingLessonId(null);
+
+  const handleSaveEditLesson = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingLessonId) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/youchem/lessons/${editingLessonId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          gradeLevel: editGrade,
+          platform: editPlatform,
+          videoUrl: editUrl,
+        }),
+      });
+      if (res.ok) {
+        setEditingLessonId(null);
+        fetchLessons();
+      } else {
+        alert('حدث خطأ أثناء حفظ التعديل');
+      }
+    } catch (err) {
+      alert('حدث خطأ أثناء حفظ التعديل');
+    }
+    setSavingEdit(false);
   };
 
   const handleToggleVisibility = async (id: string) => {
@@ -159,6 +204,13 @@ export function UploadVideo() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditLesson(lesson)}
+                      className="p-2 text-slate-400 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-lg transition-colors"
+                      title="تعديل الحصة (الرابط/المنصة)"
+                    >
+                      <Pencil className="w-5 h-5" />
+                    </button>
                     <button 
                       onClick={() => handleToggleVisibility(lesson.id)}
                       className="p-2 text-slate-400 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-lg transition-colors"
@@ -177,6 +229,51 @@ export function UploadVideo() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {editingLessonId && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={closeEditLesson}>
+          <div className="neon-card p-6 rounded-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">تعديل الحصة</h2>
+              <button onClick={closeEditLesson} className="p-1 text-slate-400 hover:text-white rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditLesson} className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-300">عنوان الدرس</label>
+                <input type="text" required value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="neon-input w-full px-4 py-2 rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-300">الصف الدراسي</label>
+                <select value={editGrade} onChange={(e) => setEditGrade(e.target.value)} className="neon-input w-full px-4 py-2 rounded-xl">
+                  <option value="2nd_sec">الثاني الثانوي</option>
+                  <option value="3rd_sec">الثالث الثانوي</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-300">المنصة</label>
+                <select value={editPlatform} onChange={(e) => setEditPlatform(e.target.value)} className="neon-input w-full px-4 py-2 rounded-xl">
+                  <option value="youtube">YouTube</option>
+                  <option value="vimeo">Vimeo</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-300">الرابط أو الـ ID</label>
+                <input type="text" required value={editUrl} onChange={(e) => setEditUrl(e.target.value)} className="neon-input w-full px-4 py-2 rounded-xl" dir="ltr" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="submit" disabled={savingEdit} className="neon-btn flex-1 px-4 py-2.5 rounded-xl font-semibold disabled:opacity-50">
+                  {savingEdit ? 'جاري الحفظ...' : 'حفظ التعديل'}
+                </button>
+                <button type="button" onClick={closeEditLesson} className="px-4 py-2.5 rounded-xl font-semibold bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10">
+                  إلغاء
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

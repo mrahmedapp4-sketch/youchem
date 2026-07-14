@@ -148,6 +148,29 @@ app.post('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
   }
 });
 
+app.patch('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lesson = jsonDb.find('lessons', (l: DbLesson) => l.id === id);
+    if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
+
+    const { title, gradeLevel, platform, videoUrl } = req.body;
+    const updates: Partial<DbLesson> = {};
+    if (title !== undefined) updates.title = title;
+    if (gradeLevel !== undefined) updates.gradeLevel = gradeLevel;
+    if (platform !== undefined) {
+      updates.platform = platform;
+      updates.isFree = platform === 'youtube';
+    }
+    if (videoUrl !== undefined) updates.videoUrl = videoUrl;
+
+    const updated = jsonDb.update('lessons', (l: DbLesson) => l.id === id, updates);
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.patch('/api/youchem/lessons/:id/toggle-visibility', authenticateTeacher, async (req, res) => {
   try {
     const { id } = req.params;
