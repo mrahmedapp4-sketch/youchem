@@ -89,8 +89,13 @@ interface DBShape {
   homeworkSubmissions: DbHomeworkSubmission[];
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+// Allow overriding the data directory via env var so it can be pointed at a
+// mounted persistent volume (e.g. Railway) regardless of the process cwd.
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'db.json');
+console.log(`[jsonStore] Using data directory: ${DATA_DIR}`);
 
 const emptyData = (): DBShape => ({
   users: [],
