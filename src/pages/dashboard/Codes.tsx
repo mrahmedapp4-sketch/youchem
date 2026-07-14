@@ -110,7 +110,7 @@ export function Codes() {
                 <tr>
                   <th className="p-4 font-semibold">الكود</th>
                   <th className="p-4 font-semibold">الحالة</th>
-                  <th className="p-4 font-semibold">الطالب (User ID)</th>
+                  <th className="p-4 font-semibold">الطالب</th>
                   <th className="p-4 font-semibold">تاريخ التوليد</th>
                   <th className="p-4 font-semibold text-center w-24">حذف (Burn)</th>
                 </tr>
@@ -142,8 +142,8 @@ export function Codes() {
                         </span>
                       )}
                     </td>
-                    <td className="p-4 text-slate-400 text-sm font-mono truncate max-w-[150px]">
-                      {c.usedBy || '-'}
+                    <td className="p-4 text-slate-300 text-sm font-semibold truncate max-w-[200px]">
+                      {c.usedByName || (c.usedBy ? c.usedBy : '-')}
                     </td>
                     <td className="p-4 text-slate-400 text-sm">
                       {new Date(c.createdAt).toLocaleDateString()}

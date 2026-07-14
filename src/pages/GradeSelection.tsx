@@ -10,6 +10,7 @@ export function GradeSelection() {
   const [needsProfile, setNeedsProfile] = useState(false);
   const [error, setError] = useState('');
 
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [guardianPhone, setGuardianPhone] = useState('');
   const [school, setSchool] = useState('');
@@ -51,6 +52,7 @@ export function GradeSelection() {
       const data = await res.json();
       if (res.ok) {
         if (data.needsProfile) {
+          if (data.user?.name && data.user.name !== 'طالب') setName(data.user.name);
           setNeedsProfile(true);
         } else {
           navigate('/student-dashboard');
@@ -78,7 +80,7 @@ export function GradeSelection() {
       const res = await fetch('/api/student/complete-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, guardianPhone, school, gradeLevel }),
+        body: JSON.stringify({ name, phone, guardianPhone, school, gradeLevel }),
       });
       if (res.ok) {
         navigate('/student-dashboard');
@@ -151,6 +153,17 @@ export function GradeSelection() {
           </button>
         ) : (
           <form onSubmit={handleCompleteProfile} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-300">الاسم بالكامل</label>
+              <input
+                type="text"
+                required
+                className="neon-input w-full p-3 rounded-xl"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="اكتب اسمك بالكامل"
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium mb-1 text-slate-300">رقم الهاتف</label>
               <input

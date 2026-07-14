@@ -185,7 +185,12 @@ app.delete('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => 
 // Codes API
 app.get('/api/youchem/codes', authenticateTeacher, async (req, res) => {
   try {
-    res.json(jsonDb.getAll('codes'));
+    const codes = jsonDb.getAll('codes');
+    const codesWithStudent = codes.map((c: DbCode) => {
+      const student = c.usedBy ? jsonDb.find('users', (u: DbUser) => u.id === c.usedBy) : null;
+      return { ...c, usedByName: student?.name || null };
+    });
+    res.json(codesWithStudent);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -421,7 +426,7 @@ app.post('/api/student/google-login', async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
-    const needsProfile = !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
+    const needsProfile = !user.name || user.name === 'طالب' || !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
     res.json({ success: true, user, needsProfile, picture });
   } catch (err: any) {
     console.error('Google login failed:', err.message);
@@ -433,18 +438,18 @@ app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
   const studentId = (req as any).studentId;
   const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const needsProfile = !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
+  const needsProfile = !user.name || user.name === 'طالب' || !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
   res.json({ success: true, user, needsProfile });
 });
 
 app.post('/api/student/complete-profile', authenticateStudent, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
-    const { phone, guardianPhone, school, gradeLevel } = req.body;
-    if (!phone || !guardianPhone || !school || !gradeLevel) {
-      return res.status(400).json({ error: 'الرجاء إدخال رقم الهاتف ورقم ولي الأمر والمدرسة والصف الدراسي' });
+    const { name, phone, guardianPhone, school, gradeLevel } = req.body;
+    if (!name || !phone || !guardianPhone || !school || !gradeLevel) {
+      return res.status(400).json({ error: 'الرجاء إدخال الاسم ورقم الهاتف ورقم ولي الأمر والمدرسة والصف الدراسي' });
     }
-    const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, { phone, guardianPhone, school, gradeLevel });
+    const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, { name, phone, guardianPhone, school, gradeLevel });
     if (!updated) return res.status(404).json({ error: 'المستخدم غير موجود' });
     res.json({ success: true, user: updated });
   } catch (err: any) {
