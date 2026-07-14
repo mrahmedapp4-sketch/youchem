@@ -32,13 +32,10 @@ if (!JWT_SECRET) {
   throw new Error('JWT_SECRET or SESSION_SECRET must be set to sign auth tokens.');
 }
 
-// Teacher login password lives only in the TEACHER_PASSWORD secret, never in
-// source. We hash it once at startup and compare hashes on every login
-// attempt instead of hashing the plaintext on every request.
-const TEACHER_PASSWORD = process.env.TEACHER_PASSWORD;
-if (!TEACHER_PASSWORD) {
-  throw new Error('TEACHER_PASSWORD secret must be set for teacher login.');
-}
+// Teacher login password. Fixed in source per explicit request so it no
+// longer depends on a TEACHER_PASSWORD environment variable/secret being set
+// on every deployment target (Replit, Railway, etc.).
+const TEACHER_PASSWORD = 'port5';
 const teacherPasswordHashPromise = bcrypt.hash(TEACHER_PASSWORD, 10);
 
 // Used to verify the Google ID token returned by the frontend Firebase sign-in.
