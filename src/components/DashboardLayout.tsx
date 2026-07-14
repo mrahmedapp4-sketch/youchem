@@ -98,7 +98,7 @@ export function DashboardLayout() {
             <div className="w-8 h-8 rounded-full bg-cyan-400/10 flex items-center justify-center text-cyan-300 font-bold border border-cyan-400/20">
               م
             </div>
-            <span className="font-medium text-slate-300 hidden sm:block">المدرس</span>
+            <span className="font-medium text-slate-300 hidden sm:block">مستر أحمد</span>
           </div>
         </header>
 

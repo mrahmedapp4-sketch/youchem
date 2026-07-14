@@ -37,7 +37,7 @@ export function TeacherLogin() {
         <div className="w-16 h-16 mx-auto mb-4">
           <img src="/logo.png" alt="YouChem Logo" className="w-full h-full object-contain rounded-full neon-glow-ring border-2 border-cyan-400/40 bg-slate-900" />
         </div>
-        <h1 className="text-2xl font-bold text-center mb-6 text-white">لوحة تحكم المدرس</h1>
+        <h1 className="text-2xl font-bold text-center mb-6 text-white">لوحة تحكم مستر أحمد</h1>
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-3 rounded-lg mb-4 text-sm text-center">

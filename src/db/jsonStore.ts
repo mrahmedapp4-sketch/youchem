@@ -18,6 +18,7 @@ export interface DbUser {
   role: 'student' | 'admin';
   gradeLevel?: '2nd_sec' | '3rd_sec' | null;
   createdAt: string;
+  blocked?: boolean;
 }
 
 export interface DbLesson {

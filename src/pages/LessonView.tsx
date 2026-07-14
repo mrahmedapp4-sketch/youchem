@@ -231,7 +231,7 @@ export function LessonView() {
               <Key className="w-6 h-6" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">كود الوصول</h2>
-            <p className="text-slate-400 mb-6">أدخل الكود الذي حصلت عليه من المعلم لفتح هذا الدرس.</p>
+            <p className="text-slate-400 mb-6">أدخل الكود الذي حصلت عليه من مستر أحمد لفتح هذا الدرس.</p>
             
             <form onSubmit={handleValidateCode} className="space-y-4">
               <div>

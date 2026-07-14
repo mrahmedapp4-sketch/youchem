@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Video, CheckCircle, Lock, LogOut, PlayCircle, FileText, Download, ClipboardList } from 'lucide-react';
+import { Video, CheckCircle, Lock, PlayCircle, FileText, Download, ClipboardList } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 
 type Section = 'lessons' | 'homework';
@@ -51,15 +51,6 @@ export function StudentDashboard() {
     fetchHomeworks();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/student/logout', { method: 'POST' });
-    } catch (err) {
-      console.error(err);
-    }
-    navigate('/');
-  };
-
   return (
     <div className="min-h-screen" dir="rtl">
       {/* Header */}
@@ -76,11 +67,6 @@ export function StudentDashboard() {
             <h1 className="font-bold text-xl tracking-tight text-white">              <span className="neon-text font-extrabold">YouChem</span> Platform            </h1>
           </div>
           
-          <div className="flex items-center gap-4">
-            <button onClick={handleLogout} className="p-2 text-slate-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors">
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
         </div>
       </header>
 

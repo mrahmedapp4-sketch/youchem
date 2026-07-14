@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Ban, ShieldOff, Trash2 } from 'lucide-react';
 
 export function Students() {
   const [students, setStudents] = useState<any[]>([]);
@@ -54,6 +54,33 @@ export function Students() {
     }
   };
 
+  const handleToggleBlock = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/youchem/students/${userId}/block`, { method: 'PATCH' });
+      if (res.ok) {
+        fetchData();
+      } else {
+        alert('حدث خطأ');
+      }
+    } catch (err) {
+      alert('حدث خطأ');
+    }
+  };
+
+  const handleDeleteStudent = async (userId: string, name: string) => {
+    if (!confirm(`هل أنت متأكد من حذف حساب "${name}" نهائياً؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    try {
+      const res = await fetch(`/api/youchem/students/${userId}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchData();
+      } else {
+        alert('حدث خطأ');
+      }
+    } catch (err) {
+      alert('حدث خطأ');
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div>
@@ -90,21 +117,28 @@ export function Students() {
                   <th className="p-4 font-semibold">المدرسة</th>
                   <th className="p-4 font-semibold">الصف</th>
                   <th className="p-4 font-semibold text-center">إعفاء من الاختبار (Exempt)</th>
+                  <th className="p-4 font-semibold text-center">إدارة الحساب</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-cyan-500/10">
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-400">لا يوجد طلاب مسجلين.</td>
+                    <td colSpan={8} className="p-8 text-center text-slate-400">لا يوجد طلاب مسجلين.</td>
                   </tr>
                 )}
                 {students.map(student => {
                   const access = student.accesses?.find((a: any) => a.lessonId === selectedLessonId);
                   const isExempt = access?.quizExempt || false;
+                  const isBlocked = !!student.blocked;
 
                   return (
-                    <tr key={student.id} className="hover:bg-white/5 transition-colors">
-                      <td className="p-4 font-bold text-white">{student.name}</td>
+                    <tr key={student.id} className={`hover:bg-white/5 transition-colors ${isBlocked ? 'opacity-60' : ''}`}>
+                      <td className="p-4 font-bold text-white">
+                        {student.name}
+                        {isBlocked && (
+                          <span className="mr-2 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">محظور</span>
+                        )}
+                      </td>
                       <td className="p-4 text-slate-400">{student.email}</td>
                       <td className="p-4 text-slate-400" dir="ltr">{student.phone || '-'}</td>
                       <td className="p-4 text-slate-400" dir="ltr">{student.guardianPhone || '-'}</td>
@@ -127,6 +161,28 @@ export function Students() {
                             <><ShieldAlert className="w-4 h-4" /> تفعيل الإعفاء</>
                           )}
                         </button>
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleToggleBlock(student.id)}
+                            title={isBlocked ? 'إلغاء الحظر' : 'حظر الطالب'}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg font-semibold transition-colors ${
+                              isBlocked
+                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20'
+                                : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            {isBlocked ? <ShieldOff className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStudent(student.id, student.name)}
+                            title="حذف الحساب"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg font-semibold bg-red-500/10 text-red-300 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

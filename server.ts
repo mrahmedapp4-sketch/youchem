@@ -86,6 +86,11 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     if (decoded.role !== 'student') throw new Error();
+    const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
+    if (!user || user.blocked) {
+      res.clearCookie('student_token');
+      return res.status(403).json({ error: 'تم حظر هذا الحساب من الدخول إلى المنصة.' });
+    }
     (req as any).studentId = decoded.studentId;
     next();
   } catch (err) {
@@ -315,6 +320,34 @@ app.get('/api/youchem/students', authenticateTeacher, async (req, res) => {
   }
 });
 
+app.patch('/api/youchem/students/:userId/block', authenticateTeacher, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
+    if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
+    const updated = jsonDb.update('users', (u: DbUser) => u.id === userId, { blocked: !user.blocked });
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/youchem/students/:userId', authenticateTeacher, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
+    if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
+
+    jsonDb.remove('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === userId);
+    jsonDb.remove('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
+    jsonDb.remove('users', (u: DbUser) => u.id === userId);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.patch('/api/youchem/students/:userId/lessons/:lessonId/exempt', authenticateTeacher, async (req, res) => {
   try {
     const { userId, lessonId } = req.params;
@@ -360,6 +393,9 @@ app.post('/api/student/google-login', async (req, res) => {
     const { sub: googleId, email, name, picture } = payload;
 
     let user = jsonDb.find('users', (u: DbUser) => u.googleId === googleId || u.email === email);
+    if (user?.blocked) {
+      return res.status(403).json({ error: 'تم حظر هذا الحساب من الدخول إلى المنصة.' });
+    }
     if (!user) {
       user = {
         id: newId(),
