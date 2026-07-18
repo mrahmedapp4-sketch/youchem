@@ -109,7 +109,7 @@ export function StudentDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {lessons.map((lesson) => {
               const access = accesses.find(a => a.lessonId === lesson.id);
-              const isUnlocked = lesson.isFree || access?.quizPassed || access?.quizExempt;
+              const isUnlocked = access?.quizPassed || access?.quizExempt;
 
               return (
                 <Link to={`/lessons/${lesson.id}`} key={lesson.id} className="block group">
@@ -140,7 +140,7 @@ export function StudentDashboard() {
                       
                       <div className="mt-auto pt-4 flex items-center justify-between">
                         <span className={`text-sm font-semibold ${isUnlocked ? 'text-emerald-400' : 'text-slate-500'}`}>
-                          {lesson.isFree ? 'متاح مجاناً' : isUnlocked ? 'تم فتح الحصة' : 'مغلق - يتطلب كود'}
+                          {isUnlocked ? 'تم فتح الحصة' : 'مغلق - يتطلب كود'}
                         </span>
                         
                         <div className="w-8 h-8 rounded-full bg-white/5 group-hover:bg-cyan-400/10 flex items-center justify-center transition-colors">

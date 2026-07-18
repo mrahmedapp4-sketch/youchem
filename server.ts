@@ -135,14 +135,13 @@ app.get('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
 app.post('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
   try {
     const { title, gradeLevel, platform, videoUrl } = req.body;
-    const isFree = platform === 'youtube';
     const lesson: DbLesson = {
       id: newId(),
       title,
       gradeLevel,
       platform,
       videoUrl,
-      isFree,
+      isFree: false,
       isHidden: false,
       createdAt: new Date().toISOString(),
     };
@@ -165,7 +164,7 @@ app.patch('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => {
     if (gradeLevel !== undefined) updates.gradeLevel = gradeLevel;
     if (platform !== undefined) {
       updates.platform = platform;
-      updates.isFree = platform === 'youtube';
+      updates.isFree = false;
     }
     if (videoUrl !== undefined) updates.videoUrl = videoUrl;
 

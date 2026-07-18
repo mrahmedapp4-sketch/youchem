@@ -37,7 +37,7 @@ export function LessonView() {
   }, [id]);
 
   useEffect(() => {
-    const shouldFetchQuiz = lesson && lesson.platform === 'vimeo' && access && !access.quizPassed && !access.quizExempt;
+    const shouldFetchQuiz = lesson && access && !access.quizPassed && !access.quizExempt;
     if (shouldFetchQuiz) {
       fetchQuiz();
     }
@@ -187,9 +187,9 @@ export function LessonView() {
     return <div className="min-h-screen flex items-center justify-center p-8 text-slate-400">جاري التحميل...</div>;
   }
 
-  const isVideoUnlocked = lesson.isFree || access?.quizPassed || access?.quizExempt;
-  const needsCode = lesson.platform === 'vimeo' && !access;
-  const needsQuiz = lesson.platform === 'vimeo' && access && !access.quizPassed && !access.quizExempt;
+  const isVideoUnlocked = access?.quizPassed || access?.quizExempt;
+  const needsCode = !access;
+  const needsQuiz = access && !access.quizPassed && !access.quizExempt;
 
   const extractYoutubeId = (url: string) => {
     const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
@@ -206,7 +206,7 @@ export function LessonView() {
           </button>
           <div>
             <h1 className="font-bold text-white line-clamp-1">{lesson.title}</h1>
-            <p className="text-xs text-slate-400">{lesson.platform === 'youtube' ? 'متاح مجاناً' : 'محتوى حصري'}</p>
+            <p className="text-xs text-slate-400 uppercase tracking-wider">{lesson.platform}</p>
           </div>
         </div>
       </header>
