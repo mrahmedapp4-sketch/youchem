@@ -58,7 +58,7 @@ export function StudentDashboard() {
             <img
               src="/logo.png"
               alt="YouChem"
-              className="w-9 h-9 object-contain rounded-full border border-indigo-100 shadow-sm bg-white"
+              className="h-10 w-auto object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
                 (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
