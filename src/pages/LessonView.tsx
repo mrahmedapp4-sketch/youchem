@@ -164,29 +164,14 @@ export function LessonView() {
               lesson.platform === 'youtube'
                 ? <iframe src={`https://www.youtube.com/embed/${extractYoutubeId(lesson.videoUrl)}`} className="absolute inset-0 w-full h-full" allowFullScreen />
                 : <iframe src={`https://player.vimeo.com/video/${lesson.videoUrl}?dnt=1`} className="absolute inset-0 w-full h-full" allowFullScreen />
-            ) : quizLoading && access ? (
-              /* Code was accepted — still checking if quiz is required */
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-slate-100">
-                <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
-                  <CheckCircle className="w-8 h-8 text-emerald-500" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">✅ تم فتح الدرس</h3>
-                <p className="text-slate-500 max-w-sm text-sm">جاري التحضير...</p>
-              </div>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-slate-100">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${access ? 'bg-amber-50 border border-amber-200' : 'bg-indigo-50 border border-indigo-100'}`}>
-                  {access
-                    ? <CheckCircle className="w-8 h-8 text-amber-500" />
-                    : <Lock className="w-8 h-8 text-indigo-400" />}
+                <div className="w-16 h-16 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-4">
+                  <Lock className="w-8 h-8 text-indigo-400" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">
-                  {access ? '✅ الدرس مفتوح — أكمل الاختبار' : 'المحتوى مغلق'}
-                </h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-1">المحتوى مغلق</h3>
                 <p className="text-slate-500 max-w-sm text-sm">
-                  {needsCode
-                    ? 'أدخل كود الوصول الخاص بك لمشاهدة هذا الدرس.'
-                    : 'اجتز الاختبار أدناه لفتح الفيديو.'}
+                  {needsCode ? 'أدخل كود الوصول الخاص بك لمشاهدة هذا الدرس.' : 'اجتز الاختبار أولاً لفتح الفيديو.'}
                 </p>
               </div>
             )}
