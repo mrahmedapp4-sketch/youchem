@@ -108,7 +108,7 @@ export function StudentDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {lessons.map((lesson) => {
               const access = accesses.find(a => a.lessonId === lesson.id);
-              const isUnlocked = access?.quizPassed || access?.quizExempt;
+              const isUnlocked = !!access;
 
               return (
                 <Link to={`/lessons/${lesson.id}`} key={lesson.id} className="block group">
