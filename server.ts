@@ -49,6 +49,11 @@ app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 app.use(cookieParser());
 
+// Lightweight health-check endpoint for Railway (and any other platform).
+// Registered before DB access so it responds 200 immediately even while the
+// JSON store is still initialising on a cold start.
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
 // Homework PDFs are stored on disk under data/uploads (gitignored, contains
 // no student PII by itself) and served back as static files.
 // Same override as jsonStore.ts: point at the mounted persistent volume if DATA_DIR is set.
