@@ -18,6 +18,7 @@ export function LessonView() {
 
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
   const [quizLoading, setQuizLoading] = useState(false);
+  const [noQuizExists, setNoQuizExists] = useState(false);
   const [answers, setAnswers] = useState<string[]>([]);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [quizResult, setQuizResult] = useState<any>(null);
@@ -59,8 +60,12 @@ export function LessonView() {
       if (res.ok) {
         const data = await res.json();
         const qs = data.questions || [];
-        setQuizQuestions(qs);
-        setAnswers(Array(qs.length).fill(''));
+        if (qs.length === 0) {
+          setNoQuizExists(true);
+        } else {
+          setQuizQuestions(qs);
+          setAnswers(Array(qs.length).fill(''));
+        }
       }
     } catch (err) { console.error(err); }
     setQuizLoading(false);
@@ -125,9 +130,9 @@ export function LessonView() {
     <div className="min-h-screen flex items-center justify-center text-slate-400">جاري التحميل...</div>
   );
 
-  const isVideoUnlocked = access?.quizPassed || access?.quizExempt;
+  const isVideoUnlocked = access?.quizPassed || access?.quizExempt || noQuizExists;
   const needsCode = !access;
-  const needsQuiz = access && !access.quizPassed && !access.quizExempt;
+  const needsQuiz = access && !access.quizPassed && !access.quizExempt && !noQuizExists;
 
   const extractYoutubeId = (url: string) => {
     const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
