@@ -101,9 +101,13 @@ interface DBShape {
 
 // Allow overriding the data directory via env var so it can be pointed at a
 // mounted persistent volume (e.g. Railway) regardless of the process cwd.
-const DATA_DIR = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(process.cwd(), 'data');
+// Priority: RAILWAY_VOLUME_MOUNT_PATH (set automatically by Railway when a
+// Volume is attached) → DATA_DIR (manual override) → ./data next to the binary.
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH
+  ? path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH)
+  : process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'db.json');
 console.log(`[jsonStore] Using data directory: ${DATA_DIR}`);
 

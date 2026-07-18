@@ -56,10 +56,12 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // Homework PDFs are stored on disk under data/uploads (gitignored, contains
 // no student PII by itself) and served back as static files.
-// Same override as jsonStore.ts: point at the mounted persistent volume if DATA_DIR is set.
-const DATA_ROOT = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(process.cwd(), 'data');
+// Same priority as jsonStore.ts: RAILWAY_VOLUME_MOUNT_PATH → DATA_DIR → ./data
+const DATA_ROOT = process.env.RAILWAY_VOLUME_MOUNT_PATH
+  ? path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH)
+  : process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : path.join(process.cwd(), 'data');
 const UPLOADS_DIR = path.join(DATA_ROOT, 'uploads', 'homeworks');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 console.log(`[server] Using uploads directory: ${UPLOADS_DIR}`);
