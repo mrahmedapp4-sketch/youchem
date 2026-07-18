@@ -131,17 +131,17 @@ export function GradeSelection() {
 
         {/* Logo + heading */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-4">
+          <div className="w-48 mx-auto mb-4">
             <img
               src="/logo.png"
               alt="YouChem Logo"
-              className="w-full h-full object-contain rounded-full border-2 border-indigo-100 shadow-sm bg-white"
+              className="w-full object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
                 (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
               }}
             />
-            <div className="w-full h-full bg-indigo-50 rounded-full flex items-center justify-center hidden">
+            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center hidden mx-auto">
               <GraduationCap className="w-10 h-10 text-indigo-600" />
             </div>
           </div>
