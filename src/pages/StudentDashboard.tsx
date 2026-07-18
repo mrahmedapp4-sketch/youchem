@@ -23,7 +23,6 @@ export function StudentDashboard() {
           setLessons(data.lessons);
           setAccesses(data.accesses);
         } else {
-          // Navigate to grade selection if not set
           navigate('/');
         }
       } catch (err) {
@@ -39,9 +38,7 @@ export function StudentDashboard() {
     const fetchHomeworks = async () => {
       try {
         const res = await fetch('/api/student/homeworks');
-        if (res.ok) {
-          setHomeworks(await res.json());
-        }
+        if (res.ok) setHomeworks(await res.json());
       } catch (err) {
         console.error(err);
       } finally {
@@ -53,98 +50,99 @@ export function StudentDashboard() {
 
   return (
     <div className="min-h-screen" dir="rtl">
-      {/* Header */}
-      <header className="neon-panel border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+
+      {/* ── Top bar ── */}
+      <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="YouChem Logo" className="w-10 h-10 object-contain rounded-full border-2 border-cyan-400/30" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-            }} />
-            <div className="w-10 h-10 bg-cyan-500/10 rounded-full flex items-center justify-center text-cyan-400 font-bold text-xl hidden">
-              YC
-            </div>
-            <h1 className="font-bold text-xl tracking-tight text-white">              <span className="neon-text font-extrabold">YouChem</span> Platform            </h1>
+            <img
+              src="/logo.png"
+              alt="YouChem"
+              className="w-9 h-9 object-contain rounded-full border border-indigo-100 shadow-sm bg-white"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <div className="w-9 h-9 bg-indigo-50 rounded-full hidden" />
+            <span className="font-bold text-slate-900">
+              <span className="neon-text">YouChem</span>{' '}Platform
+            </span>
           </div>
-          
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
+
+        {/* Welcome */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white">مرحباً بك 👋</h2>
-          <p className="text-slate-400 mt-2">استكمل رحلة التعلم الخاصة بك.</p>
+          <h2 className="text-2xl font-bold text-slate-900">مرحباً بك 👋</h2>
+          <p className="text-slate-500 mt-1">استكمل رحلة التعلم الخاصة بك.</p>
         </div>
 
-        {/* Section Tabs */}
-        <div className="flex gap-3 mb-8 border-b border-cyan-500/10 pb-1">
-          <button
-            onClick={() => setSection('lessons')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-t-xl font-bold transition-colors ${
-              section === 'lessons'
-                ? 'text-cyan-300 border-b-2 border-cyan-400 bg-cyan-400/5'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Video className="w-5 h-5" />
-            الحصص
-          </button>
-          <button
-            onClick={() => setSection('homework')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-t-xl font-bold transition-colors ${
-              section === 'homework'
-                ? 'text-cyan-300 border-b-2 border-cyan-400 bg-cyan-400/5'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ClipboardList className="w-5 h-5" />
-            واجباتي
-          </button>
+        {/* ── Tabs ── */}
+        <div className="flex gap-1 mb-8 border-b border-slate-200 pb-px">
+          {([
+            { id: 'lessons', label: 'الحصص', Icon: Video },
+            { id: 'homework', label: 'واجباتي', Icon: ClipboardList },
+          ] as const).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => setSection(id)}
+              className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-colors border-b-2 -mb-px ${
+                section === id
+                  ? 'text-indigo-700 border-indigo-600'
+                  : 'text-slate-500 border-transparent hover:text-slate-800'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
         </div>
 
+        {/* ── Lessons Grid ── */}
         {section === 'lessons' && (loading ? (
-          <div className="text-center p-8 text-slate-400">جاري التحميل...</div>
+          <div className="text-center p-12 text-slate-400">جاري التحميل...</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {lessons.map((lesson) => {
               const access = accesses.find(a => a.lessonId === lesson.id);
               const isUnlocked = access?.quizPassed || access?.quizExempt;
 
               return (
                 <Link to={`/lessons/${lesson.id}`} key={lesson.id} className="block group">
-                  <div className="neon-card rounded-2xl overflow-hidden hover:border-cyan-400/50 transition-all h-full flex flex-col">
-                    <div className="relative aspect-video bg-black/30">
+                  <div className={`neon-card rounded-2xl overflow-hidden h-full flex flex-col transition-shadow hover:shadow-md ${isUnlocked ? '' : ''}`}>
+
+                    {/* Thumbnail */}
+                    <div className="relative aspect-video bg-slate-100">
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Video className="w-12 h-12 text-slate-600 group-hover:text-cyan-400 group-hover:scale-110 transition-all duration-300" />
+                        <Video className="w-10 h-10 text-slate-300 group-hover:text-indigo-400 transition-colors duration-300" />
                       </div>
-                      {!isUnlocked && (
-                        <div className="absolute top-4 left-4 p-2 bg-black/60 backdrop-blur-sm rounded-lg border border-white/10">
-                          <Lock className="w-4 h-4 text-slate-300" />
-                        </div>
-                      )}
-                      {isUnlocked && (
-                        <div className="absolute top-4 left-4 p-2 bg-emerald-500/90 rounded-lg shadow-[0_0_12px_rgba(16,185,129,0.6)]">
-                          <CheckCircle className="w-4 h-4 text-white" />
-                        </div>
-                      )}
-                      <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-cyan-300 border border-cyan-400/20">
+                      {/* Lock / check badge */}
+                      <div className={`absolute top-3 right-3 p-1.5 rounded-lg shadow-sm ${isUnlocked ? 'bg-emerald-500' : 'bg-white border border-slate-200'}`}>
+                        {isUnlocked
+                          ? <CheckCircle className="w-4 h-4 text-white" />
+                          : <Lock className="w-4 h-4 text-slate-400" />
+                        }
+                      </div>
+                      {/* Platform pill */}
+                      <div className="absolute bottom-3 left-3 bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide">
                         {lesson.platform}
                       </div>
                     </div>
-                    
+
+                    {/* Info */}
                     <div className="p-5 flex-1 flex flex-col">
-                      <h3 className="font-bold text-lg text-white group-hover:text-cyan-300 transition-colors mb-2">
+                      <h3 className="font-bold text-slate-900 group-hover:text-indigo-700 transition-colors mb-3 leading-snug">
                         {lesson.title}
                       </h3>
-                      
-                      <div className="mt-auto pt-4 flex items-center justify-between">
-                        <span className={`text-sm font-semibold ${isUnlocked ? 'text-emerald-400' : 'text-slate-500'}`}>
-                          {isUnlocked ? 'تم فتح الحصة' : 'مغلق - يتطلب كود'}
+                      <div className="mt-auto flex items-center justify-between pt-3 border-t border-slate-100">
+                        <span className={`text-xs font-semibold ${isUnlocked ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          {isUnlocked ? '✓ تم فتح الحصة' : 'مغلق — يتطلب كود'}
                         </span>
-                        
-                        <div className="w-8 h-8 rounded-full bg-white/5 group-hover:bg-cyan-400/10 flex items-center justify-center transition-colors">
-                          <PlayCircle className={`w-4 h-4 ${isUnlocked ? 'text-cyan-400' : 'text-slate-500'}`} />
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isUnlocked ? 'bg-indigo-50' : 'bg-slate-100'}`}>
+                          <PlayCircle className={`w-4 h-4 ${isUnlocked ? 'text-indigo-600' : 'text-slate-400'}`} />
                         </div>
                       </div>
                     </div>
@@ -152,58 +150,59 @@ export function StudentDashboard() {
                 </Link>
               );
             })}
-            
+
             {lessons.length === 0 && (
-              <div className="col-span-full p-8 text-center text-slate-400 neon-card rounded-2xl">
+              <div className="col-span-full p-12 text-center text-slate-400 neon-card rounded-2xl">
                 لا توجد حصص متاحة في هذا الصف الدراسي حالياً.
               </div>
             )}
           </div>
         ))}
 
+        {/* ── Homework Grid ── */}
         {section === 'homework' && (homeworksLoading ? (
-          <div className="text-center p-8 text-slate-400">جاري التحميل...</div>
+          <div className="text-center p-12 text-slate-400">جاري التحميل...</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {homeworks.map((hw) => (
-              <div key={hw.homeworkId} className="neon-card rounded-2xl overflow-hidden h-full flex flex-col p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-cyan-400/10 flex items-center justify-center shrink-0">
-                    <FileText className="w-6 h-6 text-cyan-300" />
+              <div key={hw.homeworkId} className="neon-card rounded-2xl p-5 h-full flex flex-col">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5 text-indigo-600" />
                   </div>
-                  <h3 className="font-bold text-lg text-white">{hw.lessonTitle}</h3>
+                  <h3 className="font-bold text-slate-900 leading-snug pt-1">{hw.lessonTitle}</h3>
                 </div>
 
                 <a
                   href={hw.pdfUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-cyan-300 hover:text-cyan-200 font-semibold text-sm mb-4"
+                  className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-semibold text-sm mb-4"
                 >
                   <Download className="w-4 h-4" />
                   تحميل ملف الواجب
                 </a>
 
-                <div className="mt-auto pt-4 flex items-center justify-between">
+                <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100">
                   {hw.submission ? (
-                    <span className="text-sm font-bold text-emerald-400">
-                      تم التصحيح: {hw.submission.score} / {hw.submission.total}
+                    <span className="text-sm font-bold text-emerald-600">
+                      ✓ التصحيح: {hw.submission.score} / {hw.submission.total}
                     </span>
                   ) : (
-                    <span className="text-sm font-semibold text-slate-500">لم تتم الإجابة بعد</span>
+                    <span className="text-sm text-slate-400">لم تتم الإجابة بعد</span>
                   )}
                   <Link
                     to={`/lessons/${hw.lessonId}`}
                     className="neon-btn px-4 py-2 rounded-lg text-sm font-bold"
                   >
-                    {hw.submission ? 'عرض الواجب' : 'حل الواجب'}
+                    {hw.submission ? 'عرض' : 'حل الواجب'}
                   </Link>
                 </div>
               </div>
             ))}
 
             {homeworks.length === 0 && (
-              <div className="col-span-full p-8 text-center text-slate-400 neon-card rounded-2xl">
+              <div className="col-span-full p-12 text-center text-slate-400 neon-card rounded-2xl">
                 لا توجد واجبات متاحة حالياً.
               </div>
             )}

@@ -2,9 +2,6 @@ import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { ImagePlus, X } from 'lucide-react';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
-
-// All question images are normalized to this fixed size on upload, so every
-// question looks identical (same crop/proportions) on mobile, tablet and desktop.
 const IMAGE_WIDTH = 800;
 const IMAGE_HEIGHT = 450;
 
@@ -15,18 +12,14 @@ const resizeImageToFixedDimensions = (file: File): Promise<string> => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = IMAGE_WIDTH;
-        canvas.height = IMAGE_HEIGHT;
+        canvas.width = IMAGE_WIDTH; canvas.height = IMAGE_HEIGHT;
         const ctx = canvas.getContext('2d');
         if (!ctx) return reject(new Error('Canvas not supported'));
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
         const scale = Math.min(IMAGE_WIDTH / img.width, IMAGE_HEIGHT / img.height);
-        const w = img.width * scale;
-        const h = img.height * scale;
-        const x = (IMAGE_WIDTH - w) / 2;
-        const y = (IMAGE_HEIGHT - h) / 2;
-        ctx.drawImage(img, x, y, w, h);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (IMAGE_WIDTH - w) / 2, (IMAGE_HEIGHT - h) / 2, w, h);
         resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
       img.onerror = () => reject(new Error('تعذر قراءة الصورة'));
@@ -40,155 +33,108 @@ const resizeImageToFixedDimensions = (file: File): Promise<string> => {
 export function Quizzes() {
   const [lessons, setLessons] = useState<any[]>([]);
   const [selectedLesson, setSelectedLesson] = useState('');
-  
-  // Array of 10 questions
-  const [questions, setQuestions] = useState(
-    Array(10).fill({ question: '', correct_answer: 'A', image: '' })
-  );
+  const [questions, setQuestions] = useState(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
 
   useEffect(() => {
+    const fetchLessons = async () => {
+      try {
+        const res = await fetch('/api/youchem/lessons');
+        if (res.ok) {
+          const all = await res.json();
+          setLessons(all);
+          if (all.length > 0) setSelectedLesson(all[0].id);
+        }
+      } catch (err) { console.error(err); }
+    };
     fetchLessons();
   }, []);
 
-  const fetchLessons = async () => {
-    try {
-      const res = await fetch('/api/youchem/lessons');
-      if (res.ok) {
-        const allLessons = await res.json();
-        setLessons(allLessons);
-        if (allLessons.length > 0) setSelectedLesson(allLessons[0].id);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const updateQuestion = (index: number, field: string, value: string) => {
-    const newQs = [...questions];
-    newQs[index] = { ...newQs[index], [field]: value };
-    setQuestions(newQs);
+    const qs = [...questions];
+    qs[index] = { ...qs[index], [field]: value };
+    setQuestions(qs);
   };
 
   const handleSaveQuiz = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedLesson) return alert('الرجاء اختيار حصة');
     try {
-      // SERVER ACTION: Save Quiz
-      const res = await fetch('/api/youchem/quizzes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lessonId: selectedLesson, questions })
-      });
-      if (res.ok) {
-        alert('تم حفظ الاختبار بنجاح');
-        setQuestions(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
-      }
-    } catch (err) {
-      alert('خطأ في حفظ الاختبار');
-    }
+      const res = await fetch('/api/youchem/quizzes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lessonId: selectedLesson, questions }) });
+      if (res.ok) { alert('تم حفظ الاختبار بنجاح'); setQuestions(Array(10).fill({ question: '', correct_answer: 'A', image: '' })); }
+    } catch { alert('خطأ في حفظ الاختبار'); }
   };
 
   const handleImageChange = async (qIndex: number, e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+    const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
-      alert('الرجاء اختيار صورة بصيغة PNG أو JPG فقط');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('حجم الصورة كبير جداً، الرجاء اختيار صورة أصغر من 5 ميجابايت');
-      return;
-    }
-    try {
-      const dataUrl = await resizeImageToFixedDimensions(file);
-      updateQuestion(qIndex, 'image', dataUrl);
-    } catch (err) {
-      alert('تعذر معالجة الصورة');
-    }
-  };
-
-  const handleRemoveImage = (qIndex: number) => {
-    updateQuestion(qIndex, 'image', '');
+    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) return alert('الرجاء اختيار صورة PNG أو JPG');
+    if (file.size > 5 * 1024 * 1024) return alert('حجم الصورة كبير جداً (الحد 5 ميجا)');
+    try { updateQuestion(qIndex, 'image', await resizeImageToFixedDimensions(file)); }
+    catch { alert('تعذر معالجة الصورة'); }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">إدارة الاختبارات (Quizzes)</h1>
-        <p className="text-slate-400 mt-1">إنشاء 10 أسئلة لكل حصة (خاص بحصص Vimeo)</p>
+        <h1 className="text-xl font-bold text-slate-900">إدارة الاختبارات</h1>
+        <p className="text-slate-500 text-sm mt-0.5">إنشاء اختبار من 10 أسئلة لكل درس</p>
       </div>
-      
-      <form onSubmit={handleSaveQuiz} className="neon-card p-8 rounded-2xl space-y-8">
+
+      <form onSubmit={handleSaveQuiz} className="neon-card p-6 rounded-2xl space-y-6">
+
         <div>
-          <label className="block text-sm font-semibold text-slate-300 mb-2">اختر الحصة</label>
-          <select 
-            value={selectedLesson} 
-            onChange={e => setSelectedLesson(e.target.value)}
-            className="neon-input w-full px-4 py-2 rounded-xl"
-            required
-          >
-            {lessons.map(l => (
-              <option key={l.id} value={l.id}>{l.title} ({l.platform})</option>
-            ))}
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">اختر الحصة</label>
+          <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} className="neon-input w-full px-4 py-2.5 rounded-xl text-sm" required>
+            {lessons.map(l => <option key={l.id} value={l.id}>{l.title} ({l.platform})</option>)}
           </select>
         </div>
 
-        <div className="space-y-12">
+        <div className="space-y-8">
           {questions.map((q, qIndex) => (
-            <div key={qIndex} className="p-6 bg-black/20 rounded-xl border border-cyan-500/10 space-y-4">
-              <h3 className="font-bold text-cyan-300">السؤال رقم {qIndex + 1}</h3>
-              <input 
-                type="text" 
-                placeholder="نص السؤال..." 
-                required
-                value={q.question}
-                onChange={e => updateQuestion(qIndex, 'question', e.target.value)}
-                className="neon-input w-full px-4 py-2 rounded-xl"
+            <div key={qIndex} className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm flex items-center justify-center shrink-0">{qIndex + 1}</span>
+                <h3 className="font-bold text-slate-800 text-sm">السؤال رقم {qIndex + 1}</h3>
+              </div>
+
+              <input
+                type="text" placeholder="نص السؤال..." required
+                value={q.question} onChange={e => updateQuestion(qIndex, 'question', e.target.value)}
+                className="neon-input w-full px-4 py-2.5 rounded-xl text-sm"
               />
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-slate-300">صورة السؤال (اختياري)</label>
+                <label className="block text-xs font-semibold text-slate-600">صورة السؤال (اختياري)</label>
                 {q.image ? (
                   <div className="relative w-full max-w-md">
-                    <div className="w-full aspect-video bg-black/30 rounded-xl overflow-hidden border border-cyan-500/20">
-                      <img src={q.image} alt={`صورة السؤال ${qIndex + 1}`} className="w-full h-full object-contain" />
+                    <div className="w-full aspect-video bg-white rounded-xl overflow-hidden border border-slate-200">
+                      <img src={q.image} alt={`صورة ${qIndex + 1}`} className="w-full h-full object-contain" />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(qIndex)}
-                      className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full p-1.5 shadow-[0_0_10px_rgba(239,68,68,0.6)] hover:bg-red-600 transition-colors"
-                      title="حذف الصورة"
-                    >
-                      <X className="w-4 h-4" />
+                    <button type="button" onClick={() => updateQuestion(qIndex, 'image', '')}
+                      className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-sm">
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center w-full max-w-md aspect-video border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-cyan-400/60 hover:bg-cyan-400/5 transition-colors">
-                    <ImagePlus className="w-6 h-6 text-slate-500 mb-2" />
-                    <span className="text-sm text-slate-400">إضافة صورة PNG أو JPG</span>
-                    <input
-                      type="file"
-                      accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-                      onChange={e => handleImageChange(qIndex, e)}
-                      className="hidden"
-                    />
+                  <label className="flex flex-col items-center justify-center w-full max-w-md aspect-video border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors">
+                    <ImagePlus className="w-6 h-6 text-slate-400 mb-1" />
+                    <span className="text-xs text-slate-400">إضافة صورة PNG أو JPG</span>
+                    <input type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" onChange={e => handleImageChange(qIndex, e)} className="hidden" />
                   </label>
                 )}
               </div>
-              
+
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-slate-300">الإجابة الصحيحة</label>
-                <div className="flex gap-3">
+                <label className="block text-xs font-semibold text-slate-600">الإجابة الصحيحة</label>
+                <div className="flex gap-2">
                   {ANSWER_LETTERS.map(letter => (
-                    <button
-                      key={letter}
-                      type="button"
-                      onClick={() => updateQuestion(qIndex, 'correct_answer', letter)}
-                      className={`w-14 h-14 rounded-xl font-bold text-lg border-2 transition-all ${q.correct_answer === letter ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 neon-glow-ring' : 'bg-white/5 border-slate-700 text-slate-300 hover:border-cyan-500/40'}`}
-                    >
-                      {letter}
-                    </button>
+                    <button key={letter} type="button" onClick={() => updateQuestion(qIndex, 'correct_answer', letter)}
+                      className={`w-12 h-12 rounded-xl font-bold border-2 transition-all text-sm ${
+                        q.correct_answer === letter
+                          ? 'bg-emerald-600 border-emerald-600 text-white neon-glow-ring'
+                          : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300'
+                      }`}
+                    >{letter}</button>
                   ))}
                 </div>
               </div>
@@ -196,10 +142,8 @@ export function Quizzes() {
           ))}
         </div>
 
-        <div className="pt-4 border-t border-cyan-500/10">
-          <button type="submit" className="neon-btn w-full px-6 py-3 rounded-xl font-bold">
-            حفظ الاختبار
-          </button>
+        <div className="pt-4 border-t border-slate-200">
+          <button type="submit" className="neon-btn w-full px-6 py-3 rounded-xl font-bold">حفظ الاختبار</button>
         </div>
       </form>
     </div>

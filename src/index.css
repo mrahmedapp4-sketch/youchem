@@ -18,85 +18,94 @@
 }
 
 @theme {
-  /* You can swap these two to switch between Bold and Black easily! */
   --font-sans: "NaNSuperXSerifDisplayArabicBold", "NaNSuperXSerifDisplayArabicBlack", "Cairo", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  --neon-cyan: #22e5ff;
-  --neon-blue: #3b82f6;
-  --neon-violet: #a855f7;
-  --bg-void: #05070f;
-  --bg-panel: #0b0f1e;
-  --bg-panel-2: #0f1428;
-  --border-glow: rgba(34, 229, 255, 0.25);
+  --primary:    #4f46e5;   /* Indigo 600 */
+  --primary-hover: #4338ca; /* Indigo 700 */
+  --bg-main:   #f8fafc;   /* Slate 50 */
+  --bg-card:   #ffffff;
+  --text-main: #0f172a;   /* Slate 900 */
+  --text-muted:#64748b;   /* Slate 500 */
+  --border:    #e2e8f0;   /* Slate 200 */
 }
 
 body {
   font-family: var(--font-sans);
   direction: rtl;
-  background-color: var(--bg-void);
-  color: #e6f1ff;
+  background-color: var(--bg-main);
   background-image:
-    radial-gradient(600px circle at 15% 0%, rgba(59, 130, 246, 0.18), transparent 60%),
-    radial-gradient(700px circle at 100% 20%, rgba(168, 85, 247, 0.14), transparent 55%),
-    radial-gradient(900px circle at 50% 100%, rgba(34, 229, 255, 0.1), transparent 60%);
+    radial-gradient(900px circle at 10% 0%, rgba(79, 70, 229, 0.05), transparent 60%),
+    radial-gradient(700px circle at 90% 100%, rgba(79, 70, 229, 0.04), transparent 55%);
   background-attachment: fixed;
+  color: var(--text-main);
   min-height: 100vh;
 }
 
-/* Shared neon UI primitives — used across pages to keep the look consistent
-   without touching fonts or layout structure. */
+/* ── Cards ── */
 .neon-card {
-  background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel));
-  border: 1px solid var(--border-glow);
-  box-shadow: 0 0 0 1px rgba(34, 229, 255, 0.04), 0 8px 30px -10px rgba(34, 229, 255, 0.15), 0 2px 12px rgba(0, 0, 0, 0.4);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
 }
 
+/* ── Panels (headers / sidebars) ── */
 .neon-panel {
-  background: var(--bg-panel);
-  border: 1px solid rgba(34, 229, 255, 0.12);
+  background: var(--bg-card);
+  border-color: var(--border);
 }
 
+/* ── Inputs ── */
 .neon-input {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  color: #e6f1ff;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .neon-input::placeholder {
-  color: rgba(148, 163, 184, 0.6);
+  color: #94a3b8;
 }
 .neon-input:focus {
   outline: none;
-  border-color: var(--neon-cyan);
-  box-shadow: 0 0 0 3px rgba(34, 229, 255, 0.18), 0 0 16px rgba(34, 229, 255, 0.25);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+.neon-input option {
+  background: var(--bg-card);
+  color: var(--text-main);
 }
 
+/* ── Primary button ── */
 .neon-btn {
-  background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan));
-  color: #04101a;
-  box-shadow: 0 0 20px rgba(34, 229, 255, 0.35), 0 0 2px rgba(34, 229, 255, 0.6);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+  background: var(--primary);
+  color: #ffffff;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3);
 }
 .neon-btn:hover:not(:disabled) {
-  box-shadow: 0 0 30px rgba(34, 229, 255, 0.55), 0 0 4px rgba(34, 229, 255, 0.8);
-  filter: brightness(1.08);
+  background: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+.neon-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .neon-btn:disabled {
   opacity: 0.5;
   box-shadow: none;
 }
 
+/* ── Accent text ── */
 .neon-text {
-  color: var(--neon-cyan);
-  text-shadow: 0 0 12px rgba(34, 229, 255, 0.5);
+  color: var(--primary);
 }
 
+/* ── Accent border ── */
 .neon-border {
-  border-color: rgba(34, 229, 255, 0.3) !important;
+  border-color: var(--primary) !important;
 }
 
+/* ── Focus ring (e.g. grade selection buttons) ── */
 .neon-glow-ring {
-  box-shadow: 0 0 0 4px rgba(34, 229, 255, 0.08), 0 0 24px rgba(34, 229, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
 }
-
