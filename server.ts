@@ -556,7 +556,7 @@ app.post('/api/student/validate-code', authenticateStudent, async (req, res) => 
       lessonId,
       unlockedAt: new Date().toISOString(),
       quizPassed: false,
-      quizExempt: true,
+      quizExempt: false,
     };
     jsonDb.insert('studentLessonAccess', access);
 
