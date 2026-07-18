@@ -3,12 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { GraduationCap, ChevronLeft } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 
+const SESSION_CONFLICT_MSG =
+  'معلش تقريبا في خطا من عندنا جرب تاني ولو منفعش اتواصل مع مستر احمد';
+
 export function GradeSelection() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [needsProfile, setNeedsProfile] = useState(false);
   const [error, setError] = useState('');
+
+  // Google profile info shown in the profile-completion form
+  const [googleName, setGoogleName] = useState('');
+  const [googleEmail, setGoogleEmail] = useState('');
+  const [googlePicture, setGooglePicture] = useState('');
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -25,11 +33,21 @@ export function GradeSelection() {
         if (res.ok) {
           const data = await res.json();
           if (data.needsProfile) {
+            // Already partially signed in — pre-fill Google info from saved profile
+            if (data.user?.name && data.user.name !== 'طالب') {
+              setGoogleName(data.user.name);
+              setName(data.user.name);
+            }
+            if (data.user?.email) setGoogleEmail(data.user.email);
+            if (data.user?.picture) setGooglePicture(data.user.picture);
             setNeedsProfile(true);
           } else {
             navigate('/student-dashboard');
             return;
           }
+        } else {
+          const data = await res.json().catch(() => ({}));
+          if (data.error === 'SESSION_CONFLICT') setError(SESSION_CONFLICT_MSG);
         }
       } catch (err) {
         console.error(err);
@@ -52,7 +70,12 @@ export function GradeSelection() {
       const data = await res.json();
       if (res.ok) {
         if (data.needsProfile) {
-          if (data.user?.name && data.user.name !== 'طالب') setName(data.user.name);
+          // Pre-fill form with Google account info
+          const gName = data.user?.name && data.user.name !== 'طالب' ? data.user.name : '';
+          setGoogleName(gName);
+          setGoogleEmail(data.user?.email || '');
+          setGooglePicture(data.picture || data.user?.picture || '');
+          if (gName) setName(gName);
           setNeedsProfile(true);
         } else {
           navigate('/student-dashboard');
@@ -155,6 +178,29 @@ export function GradeSelection() {
           </button>
         ) : (
           <form onSubmit={handleCompleteProfile} className="space-y-4">
+
+            {/* Google account info banner */}
+            {(googlePicture || googleEmail) && (
+              <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                {googlePicture && (
+                  <img
+                    src={googlePicture}
+                    alt="صورة حساب جوجل"
+                    referrerPolicy="no-referrer"
+                    className="w-10 h-10 rounded-full border-2 border-indigo-200 shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  {googleName && (
+                    <p className="text-sm font-bold text-indigo-800 truncate">{googleName}</p>
+                  )}
+                  {googleEmail && (
+                    <p className="text-xs text-indigo-500 truncate" dir="ltr">{googleEmail}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {[
               { label: 'الاسم بالكامل', state: name, setter: setName, type: 'text', placeholder: 'اكتب اسمك بالكامل', dir: 'rtl' },
               { label: 'رقم الهاتف', state: phone, setter: setPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr' },

@@ -12,6 +12,7 @@ export interface DbUser {
   googleId?: string;
   name: string;
   email: string;
+  picture?: string;
   phone?: string;
   guardianPhone?: string;
   school?: string;
@@ -19,6 +20,10 @@ export interface DbUser {
   gradeLevel?: '2nd_sec' | '3rd_sec' | null;
   createdAt: string;
   blocked?: boolean;
+  /** Token that must match the one in the student's JWT cookie.
+   *  Rotated on every login so a second device's sign-in invalidates
+   *  all previous sessions for this user. */
+  activeSessionToken?: string;
 }
 
 export interface DbLesson {

@@ -90,15 +90,28 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (decoded.role !== 'student') throw new Error();
+    if (decoded.role !== 'student') throw new Error('bad role');
     const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
-    if (!user || user.blocked) {
+    if (!user) {
+      res.clearCookie('student_token');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (user.blocked) {
       res.clearCookie('student_token');
       return res.status(403).json({ error: 'تم حظر هذا الحساب من الدخول إلى المنصة.' });
+    }
+    // ── Single-device enforcement ──────────────────────────────────────────
+    // Every login rotates activeSessionToken on the user record.
+    // If the token in this JWT no longer matches (student signed in on another
+    // device), kick the old session out immediately.
+    if (user.activeSessionToken && decoded.sessionToken !== user.activeSessionToken) {
+      res.clearCookie('student_token');
+      return res.status(401).json({ error: 'SESSION_CONFLICT' });
     }
     (req as any).studentId = decoded.studentId;
     next();
   } catch (err) {
+    res.clearCookie('student_token');
     res.status(401).json({ error: 'Invalid token' });
   }
 };
@@ -428,26 +441,40 @@ app.post('/api/student/google-login', async (req, res) => {
     if (user?.blocked) {
       return res.status(403).json({ error: 'تم حظر هذا الحساب من الدخول إلى المنصة.' });
     }
+
+    // Rotate the session token on every login so any existing session on
+    // another device is immediately invalidated.
+    const sessionToken = randomBytes(32).toString('hex');
+
     if (!user) {
       user = {
         id: newId(),
         googleId,
         name: name || 'طالب',
         email,
+        picture: picture || '',
         phone: '',
         guardianPhone: '',
         school: '',
         role: 'student',
         gradeLevel: null,
         createdAt: new Date().toISOString(),
+        activeSessionToken: sessionToken,
       } as DbUser;
       jsonDb.insert('users', user);
-    } else if (!user.googleId) {
-      // Backfill googleId for a user record that predates Google sign-in.
-      user = jsonDb.update('users', (u: DbUser) => u.id === user!.id, { googleId });
+    } else {
+      // Backfill googleId / update picture / rotate session token.
+      const updates: Partial<DbUser> = { activeSessionToken: sessionToken };
+      if (!user.googleId) updates.googleId = googleId;
+      if (picture) updates.picture = picture;
+      user = jsonDb.update('users', (u: DbUser) => u.id === user!.id, updates);
     }
 
-    const token = jwt.sign({ role: 'student', studentId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign(
+      { role: 'student', studentId: user.id, sessionToken },
+      JWT_SECRET,
+      { expiresIn: '30d' },
+    );
     res.cookie('student_token', token, {
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000,
