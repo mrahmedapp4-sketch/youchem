@@ -54,20 +54,17 @@ export function StudentDashboard() {
       {/* ── Top bar ── */}
       <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <img
               src="/logo.png"
               alt="YouChem"
-              className="h-10 w-auto object-contain"
+              className="h-12 w-auto object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
                 (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
               }}
             />
             <div className="w-9 h-9 bg-indigo-50 rounded-full hidden" />
-            <span className="font-bold text-slate-900">
-              <span className="neon-text">YouChem</span>{' '}Platform
-            </span>
           </div>
         </div>
       </header>
