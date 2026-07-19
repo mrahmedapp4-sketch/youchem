@@ -131,7 +131,7 @@ export function GradeSelection() {
 
         {/* Logo + heading */}
         <div className="text-center mb-8">
-          <div className="w-72 mx-auto mb-4">
+          <div className="w-full mx-auto mb-4">
             <img
               src="/logo.png"
               alt="YouChem Logo"
