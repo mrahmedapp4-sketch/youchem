@@ -623,32 +623,10 @@ app.post('/api/student/complete-profile', authenticateStudent, async (req, res) 
 });
 
 app.post('/api/student/logout', (req, res) => {
-  // Clear the active session in the DB so the student can log in again from
-  // any device.
-  // Use { ignoreExpiration: true } so a 30-day-old (expired) but authentic
-  // cookie can still trigger a clean logout — unlike jwt.decode() this still
-  // verifies the signature, so forged tokens are rejected.
-  // Only clear the DB session when the token's sessionToken matches the
-  // current activeSessionToken, to prevent a stale/old cookie from wiping a
-  // different device's live session.
-  try {
-    const token = req.cookies.student_token;
-    if (token) {
-      const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
-      if (decoded?.studentId && decoded?.sessionToken) {
-        const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
-        if (user && user.activeSessionToken === decoded.sessionToken) {
-          jsonDb.update(
-            'users',
-            (u: DbUser) => u.id === decoded.studentId,
-            { activeSessionToken: null, sessionExpiresAt: null } as any,
-          );
-        }
-      }
-    }
-  } catch {
-    // ignore malformed/forged token — still clear the cookie
-  }
+  // Only clears the browser cookie — does NOT clear activeSessionToken in the
+  // DB. The device lock is permanent; only a teacher can unlock the account.
+  // This prevents a student from bypassing the single-device rule by simply
+  // logging out and logging in again from a different device.
   res.clearCookie('student_token', COOKIE_OPTS).json({ success: true });
 });
 

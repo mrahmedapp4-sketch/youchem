@@ -3,11 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { GraduationCap, ChevronLeft } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 
-const SESSION_CONFLICT_MSG =
-  'معلش تقريبا في خطا من عندنا جرب تاني ولو منفعش اتواصل مع مستر احمد';
-
-const DEVICE_LOCKED_MSG =
-  'الحساب ده شغال دلوقتي على جهاز تاني. اخرج من حسابك على الجهاز التاني الأول وبعدين ادخل من هنا.';
+const CONTACT_TEACHER_MSG =
+  'تقريبا في خطا ممكن تتواصل مع مستر احمد علشان نحل المشكله';
 
 export function GradeSelection() {
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -49,8 +46,8 @@ export function GradeSelection() {
             return;
           }
         } else {
-          const data = await res.json().catch(() => ({}));
-          if (data.error === 'SESSION_CONFLICT') setError(SESSION_CONFLICT_MSG);
+          // Stale/invalid cookie — already cleared by server. Show login form
+          // silently without an error message so the user isn't confused.
         }
       } catch (err) {
         console.error(err);
@@ -84,8 +81,8 @@ export function GradeSelection() {
           navigate('/student-dashboard');
         }
       } else {
-        if (data.error === 'DEVICE_LOCKED') {
-          setError(DEVICE_LOCKED_MSG);
+        if (data.error === 'DEVICE_LOCKED' || data.error === 'SESSION_CONFLICT') {
+          setError(CONTACT_TEACHER_MSG);
         } else {
           setError(data.error || 'فشل تسجيل الدخول بحساب جوجل');
         }
