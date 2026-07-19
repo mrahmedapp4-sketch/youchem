@@ -163,6 +163,8 @@ export function LessonView() {
             {isVideoUnlocked ? (
               lesson.platform === 'youtube'
                 ? <iframe src={`https://www.youtube.com/embed/${extractYoutubeId(lesson.videoUrl)}`} className="absolute inset-0 w-full h-full" allowFullScreen />
+                : lesson.platform === 'bunny'
+                ? <iframe src={lesson.videoUrl.replace('player.mediadelivery.net/play/', 'iframe.mediadelivery.net/embed/')} className="absolute inset-0 w-full h-full" allowFullScreen allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" />
                 : <iframe src={`https://player.vimeo.com/video/${lesson.videoUrl}?dnt=1`} className="absolute inset-0 w-full h-full" allowFullScreen />
             ) : quizLoading && access ? (
               /* Code was accepted — still checking if quiz is required */

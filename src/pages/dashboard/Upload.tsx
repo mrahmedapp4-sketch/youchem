@@ -112,6 +112,7 @@ export function UploadVideo() {
               <select value={lessonPlatform} onChange={e => setLessonPlatform(e.target.value)} className={SELECT_CLS}>
                 <option value="youtube">YouTube</option>
                 <option value="vimeo">Vimeo</option>
+                <option value="bunny">Bunny</option>
               </select>
             </div>
             <div><label className={LABEL_CLS}>الرابط أو الـ ID</label>
@@ -187,7 +188,7 @@ export function UploadVideo() {
                 )},
                 { label: 'المنصة', el: (
                   <select value={editPlatform} onChange={e => setEditPlatform(e.target.value)} className={SELECT_CLS}>
-                    <option value="youtube">YouTube</option><option value="vimeo">Vimeo</option>
+                    <option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="bunny">Bunny</option>
                   </select>
                 )},
                 { label: 'الرابط أو الـ ID', el: <input type="text" required value={editUrl} onChange={e => setEditUrl(e.target.value)} className={INPUT_CLS} dir="ltr" /> },
