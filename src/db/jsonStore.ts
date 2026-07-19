@@ -21,9 +21,11 @@ export interface DbUser {
   createdAt: string;
   blocked?: boolean;
   /** Token that must match the one in the student's JWT cookie.
-   *  Rotated on every login so a second device's sign-in invalidates
-   *  all previous sessions for this user. */
-  activeSessionToken?: string;
+   *  Cleared on logout so the student can log in again from any device. */
+  activeSessionToken?: string | null;
+  /** ISO timestamp when the current session expires (mirrors JWT expiry).
+   *  A session past this date is treated as expired and allows a new login. */
+  sessionExpiresAt?: string | null;
 }
 
 export interface DbLesson {

@@ -6,6 +6,9 @@ import { signInWithGoogle } from '../lib/firebase';
 const SESSION_CONFLICT_MSG =
   'معلش تقريبا في خطا من عندنا جرب تاني ولو منفعش اتواصل مع مستر احمد';
 
+const DEVICE_LOCKED_MSG =
+  'الحساب ده شغال دلوقتي على جهاز تاني. اخرج من حسابك على الجهاز التاني الأول وبعدين ادخل من هنا.';
+
 export function GradeSelection() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
@@ -81,7 +84,11 @@ export function GradeSelection() {
           navigate('/student-dashboard');
         }
       } else {
-        setError(data.error || 'فشل تسجيل الدخول بحساب جوجل');
+        if (data.error === 'DEVICE_LOCKED') {
+          setError(DEVICE_LOCKED_MSG);
+        } else {
+          setError(data.error || 'فشل تسجيل الدخول بحساب جوجل');
+        }
       }
     } catch (err) {
       console.error('Google sign-in failed:', err);

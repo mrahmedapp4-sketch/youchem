@@ -109,10 +109,11 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
       return res.status(403).json({ error: 'تم حظر هذا الحساب من الدخول إلى المنصة.' });
     }
     // ── Single-device enforcement ──────────────────────────────────────────
-    // Every login rotates activeSessionToken on the user record.
-    // If the token in this JWT no longer matches (student signed in on another
-    // device), kick the old session out immediately.
-    if (user.activeSessionToken && decoded.sessionToken !== user.activeSessionToken) {
+    // The JWT must carry a sessionToken that exactly matches what is stored
+    // in the DB. A missing activeSessionToken (after logout) or a mismatch
+    // (another device logged in) both result in immediate rejection so that
+    // stale cookies can never be reused after logout.
+    if (!user.activeSessionToken || decoded.sessionToken !== user.activeSessionToken) {
       res.clearCookie('student_token');
       return res.status(401).json({ error: 'SESSION_CONFLICT' });
     }
@@ -477,9 +478,21 @@ app.post('/api/student/google-login', async (req, res) => {
       return res.status(403).json({ error: 'تم حظر هذا الحساب من الدخول إلى المنصة.' });
     }
 
-    // Rotate the session token on every login so any existing session on
-    // another device is immediately invalidated.
+    // ── Single-device enforcement ─────────────────────────────────────────
+    // Block a new login if the user already has a live (non-expired) session.
+    // An expired session (past sessionExpiresAt) is treated as cleared so the
+    // student can log in again without needing to manually log out first.
+    const sessionIsLive =
+      user?.activeSessionToken &&
+      user.sessionExpiresAt &&
+      new Date(user.sessionExpiresAt) > new Date();
+    if (sessionIsLive) {
+      return res.status(403).json({ error: 'DEVICE_LOCKED' });
+    }
+
+    const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — mirrors JWT
     const sessionToken = randomBytes(32).toString('hex');
+    const sessionExpiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
 
     if (!user) {
       user = {
@@ -495,11 +508,12 @@ app.post('/api/student/google-login', async (req, res) => {
         gradeLevel: null,
         createdAt: new Date().toISOString(),
         activeSessionToken: sessionToken,
+        sessionExpiresAt,
       } as DbUser;
       jsonDb.insert('users', user);
     } else {
-      // Backfill googleId / update picture / rotate session token.
-      const updates: Partial<DbUser> = { activeSessionToken: sessionToken };
+      // Backfill googleId / update picture / set session token.
+      const updates: Partial<DbUser> = { activeSessionToken: sessionToken, sessionExpiresAt };
       if (!user.googleId) updates.googleId = googleId;
       if (picture) updates.picture = picture;
       user = jsonDb.update('users', (u: DbUser) => u.id === user!.id, updates);
@@ -547,6 +561,32 @@ app.post('/api/student/complete-profile', authenticateStudent, async (req, res) 
 });
 
 app.post('/api/student/logout', (req, res) => {
+  // Clear the active session in the DB so the student can log in again from
+  // any device.
+  // Use { ignoreExpiration: true } so a 30-day-old (expired) but authentic
+  // cookie can still trigger a clean logout — unlike jwt.decode() this still
+  // verifies the signature, so forged tokens are rejected.
+  // Only clear the DB session when the token's sessionToken matches the
+  // current activeSessionToken, to prevent a stale/old cookie from wiping a
+  // different device's live session.
+  try {
+    const token = req.cookies.student_token;
+    if (token) {
+      const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
+      if (decoded?.studentId && decoded?.sessionToken) {
+        const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
+        if (user && user.activeSessionToken === decoded.sessionToken) {
+          jsonDb.update(
+            'users',
+            (u: DbUser) => u.id === decoded.studentId,
+            { activeSessionToken: null, sessionExpiresAt: null } as any,
+          );
+        }
+      }
+    }
+  } catch {
+    // ignore malformed/forged token — still clear the cookie
+  }
   res.clearCookie('student_token').json({ success: true });
 });
 
