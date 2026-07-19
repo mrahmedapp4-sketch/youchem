@@ -237,10 +237,15 @@ export function LessonView() {
                   <p className={`mt-3 font-bold ${quizResult.passed ? 'text-emerald-700' : 'text-red-600'}`}>
                     {quizResult.passed ? '🎉 مبروك! لقد اجتزت الاختبار وتم فتح الفيديو.' : 'لم تجتز الاختبار بعد.'}
                   </p>
-                  {!quizResult.passed && (
+                  {!quizResult.passed && quizResult.score >= 5 && (
                     <button onClick={() => { setQuizResult(null); setAnswers([]); fetchQuiz(); }} className="neon-btn mt-4 px-6 py-2.5 rounded-xl font-bold">
                       إعادة المحاولة
                     </button>
+                  )}
+                  {!quizResult.passed && quizResult.score < 5 && (
+                    <p className="mt-4 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
+                      🔒 الدرس مقفول — تواصل مع مستر أحمد لفتح الحصة
+                    </p>
                   )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
