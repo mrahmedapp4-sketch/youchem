@@ -111,7 +111,7 @@ export function LessonView() {
 
       {/* ── Navbar ── */}
       <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-2 sm:gap-3">
           <button onClick={() => navigate('/student-dashboard')} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
             <ArrowRight className="w-5 h-5" />
           </button>
@@ -122,7 +122,7 @@ export function LessonView() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5 sm:space-y-6">
 
         {/* ── Video ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
@@ -187,9 +187,9 @@ export function LessonView() {
 
         {/* ── Quiz ── */}
         {needsQuiz && (
-          <div className="neon-card p-6 md:p-8 rounded-2xl">
-            <div className="mb-6 pb-5 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">اختبار الدرس</h2>
+          <div className="neon-card p-4 sm:p-6 md:p-8 rounded-2xl">
+            <div className="mb-5 pb-4 sm:mb-6 sm:pb-5 border-b border-slate-200">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">اختبار الدرس</h2>
               <p className="text-slate-500 text-sm mt-1">يجب اجتياز الاختبار لفتح الفيديو.</p>
             </div>
 
@@ -246,15 +246,15 @@ export function LessonView() {
                           <img src={q.image} alt={`صورة السؤال ${idx + 1}`} className="w-full h-full object-contain" />
                         </div>
                       )}
-                      <div className="flex gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         {ANSWER_LETTERS.map((letter) => (
                           <button
                             key={letter} type="button"
                             onClick={() => { const a = [...answers]; a[idx] = letter; setAnswers(a); }}
-                            className={`flex-1 py-3 rounded-xl border-2 font-bold text-base transition-all ${
+                            className={`py-3.5 rounded-xl border-2 font-bold text-base transition-all min-h-[52px] active:scale-95 ${
                               answers[idx] === letter
                                 ? 'bg-indigo-600 border-indigo-600 text-white neon-glow-ring'
-                                : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300'
+                                : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 active:bg-indigo-50'
                             }`}
                           >{letter}</button>
                         ))}
@@ -262,8 +262,8 @@ export function LessonView() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-6 pt-6 border-t border-slate-200 flex justify-end">
-                  <button onClick={handleSubmitQuiz} disabled={submittingQuiz} className="neon-btn w-full md:w-auto px-8 py-3 rounded-xl font-bold disabled:opacity-50">
+                <div className="mt-6 pt-6 border-t border-slate-200">
+                  <button onClick={handleSubmitQuiz} disabled={submittingQuiz} className="neon-btn w-full py-4 rounded-xl font-bold text-base disabled:opacity-50">
                     {submittingQuiz ? 'جاري الإرسال...' : 'تسليم الاختبار'}
                   </button>
                 </div>
