@@ -42,21 +42,18 @@ export function DashboardLayout() {
       <aside className={`fixed inset-y-0 right-0 z-50 w-64 neon-panel border-l border-slate-200 flex flex-col transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
 
         {/* Brand */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200 shrink-0">
-          <div className="flex items-center gap-3">
-            <img
-              src="/logo.png"
-              alt="YouChem"
-              className="h-10 w-auto object-contain"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-            <div className="w-9 h-9 bg-indigo-50 rounded-full hidden" />
-            <span className="text-lg font-bold text-slate-900 tracking-tight">YouChem</span>
-          </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+        <div className="h-20 flex items-center justify-between px-4 border-b border-slate-200 shrink-0">
+          <img
+            src="/logo.png"
+            alt="YouChem"
+            className="h-14 w-auto object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+          <span className="text-lg font-bold text-slate-900 tracking-tight hidden">YouChem</span>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>

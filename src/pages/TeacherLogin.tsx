@@ -31,17 +31,17 @@ export function TeacherLogin() {
       <div className="neon-card p-8 rounded-2xl w-full max-w-sm">
 
         {/* Logo */}
-        <div className="w-16 h-16 mx-auto mb-6">
+        <div className="mx-auto mb-6 flex items-center justify-center">
           <img
             src="/logo.png"
             alt="YouChem Logo"
-            className="w-full h-full object-contain rounded-full border-2 border-indigo-100 shadow-sm bg-white"
+            className="h-20 w-auto object-contain"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
             }}
           />
-          <div className="w-full h-full bg-indigo-50 rounded-full hidden" />
+          <div className="h-20 w-48 bg-indigo-50 rounded-xl hidden" />
         </div>
 
         <h1 className="text-xl font-bold text-center mb-1 text-slate-900">لوحة تحكم مستر أحمد</h1>
