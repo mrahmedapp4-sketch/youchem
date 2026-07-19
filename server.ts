@@ -292,6 +292,18 @@ app.post('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
   }
 });
 
+app.delete('/api/youchem/quizzes/:id', authenticateTeacher, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.id === id);
+    if (!quiz) return res.status(404).json({ error: 'الاختبار غير موجود' });
+    jsonDb.remove('quizzes', (q: DbQuiz) => q.id === id);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Homework API (bubble-sheet PDF homework)
 app.get('/api/youchem/homeworks', authenticateTeacher, async (req, res) => {
   try {
