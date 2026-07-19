@@ -91,6 +91,11 @@ export interface DbHomeworkSubmission {
   createdAt: string;
 }
 
+export interface DbSettings {
+  id: string; // always 'main'
+  teacherPasswordHash?: string;
+}
+
 interface DBShape {
   users: DbUser[];
   lessons: DbLesson[];
@@ -99,6 +104,7 @@ interface DBShape {
   studentLessonAccess: DbStudentLessonAccess[];
   homeworks: DbHomework[];
   homeworkSubmissions: DbHomeworkSubmission[];
+  settings: DbSettings[];
 }
 
 // Allow overriding the data directory via env var so it can be pointed at a
@@ -121,6 +127,7 @@ const emptyData = (): DBShape => ({
   studentLessonAccess: [],
   homeworks: [],
   homeworkSubmissions: [],
+  settings: [],
 });
 
 let cache: DBShape | null = null;

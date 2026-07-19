@@ -13,6 +13,7 @@ import {
   jsonDb,
   newId,
   DbUser,
+  DbSettings,
   DbLesson,
   DbQuiz,
   DbCode,
@@ -126,12 +127,40 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
 // --- TEACHER API ---
 app.post('/api/teacher/login', async (req, res) => {
   const { password } = req.body;
-  const isMatch = typeof password === 'string' && await bcrypt.compare(password, await teacherPasswordHashPromise);
+  // Use stored hash if teacher changed their password, otherwise fall back to default.
+  const storedSettings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+  const hash = storedSettings?.teacherPasswordHash ?? (await teacherPasswordHashPromise);
+  const isMatch = typeof password === 'string' && await bcrypt.compare(password, hash);
   if (isMatch) {
     const token = jwt.sign({ role: 'teacher' }, JWT_SECRET, { expiresIn: '1d' });
     res.cookie('teacher_token', token, { httpOnly: true }).json({ success: true });
   } else {
     res.status(401).json({ error: 'Invalid password' });
+  }
+});
+
+app.post('/api/teacher/change-password', authenticateTeacher, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+      return res.status(400).json({ error: 'بيانات غير صحيحة' });
+    }
+    if (newPassword.length < 4) return res.status(400).json({ error: 'كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل' });
+
+    const storedSettings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    const currentHash = storedSettings?.teacherPasswordHash ?? (await teacherPasswordHashPromise);
+    const isMatch = await bcrypt.compare(currentPassword, currentHash);
+    if (!isMatch) return res.status(401).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    if (storedSettings) {
+      jsonDb.update('settings', (s: DbSettings) => s.id === 'main', { teacherPasswordHash: newHash });
+    } else {
+      jsonDb.insert('settings', { id: 'main', teacherPasswordHash: newHash });
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -746,6 +775,54 @@ app.post('/api/student/submit-homework', authenticateStudent, async (req, res) =
     jsonDb.insert('homeworkSubmissions', submission);
 
     res.json({ score, total: homework.numQuestions, results });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Teacher: settings stats ───────────────────────────────────────────────────
+app.get('/api/youchem/settings/stats', authenticateTeacher, async (req, res) => {
+  try {
+    const students = jsonDb.filter('users', (u: DbUser) => u.role === 'student');
+    const lessons = jsonDb.getAll('lessons');
+    const homeworks = jsonDb.getAll('homeworks');
+    const quizzes = jsonDb.getAll('quizzes');
+    const codes = jsonDb.getAll('codes') as Array<{ used?: boolean }>;
+    const homeworkSubmissions = jsonDb.getAll('homeworkSubmissions');
+    res.json({
+      students: students.length,
+      lessons: lessons.length,
+      homeworks: homeworks.length,
+      quizzes: quizzes.length,
+      codesTotal: codes.length,
+      codesUsed: codes.filter(c => c.used).length,
+      homeworkSubmissions: homeworkSubmissions.length,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Teacher: reset platform ────────────────────────────────────────────────────
+app.post('/api/youchem/reset-platform', authenticateTeacher, async (req, res) => {
+  try {
+    // Delete all homework PDF files from disk
+    if (fs.existsSync(UPLOADS_DIR)) {
+      const files = fs.readdirSync(UPLOADS_DIR);
+      for (const file of files) {
+        try { fs.unlinkSync(path.join(UPLOADS_DIR, file)); } catch { /* ignore */ }
+      }
+    }
+
+    // Clear all content collections (keep users + settings)
+    jsonDb.remove('lessons', () => true);
+    jsonDb.remove('quizzes', () => true);
+    jsonDb.remove('codes', () => true);
+    jsonDb.remove('studentLessonAccess', () => true);
+    jsonDb.remove('homeworks', () => true);
+    jsonDb.remove('homeworkSubmissions', () => true);
+
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
