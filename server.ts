@@ -760,6 +760,31 @@ app.post('/api/student/submit-homework', authenticateStudent, async (req, res) =
   }
 });
 
+// ── Teacher: homework grades matrix ──────────────────────────────────────────
+app.get('/api/youchem/grades/homework', authenticateTeacher, async (req, res) => {
+  try {
+    const students = jsonDb.filter('users', (u: DbUser) => u.role === 'student');
+    const lessons = jsonDb.getAll('lessons') as DbLesson[];
+    const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
+    const submissions = jsonDb.getAll('homeworkSubmissions') as DbHomeworkSubmission[];
+    res.json({ students, lessons, homeworks, submissions });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Teacher: quiz grades matrix ───────────────────────────────────────────────
+app.get('/api/youchem/grades/quiz', authenticateTeacher, async (req, res) => {
+  try {
+    const students = jsonDb.filter('users', (u: DbUser) => u.role === 'student');
+    const lessons = jsonDb.getAll('lessons') as DbLesson[];
+    const accesses = jsonDb.getAll('studentLessonAccess') as DbStudentLessonAccess[];
+    res.json({ students, lessons, accesses });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {

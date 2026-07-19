@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Key, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut } from 'lucide-react';
+import { BookOpen, Key, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut, ClipboardList, Trophy } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const navItems = [
@@ -9,6 +9,8 @@ const navItems = [
   { path: '/youchem/homework', label: 'الواجبات', icon: FileText },
   { path: '/youchem/students', label: 'الطلاب', icon: Users },
   { path: '/youchem/emails', label: 'البريد', icon: Mail },
+  { path: '/youchem/grades/homework', label: 'درجات الواجب', icon: ClipboardList },
+  { path: '/youchem/grades/quiz', label: 'درجات الاختبارات', icon: Trophy },
 ];
 
 export function DashboardLayout() {
