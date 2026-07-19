@@ -66,7 +66,39 @@ const DATA_ROOT = process.env.RAILWAY_VOLUME_MOUNT_PATH
 const UPLOADS_DIR = path.join(DATA_ROOT, 'uploads', 'homeworks');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 console.log(`[server] Using uploads directory: ${UPLOADS_DIR}`);
-app.use('/uploads/homeworks', express.static(UPLOADS_DIR));
+// Homework PDFs require authentication — no unauthenticated static serving.
+// Both students and teachers can fetch them; the route checks either cookie.
+app.get('/uploads/homeworks/:filename', (req, res, next) => {
+  // Try student auth first, then teacher auth; reject if neither passes.
+  const studentToken = req.cookies.student_token;
+  const teacherToken = req.cookies.teacher_token;
+  let authorized = false;
+  if (studentToken) {
+    try {
+      const decoded = jwt.verify(studentToken, JWT_SECRET) as any;
+      if (decoded.role === 'student') {
+        const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
+        if (user && !user.blocked && user.activeSessionToken && decoded.sessionToken === user.activeSessionToken) {
+          authorized = true;
+        }
+      }
+    } catch { /* invalid student token */ }
+  }
+  if (!authorized && teacherToken) {
+    try {
+      const decoded = jwt.verify(teacherToken, JWT_SECRET) as any;
+      if (decoded.role === 'teacher') {
+        const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+        if (settings?.activeTeacherToken && decoded.teacherSessionToken === settings.activeTeacherToken) {
+          authorized = true;
+        }
+      }
+    } catch { /* invalid teacher token */ }
+  }
+  if (!authorized) return res.status(401).json({ error: 'Unauthorized' });
+  const filename = path.basename(req.params.filename); // prevent path traversal
+  res.sendFile(path.join(UPLOADS_DIR, filename));
+});
 
 const homeworkUpload = multer({
   storage: multer.diskStorage({
@@ -80,15 +112,32 @@ const homeworkUpload = multer({
   },
 });
 
+// Shared cookie options ──────────────────────────────────────────────────────
+// secure:true is set in production so cookies are only sent over HTTPS.
+// sameSite:lax prevents CSRF while still allowing normal navigation.
+const COOKIE_OPTS: express.CookieOptions = {
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production',
+};
+
 // Authentication Middleware
 const authenticateTeacher = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const token = req.cookies.teacher_token;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (decoded.role !== 'teacher') throw new Error();
+    if (decoded.role !== 'teacher') throw new Error('bad role');
+    // Server-side session check: if teacher logged out, stored token is null
+    // and any lingering cookie (even a stolen one) is immediately rejected.
+    const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    if (!settings?.activeTeacherToken || decoded.teacherSessionToken !== settings.activeTeacherToken) {
+      res.clearCookie('teacher_token', COOKIE_OPTS);
+      return res.status(401).json({ error: 'SESSION_EXPIRED' });
+    }
     next();
   } catch (err) {
+    res.clearCookie('teacher_token', COOKIE_OPTS);
     res.status(401).json({ error: 'Invalid token' });
   }
 };
@@ -101,11 +150,11 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
     if (decoded.role !== 'student') throw new Error('bad role');
     const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
     if (!user) {
-      res.clearCookie('student_token');
+      res.clearCookie('student_token', COOKIE_OPTS);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     if (user.blocked) {
-      res.clearCookie('student_token');
+      res.clearCookie('student_token', COOKIE_OPTS);
       return res.status(403).json({ error: 'تم حظر هذا الحساب من الدخول إلى المنصة.' });
     }
     // ── Single-device enforcement ──────────────────────────────────────────
@@ -114,13 +163,13 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
     // (another device logged in) both result in immediate rejection so that
     // stale cookies can never be reused after logout.
     if (!user.activeSessionToken || decoded.sessionToken !== user.activeSessionToken) {
-      res.clearCookie('student_token');
+      res.clearCookie('student_token', COOKIE_OPTS);
       return res.status(401).json({ error: 'SESSION_CONFLICT' });
     }
     (req as any).studentId = decoded.studentId;
     next();
   } catch (err) {
-    res.clearCookie('student_token');
+    res.clearCookie('student_token', COOKIE_OPTS);
     res.status(401).json({ error: 'Invalid token' });
   }
 };
@@ -133,8 +182,16 @@ app.post('/api/teacher/login', async (req, res) => {
   const hash = storedSettings?.teacherPasswordHash ?? (await teacherPasswordHashPromise);
   const isMatch = typeof password === 'string' && await bcrypt.compare(password, hash);
   if (isMatch) {
-    const token = jwt.sign({ role: 'teacher' }, JWT_SECRET, { expiresIn: '1d' });
-    res.cookie('teacher_token', token, { httpOnly: true }).json({ success: true });
+    // Generate a server-side session token so logout actually invalidates
+    // the cookie even if it was copied or stolen.
+    const teacherSessionToken = randomBytes(32).toString('hex');
+    const token = jwt.sign({ role: 'teacher', teacherSessionToken }, JWT_SECRET, { expiresIn: '1d' });
+    if (storedSettings) {
+      jsonDb.update('settings', (s: DbSettings) => s.id === 'main', { activeTeacherToken: teacherSessionToken });
+    } else {
+      jsonDb.insert('settings', { id: 'main', activeTeacherToken: teacherSessionToken });
+    }
+    res.cookie('teacher_token', token, { ...COOKIE_OPTS, maxAge: 24 * 60 * 60 * 1000 }).json({ success: true });
   } else {
     res.status(401).json({ error: 'Invalid password' });
   }
@@ -169,8 +226,16 @@ app.get('/api/teacher/check-auth', authenticateTeacher, (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/teacher/logout', (req, res) => {
-  res.clearCookie('teacher_token').json({ success: true });
+app.post('/api/teacher/logout', authenticateTeacher, (req, res) => {
+  // Clear the server-side session token so any lingering or copied cookie
+  // is immediately rejected by authenticateTeacher.
+  try {
+    const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    if (settings) {
+      jsonDb.update('settings', (s: DbSettings) => s.id === 'main', { activeTeacherToken: null });
+    }
+  } catch { /* ignore */ }
+  res.clearCookie('teacher_token', COOKIE_OPTS).json({ success: true });
 });
 
 // Lessons API
@@ -524,10 +589,7 @@ app.post('/api/student/google-login', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '30d' },
     );
-    res.cookie('student_token', token, {
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie('student_token', token, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
     const needsProfile = !user.name || user.name === 'طالب' || !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
     res.json({ success: true, user, needsProfile, picture });
@@ -587,7 +649,7 @@ app.post('/api/student/logout', (req, res) => {
   } catch {
     // ignore malformed/forged token — still clear the cookie
   }
-  res.clearCookie('student_token').json({ success: true });
+  res.clearCookie('student_token', COOKIE_OPTS).json({ success: true });
 });
 
 app.get('/api/student/lessons', authenticateStudent, async (req, res) => {

@@ -96,6 +96,9 @@ export interface DbHomeworkSubmission {
 export interface DbSettings {
   id: string; // always 'main'
   teacherPasswordHash?: string;
+  /** Random token embedded in the teacher JWT and stored here.
+   *  Cleared on logout so stolen cookies are invalidated server-side. */
+  activeTeacherToken?: string | null;
 }
 
 interface DBShape {
