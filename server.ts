@@ -284,6 +284,8 @@ app.get('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
 app.post('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
   try {
     const { lessonId, questions } = req.body;
+    const existing = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
+    if (existing) return res.status(409).json({ error: 'يوجد اختبار بالفعل لهذه الحصة — احذفه أولاً لإنشاء اختبار جديد' });
     const quiz: DbQuiz = { id: newId(), lessonId, questions, createdAt: new Date().toISOString() };
     jsonDb.insert('quizzes', quiz);
     res.json(quiz);

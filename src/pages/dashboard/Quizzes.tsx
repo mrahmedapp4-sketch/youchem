@@ -73,6 +73,9 @@ export function Quizzes() {
         alert('تم حفظ الاختبار بنجاح');
         setQuestions(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
         fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'خطأ في حفظ الاختبار');
       }
     } catch { alert('خطأ في حفظ الاختبار'); }
   };
@@ -98,6 +101,8 @@ export function Quizzes() {
   // Map lessonId → title for display
   const lessonMap: Record<string, string> = {};
   lessons.forEach(l => { lessonMap[l.id] = l.title; });
+
+  const selectedLessonHasQuiz = quizzes.some((q: any) => q.lessonId === selectedLesson);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -183,6 +188,11 @@ export function Quizzes() {
             <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} className="neon-input w-full px-4 py-2.5 rounded-xl text-sm" required>
               {lessons.map(l => <option key={l.id} value={l.id}>{l.title} ({l.platform})</option>)}
             </select>
+            {selectedLessonHasQuiz && (
+              <p className="mt-2 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                ⚠️ هذه الحصة عندها اختبار بالفعل — احذفه أولاً من القائمة بالأعلى لإنشاء اختبار جديد
+              </p>
+            )}
           </div>
 
           <div className="space-y-8">
@@ -239,7 +249,7 @@ export function Quizzes() {
           </div>
 
           <div className="pt-4 border-t border-slate-200">
-            <button type="submit" className="neon-btn w-full px-6 py-3 rounded-xl font-bold">حفظ الاختبار</button>
+            <button type="submit" disabled={selectedLessonHasQuiz} className="neon-btn w-full px-6 py-3 rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed">حفظ الاختبار</button>
           </div>
         </form>
       </div>
