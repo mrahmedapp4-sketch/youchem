@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Key, CheckCircle, XCircle, FileText, Download } from 'lucide-react';
+import { ArrowRight, Lock, Key, CheckCircle, XCircle } from 'lucide-react';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -23,35 +23,14 @@ export function LessonView() {
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [quizResult, setQuizResult] = useState<any>(null);
 
-  const [homework, setHomework] = useState<any>(null);
-  const [homeworkLoading, setHomeworkLoading] = useState(false);
-  const [homeworkAnswers, setHomeworkAnswers] = useState<string[]>([]);
-  const [submittingHomework, setSubmittingHomework] = useState(false);
-  const [homeworkResult, setHomeworkResult] = useState<any>(null);
-
   useEffect(() => {
     fetchLessonData();
-    fetchHomework();
   }, [id]);
 
   useEffect(() => {
     if (lesson && access && !access.quizPassed && !access.quizExempt) fetchQuiz();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson, access]);
-
-  const fetchHomework = async () => {
-    setHomeworkLoading(true);
-    try {
-      const res = await fetch(`/api/student/homework/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setHomework(data.homework);
-        if (data.homework) setHomeworkAnswers(Array(data.homework.numQuestions).fill(''));
-        if (data.pastResult) setHomeworkResult(data.pastResult);
-      }
-    } catch (err) { console.error(err); }
-    setHomeworkLoading(false);
-  };
 
   const fetchQuiz = async () => {
     setQuizLoading(true);
@@ -112,18 +91,6 @@ export function LessonView() {
       if (res.ok) { setQuizResult(data); fetchLessonData(); }
     } catch { alert('خطأ'); }
     setSubmittingQuiz(false);
-  };
-
-  const handleSubmitHomework = async () => {
-    if (homeworkAnswers.includes('')) return alert('الرجاء الإجابة على جميع الأسئلة');
-    setSubmittingHomework(true);
-    try {
-      const res = await fetch('/api/student/submit-homework', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lessonId: id, answers: homeworkAnswers }) });
-      const data = await res.json();
-      if (res.ok) { setHomeworkResult(data); }
-      else { alert(data.error || 'حدث خطأ'); }
-    } catch { alert('خطأ'); }
-    setSubmittingHomework(false);
   };
 
   if (loading || !lesson) return (
@@ -305,73 +272,6 @@ export function LessonView() {
           </div>
         )}
 
-        {/* ── Homework ── */}
-        {!homeworkLoading && homework && (
-          <div className="neon-card p-6 md:p-8 rounded-2xl">
-            <div className="mb-6 pb-5 border-b border-slate-200 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">واجب الدرس</h2>
-                <p className="text-slate-500 text-sm mt-0.5">حمّل الواجب، حله، ثم سجل إجاباتك هنا للتصحيح.</p>
-              </div>
-            </div>
-
-            <a href={homework.pdfUrl} target="_blank" rel="noreferrer" className="neon-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold mb-6">
-              <Download className="w-4 h-4" />
-              تحميل ملف الواجب (PDF)
-            </a>
-
-            {homeworkResult ? (
-              <div className="space-y-5">
-                <div className="p-6 rounded-2xl border bg-indigo-50 border-indigo-200 text-center">
-                  <p className="text-slate-600 text-sm mb-1">درجتك في الواجب</p>
-                  <p className="text-5xl font-extrabold text-indigo-700">{homeworkResult.score} / {homeworkResult.total}</p>
-                  <p className="text-slate-500 mt-1">({Math.round((homeworkResult.score / homeworkResult.total) * 100)}%)</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {(homeworkResult.results || []).map((r: any) => (
-                    <div key={r.questionNumber} className={`p-4 rounded-xl border space-y-1 ${r.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                      <div className="flex items-center gap-2">
-                        {r.isCorrect ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
-                        <span className="font-bold text-slate-800 text-sm">سؤال {r.questionNumber}</span>
-                      </div>
-                      {!r.isCorrect && <p className="text-red-600 text-xs">إجابتك: {r.studentAnswer || 'لم تجب'}</p>}
-                      <p className="text-emerald-700 text-xs font-semibold">الصحيحة: {r.correctAnswer}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {Array.from({ length: homework.numQuestions }).map((_, idx) => (
-                    <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                      <span className="text-xs font-bold text-slate-500">سؤال {idx + 1}</span>
-                      <div className="flex gap-1">
-                        {ANSWER_LETTERS.map((letter) => (
-                          <button
-                            type="button" key={letter}
-                            onClick={() => { const a = [...homeworkAnswers]; a[idx] = letter; setHomeworkAnswers(a); }}
-                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                              homeworkAnswers[idx] === letter ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'
-                            }`}
-                          >{letter}</button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 pt-6 border-t border-slate-200 flex justify-end">
-                  <button onClick={handleSubmitHomework} disabled={submittingHomework} className="neon-btn w-full md:w-auto px-8 py-3 rounded-xl font-bold disabled:opacity-50">
-                    {submittingHomework ? 'جاري التصحيح...' : 'تصحيح'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
 
       </main>
     </div>

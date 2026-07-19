@@ -9,6 +9,7 @@ import { Students } from './pages/dashboard/Students';
 import { Emails } from './pages/dashboard/Emails';
 import { HomeworkGrades } from './pages/dashboard/HomeworkGrades';
 import { QuizGrades } from './pages/dashboard/QuizGrades';
+import { HomeworkView } from './pages/HomeworkView';
 import { TeacherLogin } from './pages/TeacherLogin';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { LessonView } from './pages/LessonView';
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/" element={<GradeSelection />} />
         <Route path="/student-dashboard" element={<StudentDashboard />} />
         <Route path="/lessons/:id" element={<LessonView />} />
+        <Route path="/homework/:id" element={<HomeworkView />} />
         
         {/* TEACHER FLOW */}
         <Route path="/youchem/login" element={<TeacherLogin />} />

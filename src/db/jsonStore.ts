@@ -70,7 +70,9 @@ export interface DbStudentLessonAccess {
 // paper, then pick their answer per question number on the platform.
 export interface DbHomework {
   id: string;
-  lessonId: string;
+  title: string;
+  gradeLevel: '2nd_sec' | '3rd_sec';
+  lessonId?: string; // kept optional for old records
   pdfUrl: string;
   pdfFileName: string;
   numQuestions: number;
@@ -82,7 +84,7 @@ export interface DbHomeworkSubmission {
   id: string;
   userId: string;
   homeworkId: string;
-  lessonId: string;
+  lessonId?: string; // optional — kept for old records
   answers: string[];
   score: number;
   total: number;

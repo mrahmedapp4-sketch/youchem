@@ -22,15 +22,15 @@ export function HomeworkGrades() {
   if (loading) return <div className="p-10 text-center text-slate-400 text-sm">جاري التحميل...</div>;
   if (!data) return <div className="p-10 text-center text-red-400 text-sm">حدث خطأ في التحميل</div>;
 
-  const { students, lessons, homeworks, submissions } = data;
+  const { students, homeworks, submissions } = data;
 
-  // Lessons that have a homework AND belong to the selected grade
-  const gradeLessons = lessons
-    .filter((l: any) => l.gradeLevel === gradeFilter && homeworks.some((h: any) => h.lessonId === l.id))
+  // Homeworks in the selected grade
+  const gradeHomeworks = (homeworks as any[])
+    .filter((h: any) => h.gradeLevel === gradeFilter)
     .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   // Students in the selected grade, filtered by search
-  const gradeStudents = students
+  const gradeStudents = (students as any[])
     .filter((s: any) => s.gradeLevel === gradeFilter)
     .filter((s: any) =>
       !search || (s.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -38,34 +38,27 @@ export function HomeworkGrades() {
     )
     .sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '', 'ar'));
 
-  // Lookup: homeworkId by lessonId
-  const hwByLesson: Record<string, any> = {};
-  homeworks.forEach((h: any) => { hwByLesson[h.lessonId] = h; });
-
-  // Lookup: submission by userId+lessonId
-  const subKey = (userId: string, lessonId: string) => `${userId}__${lessonId}`;
+  // Lookup: submission by userId+homeworkId
+  const subKey = (userId: string, homeworkId: string) => `${userId}__${homeworkId}`;
   const subMap: Record<string, any> = {};
-  submissions.forEach((s: any) => { subMap[subKey(s.userId, s.lessonId)] = s; });
+  (submissions as any[]).forEach((s: any) => { subMap[subKey(s.userId, s.homeworkId)] = s; });
 
   return (
     <div className="max-w-full space-y-5">
       <div>
         <h1 className="text-xl font-bold text-slate-900">درجات الواجب</h1>
-        <p className="text-slate-500 text-sm mt-0.5">درجة كل طالب في واجبات كل حصة</p>
+        <p className="text-slate-500 text-sm mt-0.5">درجة كل طالب في كل واجب</p>
       </div>
 
       {/* Controls */}
       <div className="neon-card p-4 rounded-2xl flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        {/* Grade tabs */}
         <div className="flex rounded-xl overflow-hidden border border-slate-200 shrink-0">
           {(['2nd_sec', '3rd_sec'] as const).map(g => (
             <button
               key={g}
               onClick={() => setGradeFilter(g)}
               className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                gradeFilter === g
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-50'
+                gradeFilter === g ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
               }`}
             >
               {GRADE_LABEL[g]}
@@ -84,7 +77,7 @@ export function HomeworkGrades() {
 
       {/* Table */}
       <div className="neon-card rounded-2xl overflow-hidden">
-        {gradeLessons.length === 0 ? (
+        {gradeHomeworks.length === 0 ? (
           <div className="p-10 text-center text-slate-400 text-sm flex flex-col items-center gap-2">
             <ClipboardList className="w-8 h-8 text-slate-300" />
             لا توجد واجبات لهذا الصف بعد
@@ -99,26 +92,22 @@ export function HomeworkGrades() {
                   <th className="px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap sticky right-0 bg-slate-50 z-10 min-w-[160px]">
                     الطالب
                   </th>
-                  {gradeLessons.map((l: any) => (
-                    <th key={l.id} className="px-3 py-3 font-semibold text-slate-600 text-xs text-center whitespace-nowrap max-w-[120px]">
-                      <span className="block truncate max-w-[120px]" title={l.title}>{l.title}</span>
+                  {gradeHomeworks.map((h: any) => (
+                    <th key={h.id} className="px-3 py-3 font-semibold text-slate-600 text-xs text-center whitespace-nowrap max-w-[140px]">
+                      <span className="block truncate max-w-[140px]" title={h.title}>{h.title}</span>
                     </th>
                   ))}
-                  <th className="px-4 py-3 font-semibold text-slate-600 text-xs text-center whitespace-nowrap">
-                    الإجمالي
-                  </th>
+                  <th className="px-4 py-3 font-semibold text-slate-600 text-xs text-center whitespace-nowrap">الإجمالي</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {gradeStudents.map((student: any) => {
                   let totalScore = 0, totalPossible = 0;
-                  const cells = gradeLessons.map((lesson: any) => {
-                    const hw = hwByLesson[lesson.id];
-                    if (!hw) return <td key={lesson.id} className="px-3 py-3 text-center text-slate-300">—</td>;
-                    const sub = subMap[subKey(student.id, lesson.id)];
+                  const cells = gradeHomeworks.map((hw: any) => {
+                    const sub = subMap[subKey(student.id, hw.id)];
                     if (sub) { totalScore += sub.score; totalPossible += sub.total; }
                     return (
-                      <td key={lesson.id} className="px-3 py-3 text-center whitespace-nowrap">
+                      <td key={hw.id} className="px-3 py-3 text-center whitespace-nowrap">
                         {sub ? (
                           <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg font-bold text-xs ${
                             sub.score / sub.total >= 0.5

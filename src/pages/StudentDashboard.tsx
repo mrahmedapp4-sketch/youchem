@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Video, CheckCircle, Lock, PlayCircle, FileText, Download, ClipboardList } from 'lucide-react';
+import { Video, CheckCircle, Lock, PlayCircle, FileText, ClipboardList } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 
 type Section = 'lessons' | 'homework';
@@ -165,23 +165,13 @@ export function StudentDashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {homeworks.map((hw) => (
-              <div key={hw.homeworkId} className="neon-card rounded-2xl p-5 h-full flex flex-col">
+              <div key={hw.id} className="neon-card rounded-2xl p-5 h-full flex flex-col">
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
                     <FileText className="w-5 h-5 text-indigo-600" />
                   </div>
-                  <h3 className="font-bold text-slate-900 leading-snug pt-1">{hw.lessonTitle}</h3>
+                  <h3 className="font-bold text-slate-900 leading-snug pt-1">{hw.title}</h3>
                 </div>
-
-                <a
-                  href={hw.pdfUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-semibold text-sm mb-4"
-                >
-                  <Download className="w-4 h-4" />
-                  تحميل ملف الواجب
-                </a>
 
                 <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100">
                   {hw.submission ? (
@@ -192,7 +182,7 @@ export function StudentDashboard() {
                     <span className="text-sm text-slate-400">لم تتم الإجابة بعد</span>
                   )}
                   <Link
-                    to={`/lessons/${hw.lessonId}`}
+                    to={`/homework/${hw.id}`}
                     className="neon-btn px-4 py-2 rounded-lg text-sm font-bold"
                   >
                     {hw.submission ? 'عرض' : 'حل الواجب'}

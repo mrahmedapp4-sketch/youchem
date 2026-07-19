@@ -215,14 +215,6 @@ app.delete('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => 
     jsonDb.remove('quizzes', (q: DbQuiz) => q.lessonId === id);
     jsonDb.remove('studentLessonAccess', (a: DbStudentLessonAccess) => a.lessonId === id);
 
-    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === id);
-    if (homework) {
-      const filePath = path.join(UPLOADS_DIR, path.basename(homework.pdfUrl));
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      jsonDb.remove('homeworkSubmissions', (s: DbHomeworkSubmission) => s.homeworkId === homework.id);
-    }
-    jsonDb.remove('homeworks', (h: DbHomework) => h.lessonId === id);
-
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -317,9 +309,10 @@ app.get('/api/youchem/homeworks', authenticateTeacher, async (req, res) => {
 
 app.post('/api/youchem/homework', authenticateTeacher, homeworkUpload.single('pdf'), async (req, res) => {
   try {
-    const { lessonId, numQuestions, answerKey } = req.body;
+    const { title, gradeLevel, numQuestions, answerKey } = req.body;
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'ملف PDF مطلوب' });
+    if (!title) { fs.unlinkSync(file.path); return res.status(400).json({ error: 'عنوان الواجب مطلوب' }); }
 
     const parsedAnswerKey = JSON.parse(answerKey);
     const parsedNumQuestions = parseInt(numQuestions, 10);
@@ -328,18 +321,10 @@ app.post('/api/youchem/homework', authenticateTeacher, homeworkUpload.single('pd
       return res.status(400).json({ error: 'عدد الأسئلة لا يطابق نموذج الإجابة' });
     }
 
-    // Only one homework per lesson: replace any previous one (and its file).
-    const existing = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === lessonId);
-    if (existing) {
-      const oldPath = path.join(UPLOADS_DIR, path.basename(existing.pdfUrl));
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-      jsonDb.remove('homeworks', (h: DbHomework) => h.id === existing.id);
-      jsonDb.remove('homeworkSubmissions', (s: DbHomeworkSubmission) => s.homeworkId === existing.id);
-    }
-
     const homework: DbHomework = {
       id: newId(),
-      lessonId,
+      title,
+      gradeLevel,
       pdfUrl: `/uploads/homeworks/${file.filename}`,
       pdfFileName: file.originalname,
       numQuestions: parsedNumQuestions,
@@ -662,11 +647,11 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
 });
 
 // Homework: fetch the PDF + question count for a lesson, without the answer key.
-app.get('/api/student/homework/:lessonId', authenticateStudent, async (req, res) => {
+app.get('/api/student/homework/:homeworkId', authenticateStudent, async (req, res) => {
   try {
-    const { lessonId } = req.params;
+    const { homeworkId } = req.params;
     const studentId = (req as any).studentId;
-    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === lessonId);
+    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.id === homeworkId);
     if (!homework) return res.json({ homework: null });
 
     // If the student already submitted this homework, return their past
@@ -688,6 +673,7 @@ app.get('/api/student/homework/:lessonId', authenticateStudent, async (req, res)
     res.json({
       homework: {
         id: homework.id,
+        title: homework.title,
         pdfUrl: homework.pdfUrl,
         pdfFileName: homework.pdfFileName,
         numQuestions: homework.numQuestions,
@@ -699,32 +685,24 @@ app.get('/api/student/homework/:lessonId', authenticateStudent, async (req, res)
   }
 });
 
-// Aggregated homework list across all of the student's lessons, with submission status,
-// used to power the "واجباتي" (My Homework) section of the student dashboard.
+// Aggregated homework list for the student's grade, no lesson access required.
 app.get('/api/student/homeworks', authenticateStudent, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
     const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
     if (!user || !user.gradeLevel) return res.status(400).json({ error: 'Grade not set' });
 
-    const lessons = jsonDb.filter(
-      'lessons',
-      (l: DbLesson) => l.gradeLevel === user.gradeLevel && !l.isHidden
-    );
-    const lessonIds = new Set(lessons.map((l: DbLesson) => l.id));
-    const homeworks = jsonDb.filter('homeworks', (h: DbHomework) => lessonIds.has(h.lessonId));
+    const homeworks = jsonDb.filter('homeworks', (h: DbHomework) => h.gradeLevel === user.gradeLevel);
     const submissions = jsonDb.filter(
       'homeworkSubmissions',
       (s: DbHomeworkSubmission) => s.userId === studentId
     );
 
     const result = homeworks.map((h: DbHomework) => {
-      const lesson = lessons.find((l: DbLesson) => l.id === h.lessonId);
       const submission = submissions.find((s: DbHomeworkSubmission) => s.homeworkId === h.id);
       return {
-        homeworkId: h.id,
-        lessonId: h.lessonId,
-        lessonTitle: lesson?.title || '',
+        id: h.id,
+        title: h.title,
         pdfUrl: h.pdfUrl,
         numQuestions: h.numQuestions,
         submission: submission ? { score: submission.score, total: submission.total } : null,
@@ -739,11 +717,11 @@ app.get('/api/student/homeworks', authenticateStudent, async (req, res) => {
 
 app.post('/api/student/submit-homework', authenticateStudent, async (req, res) => {
   try {
-    const { lessonId, answers } = req.body;
+    const { homeworkId, answers } = req.body;
     const studentId = (req as any).studentId;
 
-    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.lessonId === lessonId);
-    if (!homework) return res.status(404).json({ error: 'لا يوجد واجب لهذا الدرس' });
+    const homework = jsonDb.find('homeworks', (h: DbHomework) => h.id === homeworkId);
+    if (!homework) return res.status(404).json({ error: 'الواجب غير موجود' });
     if (!Array.isArray(answers) || answers.length !== homework.numQuestions) {
       return res.status(400).json({ error: 'الرجاء الإجابة على جميع الأسئلة' });
     }
@@ -760,7 +738,6 @@ app.post('/api/student/submit-homework', authenticateStudent, async (req, res) =
       id: newId(),
       userId: studentId,
       homeworkId: homework.id,
-      lessonId,
       answers,
       score,
       total: homework.numQuestions,

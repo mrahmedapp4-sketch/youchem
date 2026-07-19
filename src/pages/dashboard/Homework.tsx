@@ -3,23 +3,21 @@ import { FileText, Trash2, UploadCloud } from 'lucide-react';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 
+const GRADE_LABEL: Record<string, string> = {
+  '2nd_sec': 'الثاني الثانوي',
+  '3rd_sec': 'الثالث الثانوي',
+};
+
 export function Homework() {
-  const [lessons, setLessons] = useState<any[]>([]);
   const [homeworks, setHomeworks] = useState<any[]>([]);
-  const [selectedLesson, setSelectedLesson] = useState('');
+  const [title, setTitle] = useState('');
+  const [gradeLevel, setGradeLevel] = useState<'2nd_sec' | '3rd_sec'>('2nd_sec');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [numQuestions, setNumQuestions] = useState(10);
   const [answerKey, setAnswerKey] = useState<string[]>(Array(10).fill('A'));
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { fetchLessons(); fetchHomeworks(); }, []);
-
-  const fetchLessons = async () => {
-    try {
-      const res = await fetch('/api/youchem/lessons');
-      if (res.ok) { const all = await res.json(); setLessons(all); if (all.length > 0) setSelectedLesson(all[0].id); }
-    } catch (err) { console.error(err); }
-  };
+  useEffect(() => { fetchHomeworks(); }, []);
 
   const fetchHomeworks = async () => {
     try {
@@ -49,18 +47,28 @@ export function Homework() {
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedLesson) return alert('الرجاء اختيار حصة');
+    if (!title.trim()) return alert('الرجاء كتابة عنوان للواجب');
     if (!pdfFile) return alert('الرجاء اختيار ملف PDF');
     setSaving(true);
     try {
       const formData = new FormData();
-      formData.append('lessonId', selectedLesson);
+      formData.append('title', title.trim());
+      formData.append('gradeLevel', gradeLevel);
       formData.append('numQuestions', String(numQuestions));
       formData.append('answerKey', JSON.stringify(answerKey));
       formData.append('pdf', pdfFile);
       const res = await fetch('/api/youchem/homework', { method: 'POST', body: formData });
-      if (res.ok) { alert('تم حفظ الواجب بنجاح'); setPdfFile(null); fetchHomeworks(); }
-      else { const data = await res.json().catch(() => ({})); alert(data.error || 'حدث خطأ'); }
+      if (res.ok) {
+        alert('تم حفظ الواجب بنجاح');
+        setTitle('');
+        setPdfFile(null);
+        setNumQuestions(10);
+        setAnswerKey(Array(10).fill('A'));
+        fetchHomeworks();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'حدث خطأ');
+      }
     } catch { alert('حدث خطأ أثناء حفظ الواجب'); }
     setSaving(false);
   };
@@ -73,8 +81,6 @@ export function Homework() {
     } catch { alert('فشل في الحذف'); }
   };
 
-  const lessonTitle = (lessonId: string) => lessons.find(l => l.id === lessonId)?.title || 'حصة محذوفة';
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
@@ -84,13 +90,26 @@ export function Homework() {
 
       <form onSubmit={handleSave} className="neon-card p-6 rounded-2xl space-y-6">
 
+        {/* Title */}
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-1.5">اختر الحصة</label>
-          <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} className="neon-input w-full px-4 py-2.5 rounded-xl text-sm" required>
-            {lessons.map(l => <option key={l.id} value={l.id}>{l.title} ({l.platform})</option>)}
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">عنوان الواجب</label>
+          <input
+            type="text" required placeholder="مثال: واجب الفصل الأول — الجدول الدوري"
+            value={title} onChange={e => setTitle(e.target.value)}
+            className="neon-input w-full px-4 py-2.5 rounded-xl text-sm"
+          />
+        </div>
+
+        {/* Grade level */}
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">الصف الدراسي</label>
+          <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value as any)} className="neon-input w-full px-4 py-2.5 rounded-xl text-sm">
+            <option value="2nd_sec">الثاني الثانوي</option>
+            <option value="3rd_sec">الثالث الثانوي</option>
           </select>
         </div>
 
+        {/* PDF */}
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1.5">ملف الواجب (PDF)</label>
           {pdfFile ? (
@@ -110,12 +129,14 @@ export function Homework() {
           )}
         </div>
 
+        {/* Num questions */}
         <div className="max-w-xs">
           <label className="block text-sm font-semibold text-slate-700 mb-1.5">عدد الأسئلة</label>
           <input type="number" min={1} max={100} value={numQuestions} onChange={e => handleNumQuestionsChange(parseInt(e.target.value, 10))}
             className="neon-input w-full px-4 py-2.5 rounded-xl text-sm" />
         </div>
 
+        {/* Answer key */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-slate-700">نموذج الإجابة الصحيحة</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -159,8 +180,8 @@ export function Homework() {
                   <FileText className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <h4 className="font-bold text-slate-900 text-sm truncate">{lessonTitle(hw.lessonId)}</h4>
-                  <p className="text-xs text-slate-400">{hw.numQuestions} سؤال</p>
+                  <h4 className="font-bold text-slate-900 text-sm truncate">{hw.title || '—'}</h4>
+                  <p className="text-xs text-slate-400">{GRADE_LABEL[hw.gradeLevel] || hw.gradeLevel} · {hw.numQuestions} سؤال</p>
                 </div>
               </div>
               <button onClick={() => handleDelete(hw.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="حذف">
