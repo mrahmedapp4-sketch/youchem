@@ -1,14 +1,17 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ChevronLeft } from 'lucide-react';
+import { GraduationCap, ChevronLeft, Play } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 
 const CONTACT_TEACHER_MSG =
   'تقريبا في خطا ممكن تتواصل مع مستر احمد علشان نحل المشكله';
 
 export function GradeSelection() {
+  const [showVideo, setShowVideo] = useState(true);
+  const [videoReady, setVideoReady] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [needsProfile, setNeedsProfile] = useState(false);
   const [error, setError] = useState('');
@@ -125,6 +128,40 @@ export function GradeSelection() {
     return (
       <div className="min-h-screen flex items-center justify-center text-slate-500">
         جاري التحقق...
+      </div>
+    );
+  }
+
+  if (showVideo) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center relative">
+        {/* Video */}
+        <video
+          ref={videoRef}
+          src="/intro.mp4"
+          className={`max-h-screen max-w-full w-full object-contain transition-opacity duration-500 ${videoReady ? 'opacity-100' : 'opacity-0'}`}
+          autoPlay
+          playsInline
+          onCanPlay={() => setVideoReady(true)}
+          onEnded={() => setShowVideo(false)}
+        />
+
+        {/* Loading spinner before video is ready */}
+        {!videoReady && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+          </div>
+        )}
+
+        {/* Skip button */}
+        {videoReady && (
+          <button
+            onClick={() => setShowVideo(false)}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-sm text-white text-sm font-semibold px-6 py-2.5 rounded-full border border-white/20 transition-all"
+          >
+            تخطي ▶
+          </button>
+        )}
       </div>
     );
   }
