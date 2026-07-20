@@ -157,7 +157,7 @@ export function GradeSelection() {
         {videoReady && (
           <button
             onClick={() => setShowVideo(false)}
-            className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-sm text-white text-sm font-semibold px-6 py-2.5 rounded-full border border-white/20 transition-all"
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold px-6 py-2.5 rounded-full transition-all shadow-lg shadow-indigo-900/40"
           >
             تخطي ▶
           </button>
