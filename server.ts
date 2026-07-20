@@ -332,13 +332,14 @@ app.get('/api/youchem/codes', authenticateTeacher, async (req, res) => {
 
 app.post('/api/youchem/codes/generate', authenticateTeacher, async (req, res) => {
   try {
-    const { count } = req.body;
+    const { count, lessonId } = req.body;
     for (let i = 0; i < count; i++) {
       const code: DbCode = {
         id: newId(),
         codeString: `YCH-${randomBytes(4).toString('hex').toUpperCase()}`,
         isUsed: false,
         usedBy: null,
+        lessonId: lessonId || undefined,
         createdAt: new Date().toISOString(),
       };
       jsonDb.insert('codes', code);
@@ -746,6 +747,115 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
         quizScore: score,
         quizTotal: total,
         quizResults: results,
+      });
+    }
+
+    res.json({ score, total, passed, results });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Exam flow (standalone: code → questions → corrected results) ─────────────
+
+// Step 1: validate code and return quiz questions (images included, answers stripped)
+app.post('/api/student/exam/start', authenticateStudent, async (req, res) => {
+  try {
+    const { code } = req.body;
+    const studentId = (req as any).studentId;
+
+    const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
+    if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
+    if (key.isUsed && key.usedBy !== studentId) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
+    if (!key.lessonId) return res.status(400).json({ error: 'هذا الكود غير مرتبط بامتحان — تواصل مع مستر أحمد' });
+
+    const lessonId = key.lessonId;
+
+    // Mark code as used if this is the first time
+    if (!key.isUsed) {
+      jsonDb.update('codes', (c: DbCode) => c.id === key.id, { isUsed: true, usedBy: studentId });
+    }
+
+    // Ensure access record exists
+    const existing = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+    );
+    if (!existing) {
+      jsonDb.insert('studentLessonAccess', {
+        userId: studentId,
+        lessonId,
+        unlockedAt: new Date().toISOString(),
+        quizPassed: false,
+        quizExempt: false,
+      });
+    }
+
+    const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
+    if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+      return res.status(404).json({ error: 'لم يتم إضافة امتحان لهذا الدرس بعد' });
+    }
+
+    const sanitized = quiz.questions.map((q: any) => ({
+      question: q.question,
+      image: q.image || null,
+    }));
+
+    res.json({ lessonId, questions: sanitized });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Step 2: submit answers and return full corrected results (with images)
+app.post('/api/student/exam/submit', authenticateStudent, async (req, res) => {
+  try {
+    const { lessonId, answers } = req.body;
+    const studentId = (req as any).studentId;
+
+    const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
+    if (!quiz || !Array.isArray(quiz.questions)) {
+      return res.status(404).json({ error: 'الامتحان غير موجود' });
+    }
+
+    const total = quiz.questions.length;
+    let score = 0;
+    const results = quiz.questions.map((q: any, idx: number) => {
+      const studentAnswer =
+        answers?.[idx] !== undefined && answers[idx] !== '' ? answers[idx] : null;
+      const isCorrect = studentAnswer !== null && studentAnswer === q.correct_answer;
+      if (isCorrect) score++;
+      return {
+        question: q.question,
+        image: q.image || null,
+        studentAnswer,
+        correctAnswer: q.correct_answer,
+        isCorrect,
+      };
+    });
+
+    const passed = score >= Math.ceil(total / 2);
+
+    // Persist the result
+    const persistResults = results.map(({ question, studentAnswer, correctAnswer, isCorrect }) => ({
+      question, studentAnswer, correctAnswer, isCorrect,
+    }));
+    const existing = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+    );
+    if (existing) {
+      jsonDb.update(
+        'studentLessonAccess',
+        (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
+        { quizPassed: passed || existing.quizPassed, quizScore: score, quizTotal: total, quizResults: persistResults }
+      );
+    } else {
+      jsonDb.insert('studentLessonAccess', {
+        userId: studentId, lessonId,
+        unlockedAt: new Date().toISOString(),
+        quizPassed: passed, quizExempt: false,
+        quizScore: score, quizTotal: total, quizResults: persistResults,
       });
     }
 

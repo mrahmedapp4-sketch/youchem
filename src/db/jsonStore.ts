@@ -51,6 +51,7 @@ export interface DbCode {
   codeString: string;
   isUsed: boolean;
   usedBy?: string | null;
+  lessonId?: string; // which exam/lesson this code unlocks
   createdAt: string;
 }
 

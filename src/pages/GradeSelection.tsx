@@ -42,7 +42,7 @@ export function GradeSelection() {
             if (data.user?.picture) setGooglePicture(data.user.picture);
             setNeedsProfile(true);
           } else {
-            navigate('/student-dashboard');
+            navigate('/exam');
             return;
           }
         } else {
@@ -78,7 +78,7 @@ export function GradeSelection() {
           if (gName) setName(gName);
           setNeedsProfile(true);
         } else {
-          navigate('/student-dashboard');
+          navigate('/exam');
         }
       } else {
         if (data.error === 'DEVICE_LOCKED' || data.error === 'SESSION_CONFLICT') {
