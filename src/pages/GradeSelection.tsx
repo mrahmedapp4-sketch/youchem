@@ -129,40 +129,6 @@ export function GradeSelection() {
     );
   }
 
-  if (showVideo) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center relative">
-        {/* Video */}
-        <video
-          ref={videoRef}
-          src="/intro.mp4"
-          className={`max-h-screen max-w-full w-full object-contain transition-opacity duration-500 ${videoReady ? 'opacity-100' : 'opacity-0'}`}
-          autoPlay
-          playsInline
-          onCanPlay={() => setVideoReady(true)}
-          onEnded={() => setShowVideo(false)}
-        />
-
-        {/* Loading spinner before video is ready */}
-        {!videoReady && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
-          </div>
-        )}
-
-        {/* Skip button */}
-        {videoReady && (
-          <button
-            onClick={() => setShowVideo(false)}
-            className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold px-6 py-2.5 rounded-full transition-all shadow-lg shadow-indigo-900/40"
-          >
-            تخطي ▶
-          </button>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
       <div className="neon-card p-8 rounded-2xl max-w-md w-full">
