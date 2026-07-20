@@ -232,10 +232,6 @@ export function StudentDashboard() {
                         ? <CheckCircle className="w-4 h-4 text-white" />
                         : <Lock className="w-4 h-4 text-slate-400" />}
                     </div>
-                    {/* Platform pill */}
-                    <div className="absolute bottom-3 left-3 bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide">
-                      {lesson.platform}
-                    </div>
                   </div>
                   {/* Info */}
                   <div className="p-5 flex-1 flex flex-col">
