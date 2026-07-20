@@ -2,7 +2,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Key, CheckCircle, XCircle, Maximize2, X,
-  BookOpen, Lock, GraduationCap, ArrowRight,
+  BookOpen, GraduationCap, ArrowRight,
 } from 'lucide-react';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
@@ -11,97 +11,94 @@ const ANSWER_LABELS: Record<string, string> = { A: 'أ', B: 'ب', C: 'ج', D: '�
 interface Question  { question: string; image: string | null; }
 interface Result    { question: string; image: string | null; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean; }
 
-type Step = 'code' | 'lesson' | 'exam' | 'results' | 'access';
+type Step = 'lesson' | 'code' | 'exam' | 'results' | 'access';
 
 export function ExamPage() {
   const navigate = useNavigate();
 
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  /* ── Step 1: code ── */
-  const [code, setCode] = useState('');
-  const [codeError, setCodeError] = useState('');
-  const [step, setStep] = useState<Step>('code');
-
-  /* ── Step 2: lesson ── */
-  const [lessons, setLessons]         = useState<any[]>([]);
-  const [accesses, setAccesses]       = useState<any[]>([]);
-  const [lessonsLoading, setLessonsLoading] = useState(false);
+  /* ── Step 1: lesson picker ── */
+  const [lessons, setLessons]           = useState<any[]>([]);
+  const [accesses, setAccesses]         = useState<any[]>([]);
+  const [lessonsLoading, setLessonsLoading] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
-  const [unlocking, setUnlocking]     = useState<string | null>(null); // lessonId being unlocked
-  const [unlockError, setUnlockError] = useState('');
+
+  /* ── Step 2: code entry ── */
+  const [code, setCode]       = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
 
   /* ── Step 3: exam ── */
-  const [lessonId, setLessonId]       = useState('');
-  const [questions, setQuestions]     = useState<Question[]>([]);
-  const [answers, setAnswers]         = useState<string[]>([]);
+  const [lessonId, setLessonId]   = useState('');
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers]     = useState<string[]>([]);
   const [submitting, setSubmitting]   = useState(false);
   const [unanswered, setUnanswered]   = useState(false);
 
   /* ── Step 4: results ── */
-  const [results, setResults]         = useState<Result[]>([]);
-  const [score, setScore]             = useState(0);
-  const [total, setTotal]             = useState(0);
+  const [results, setResults] = useState<Result[]>([]);
+  const [score, setScore]     = useState(0);
+  const [total, setTotal]     = useState(0);
 
   /* ── Fullscreen overlay ── */
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
 
-  /* ── Auth check ── */
+  /* ── Active step ── */
+  const [step, setStep] = useState<Step>('lesson');
+
+  /* ── Auth check + load lessons ── */
   useEffect(() => {
     fetch('/api/student/check-auth')
       .then(r => { if (!r.ok) navigate('/'); })
       .catch(() => navigate('/'))
       .finally(() => setCheckingAuth(false));
+
+    fetch('/api/student/lessons')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setLessons(data.lessons || []);
+          setAccesses(data.accesses || []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLessonsLoading(false));
   }, [navigate]);
 
   /* ── Helpers ── */
   const goNewExam = () => {
     setCode(''); setCodeError('');
-    setLessons([]); setAccesses([]); setSelectedLesson(null);
-    setUnlockError('');
+    setSelectedLesson(null);
     setQuestions([]); setAnswers([]);
     setResults([]); setScore(0); setTotal(0);
+    setStep('lesson');
+    window.scrollTo(0, 0);
+  };
+
+  /* ── Step 1 → 2: pick lesson ── */
+  const handleLessonPick = (lesson: any) => {
+    setSelectedLesson(lesson);
+    setCode(''); setCodeError('');
     setStep('code');
     window.scrollTo(0, 0);
   };
 
-  /* ── Step 1 → 2: enter code ── */
-  const handleCodeNext = async (e: FormEvent) => {
+  /* ── Step 2 → 3/access: submit code ── */
+  const handleCodeSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setCodeError('');
-    setLessonsLoading(true);
-    try {
-      const res = await fetch('/api/student/lessons');
-      if (!res.ok) { setCodeError('تعذر تحميل الحصص'); setLessonsLoading(false); return; }
-      const data = await res.json();
-      setLessons(data.lessons || []);
-      setAccesses(data.accesses || []);
-      setStep('lesson');
-      window.scrollTo(0, 0);
-    } catch {
-      setCodeError('حدث خطأ، تحقق من الاتصال');
-    }
-    setLessonsLoading(false);
-  };
-
-  /* ── Step 2 → 3/access: pick lesson ── */
-  const handleLessonPick = async (lesson: any) => {
-    setUnlockError('');
-    setUnlocking(lesson.id);
+    setUnlocking(true);
     try {
       const res = await fetch('/api/student/exam/unlock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: code.trim().toUpperCase(), lessonId: lesson.id }),
+        body: JSON.stringify({ code: code.trim().toUpperCase(), lessonId: selectedLesson.id }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setUnlockError(data.error || 'حدث خطأ');
-        setUnlocking(null);
-        return;
-      }
-      setSelectedLesson(lesson);
-      setLessonId(lesson.id);
+      if (!res.ok) { setCodeError(data.error || 'حدث خطأ'); setUnlocking(false); return; }
+
+      setLessonId(selectedLesson.id);
       if (data.quizExists) {
         setQuestions(data.questions);
         setAnswers(Array(data.questions.length).fill(''));
@@ -111,9 +108,9 @@ export function ExamPage() {
       }
       window.scrollTo(0, 0);
     } catch {
-      setUnlockError('حدث خطأ، تحقق من الاتصال');
+      setCodeError('حدث خطأ، تحقق من الاتصال');
     }
-    setUnlocking(null);
+    setUnlocking(false);
   };
 
   /* ── Step 3 → 4: submit exam ── */
@@ -176,31 +173,101 @@ export function ExamPage() {
   ) : null;
 
   /* ══════════════════════════════════════
-     STEP 1 — Code Entry
+     STEP 1 — Lesson Picker
+  ══════════════════════════════════════ */
+  if (step === 'lesson') {
+    const accessedIds = new Set(accesses.map((a: any) => a.lessonId));
+    return (
+      <div className="min-h-screen bg-slate-50" dir="rtl">
+        <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
+          <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo.png" alt="YouChem"
+                className="h-7 object-contain"
+                onError={e => (e.target as HTMLImageElement).style.display = 'none'}
+              />
+              <span className="font-bold text-slate-800 text-sm">اختر الحصة</span>
+            </div>
+            <button
+              onClick={() => navigate('/student-dashboard')}
+              className="text-xs text-slate-400 hover:text-indigo-600 flex items-center gap-1 transition-colors"
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+              الداشبورد
+            </button>
+          </div>
+        </header>
+
+        <main className="max-w-3xl mx-auto px-4 py-6">
+          <p className="text-slate-500 text-sm mb-5 text-center">
+            اختر الحصة التي تريد فتحها
+          </p>
+
+          {lessonsLoading ? (
+            <div className="text-center p-12 text-slate-400">جاري التحميل...</div>
+          ) : lessons.length === 0 ? (
+            <div className="text-center p-12 text-slate-400">لا توجد حصص متاحة.</div>
+          ) : (
+            <div className="space-y-3">
+              {lessons.map((lesson: any) => {
+                const hasAccess = accessedIds.has(lesson.id);
+                return (
+                  <button
+                    key={lesson.id}
+                    onClick={() => handleLessonPick(lesson)}
+                    className="w-full neon-card rounded-2xl p-5 flex items-center gap-4 text-right transition-all hover:ring-2 hover:ring-indigo-200 active:scale-[0.99]"
+                  >
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                      hasAccess ? 'bg-emerald-50 border border-emerald-200' : 'bg-indigo-50 border border-indigo-100'
+                    }`}>
+                      {hasAccess
+                        ? <CheckCircle className="w-5 h-5 text-emerald-500" />
+                        : <BookOpen className="w-5 h-5 text-indigo-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0 text-right">
+                      <p className="font-bold text-slate-800 text-sm leading-snug">{lesson.title}</p>
+                      {hasAccess && (
+                        <p className="text-xs text-emerald-600 font-semibold mt-0.5">مفتوحة مسبقاً</p>
+                      )}
+                    </div>
+                    <Key className="w-4 h-4 text-slate-300 shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  /* ══════════════════════════════════════
+     STEP 2 — Code Entry
   ══════════════════════════════════════ */
   if (step === 'code') return (
     <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
       <div className="neon-card p-8 rounded-2xl max-w-md w-full">
 
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-full mx-auto mb-4">
-            <img
-              src="/logo.png" alt="YouChem Logo"
-              className="w-full object-contain"
-              onError={e => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center hidden mx-auto">
-              <GraduationCap className="w-10 h-10 text-indigo-600" />
-            </div>
+        <div className="text-center mb-6">
+          <img
+            src="/logo.png" alt="YouChem"
+            className="h-14 object-contain mx-auto mb-4"
+            onError={e => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center hidden mx-auto mb-4">
+            <GraduationCap className="w-6 h-6 text-indigo-600" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">
-            فتح <span className="neon-text">الحصة</span>
-          </h1>
-          <p className="text-sm text-slate-500">أدخل كود الوصول الذي أعطاك إياه مستر أحمد</p>
+
+          {/* Selected lesson name */}
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 mb-2">
+            <p className="text-xs text-indigo-400 font-semibold mb-0.5">الحصة المختارة</p>
+            <p className="font-bold text-indigo-800 text-sm">{selectedLesson?.title}</p>
+          </div>
         </div>
 
         <div className="flex justify-center mb-6">
@@ -209,7 +276,10 @@ export function ExamPage() {
           </div>
         </div>
 
-        <form onSubmit={handleCodeNext} className="space-y-4">
+        <h2 className="text-xl font-bold text-slate-900 text-center mb-1">كود الوصول</h2>
+        <p className="text-sm text-slate-500 text-center mb-6">أدخل الكود الذي أعطاك إياه مستر أحمد</p>
+
+        <form onSubmit={handleCodeSubmit} className="space-y-4">
           <input
             type="text" required
             placeholder="YCH-XXXXXX"
@@ -221,99 +291,25 @@ export function ExamPage() {
           {codeError && <p className="text-red-500 text-sm font-semibold text-center">{codeError}</p>}
           <button
             type="submit"
-            disabled={lessonsLoading || !code.trim()}
+            disabled={unlocking || !code.trim()}
             className="neon-btn w-full py-4 rounded-xl font-bold text-base disabled:opacity-50"
           >
-            {lessonsLoading ? 'جاري التحميل...' : 'التالي — اختر الحصة'}
+            {unlocking
+              ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> جاري التحقق...</span>
+              : 'تفعيل الكود'}
           </button>
         </form>
 
         <button
-          onClick={() => navigate('/student-dashboard')}
-          className="mt-6 w-full flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 text-sm transition-colors"
+          onClick={() => setStep('lesson')}
+          className="mt-5 w-full flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 text-sm transition-colors"
         >
           <ArrowRight className="w-4 h-4" />
-          العودة للداشبورد
+          اختيار حصة أخرى
         </button>
       </div>
     </div>
   );
-
-  /* ══════════════════════════════════════
-     STEP 2 — Lesson Picker
-  ══════════════════════════════════════ */
-  if (step === 'lesson') {
-    const accessedIds = new Set(accesses.map((a: any) => a.lessonId));
-    return (
-      <div className="min-h-screen bg-slate-50" dir="rtl">
-        <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
-          <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-3">
-            <button
-              onClick={() => setStep('code')}
-              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-            >
-              <ArrowRight className="w-5 h-5" />
-            </button>
-            <div>
-              <p className="font-bold text-slate-800 text-sm">اختر الحصة</p>
-              <p className="text-xs text-slate-400 font-mono">{code}</p>
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-3xl mx-auto px-4 py-6">
-          <p className="text-slate-500 text-sm mb-4 text-center">
-            اختر الحصة التي تريد فتحها بهذا الكود
-          </p>
-
-          {unlockError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm font-semibold text-center">
-              {unlockError}
-            </div>
-          )}
-
-          {lessons.length === 0 ? (
-            <div className="text-center p-12 text-slate-400">لا توجد حصص متاحة.</div>
-          ) : (
-            <div className="space-y-3">
-              {lessons.map((lesson: any) => {
-                const hasAccess = accessedIds.has(lesson.id);
-                const isUnlocking = unlocking === lesson.id;
-                return (
-                  <button
-                    key={lesson.id}
-                    onClick={() => !isUnlocking && handleLessonPick(lesson)}
-                    disabled={!!unlocking}
-                    className={`w-full neon-card rounded-2xl p-5 flex items-center gap-4 text-right transition-all disabled:opacity-70
-                      ${isUnlocking ? 'ring-2 ring-indigo-400' : 'hover:ring-2 hover:ring-indigo-200 active:scale-[0.99]'}`}
-                  >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                      hasAccess ? 'bg-emerald-50 border border-emerald-200' : 'bg-indigo-50 border border-indigo-100'
-                    }`}>
-                      {hasAccess
-                        ? <CheckCircle className="w-5 h-5 text-emerald-500" />
-                        : <BookOpen className="w-5 h-5 text-indigo-500" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm leading-snug line-clamp-2">{lesson.title}</p>
-                      {hasAccess && (
-                        <p className="text-xs text-emerald-600 font-semibold mt-0.5">مفتوحة مسبقاً</p>
-                      )}
-                    </div>
-                    {isUnlocking ? (
-                      <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                    ) : (
-                      <Lock className="w-4 h-4 text-slate-300 shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </main>
-      </div>
-    );
-  }
 
   /* ══════════════════════════════════════
      STEP 3 — Exam Questions
@@ -473,7 +469,6 @@ export function ExamPage() {
             key={idx}
             className={`neon-card rounded-2xl p-5 space-y-4 border-r-4 ${r.isCorrect ? 'border-r-emerald-400' : 'border-r-red-400'}`}
           >
-            {/* Header */}
             <div className="flex items-start gap-3">
               <span className={`w-8 h-8 rounded-full font-bold text-sm flex items-center justify-center shrink-0 mt-0.5 ${
                 r.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
@@ -486,7 +481,6 @@ export function ExamPage() {
               </div>
             </div>
 
-            {/* Image */}
             {r.image && (
               <div className="relative group cursor-pointer" onClick={() => setFullscreenImg(r.image)}>
                 <img
@@ -499,7 +493,6 @@ export function ExamPage() {
               </div>
             )}
 
-            {/* Answer comparison */}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className={`flex items-center gap-2 rounded-xl px-4 py-3 font-bold ${
                 r.isCorrect ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'
