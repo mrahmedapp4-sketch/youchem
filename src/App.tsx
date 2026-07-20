@@ -23,7 +23,7 @@ export default function App() {
       <Routes>
         {/* STUDENT FLOW */}
         <Route path="/" element={<GradeSelection />} />
-        <Route path="/exam" element={<ExamPage />} />
+        <Route path="/exam" element={<Navigate to="/student-dashboard" replace />} />
         <Route path="/student-dashboard" element={<StudentDashboard />} />
         <Route path="/lessons/:id" element={<LessonView />} />
         <Route path="/homework/:id" element={<HomeworkView />} />
