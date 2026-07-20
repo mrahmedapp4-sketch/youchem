@@ -756,9 +756,56 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
   }
 });
 
-// ── Exam flow (standalone: code → questions → corrected results) ─────────────
+// ── Exam flow (standalone: code → lesson picker → quiz → corrected results) ──
 
-// Step 1: validate code and return quiz questions (images included, answers stripped)
+// Validate a generic code + lessonId, create access, return quiz questions if any.
+app.post('/api/student/exam/unlock', authenticateStudent, async (req, res) => {
+  try {
+    const { code, lessonId } = req.body;
+    const studentId = (req as any).studentId;
+
+    const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
+    if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
+    if (key.isUsed && key.usedBy !== studentId) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
+
+    // Mark code as used on first use
+    if (!key.isUsed) {
+      jsonDb.update('codes', (c: DbCode) => c.id === key.id, { isUsed: true, usedBy: studentId });
+    }
+
+    // Ensure access record exists for this lesson
+    const existing = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+    );
+    if (!existing) {
+      jsonDb.insert('studentLessonAccess', {
+        userId: studentId,
+        lessonId,
+        unlockedAt: new Date().toISOString(),
+        quizPassed: false,
+        quizExempt: false,
+      });
+    }
+
+    // Return quiz questions if lesson has one (answers stripped)
+    const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
+    if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+      return res.json({ quizExists: false, questions: [], lessonId });
+    }
+
+    const sanitized = quiz.questions.map((q: any) => ({
+      question: q.question,
+      image: q.image || null,
+    }));
+
+    res.json({ quizExists: true, questions: sanitized, lessonId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Legacy: validate code and return quiz questions (images included, answers stripped)
 app.post('/api/student/exam/start', authenticateStudent, async (req, res) => {
   try {
     const { code } = req.body;
