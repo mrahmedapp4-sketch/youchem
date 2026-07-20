@@ -1,17 +1,14 @@
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ChevronLeft, Play } from 'lucide-react';
+import { GraduationCap, ChevronLeft } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 
 const CONTACT_TEACHER_MSG =
   'تقريبا في خطا ممكن تتواصل مع مستر احمد علشان نحل المشكله';
 
 export function GradeSelection() {
-  const [showVideo, setShowVideo] = useState(true);
-  const [videoReady, setVideoReady] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [needsProfile, setNeedsProfile] = useState(false);
   const [error, setError] = useState('');
