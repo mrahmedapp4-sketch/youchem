@@ -26,8 +26,8 @@ export function Settings() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwMsg(null);
-    if (newPw.length < 4) return setPwMsg({ type: 'err', text: 'كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل' });
-    if (newPw !== confirmPw) return setPwMsg({ type: 'err', text: 'كلمتا المرور غير متطابقتين' });
+    if (newPw.length < 4) return setPwMsg({ type: 'err', text: 'كلمة السر الجديدة لازم تكون 4 حروف على الأقل' });
+    if (newPw !== confirmPw) return setPwMsg({ type: 'err', text: 'كلمتين السر مش متطابقتين' });
     setPwSaving(true);
     try {
       const res = await fetch('/api/teacher/change-password', {
@@ -37,25 +37,25 @@ export function Settings() {
       });
       const data = await res.json();
       if (res.ok) {
-        setPwMsg({ type: 'ok', text: 'تم تغيير كلمة المرور بنجاح ✓' });
+        setPwMsg({ type: 'ok', text: 'اتغيرت كلمة السر بنجاح ✓' });
         setCurrentPw(''); setNewPw(''); setConfirmPw('');
       } else {
-        setPwMsg({ type: 'err', text: data.error || 'فشل تغيير كلمة المرور' });
+        setPwMsg({ type: 'err', text: data.error || 'فشل تغيير كلمة السر' });
       }
     } catch {
-      setPwMsg({ type: 'err', text: 'حدث خطأ في الاتصال' });
+      setPwMsg({ type: 'err', text: 'في مشكلة في الاتصال' });
     }
     setPwSaving(false);
   };
 
   const handleReset = async () => {
     if (resetInput !== 'حذف') return;
-    if (!confirm('هل أنت متأكد تماماً؟ سيتم حذف كل الحصص والاختبارات والواجبات وأكواد الوصول بشكل نهائي لا يمكن التراجع عنه.')) return;
+    if (!confirm('متأكد تماماً؟ هيتمسح كل الحصص والامتحانات والواجبات والأكواد بشكل نهائي مش هيتراجع.')) return;
     setResetting(true);
     try {
       const res = await fetch('/api/youchem/reset-platform', { method: 'POST' });
       if (res.ok) {
-        alert('تم إعادة تعيين المنصة بنجاح. الحسابات محفوظة.');
+        alert('اتعملت إعادة ضبط للمنصة بنجاح. الحسابات موجودة.');
         setResetInput('');
         // refresh stats
         fetch('/api/youchem/settings/stats').then(r => r.json()).then(setStats);
@@ -63,12 +63,12 @@ export function Settings() {
         const d = await res.json().catch(() => ({}));
         alert(d.error || 'فشلت عملية الإعادة');
       }
-    } catch { alert('حدث خطأ'); }
+    } catch { alert('في مشكلة'); }
     setResetting(false);
   };
 
   const statCards = stats ? [
-    { label: 'الطلاب المسجلون', value: stats.students, icon: Users, color: 'indigo' },
+    { label: 'الطلاب المسجلين', value: stats.students, icon: Users, color: 'indigo' },
     { label: 'الحصص', value: stats.lessons, icon: BookOpen, color: 'violet' },
     { label: 'الواجبات', value: stats.homeworks, icon: FileText, color: 'blue' },
     { label: 'الاختبارات', value: stats.quizzes, icon: FileQuestion, color: 'sky' },
@@ -81,7 +81,7 @@ export function Settings() {
           <SettingsIcon className="w-5 h-5 text-slate-500" />
           الإعدادات
         </h1>
-        <p className="text-slate-500 text-sm mt-0.5">إعدادات وأدوات إدارة المنصة</p>
+        <p className="text-slate-500 text-sm mt-0.5">إعدادات وأدوات المنصة</p>
       </div>
 
       {/* ── Stats ── */}
@@ -91,7 +91,7 @@ export function Settings() {
           إحصائيات المنصة
         </h2>
         {statsLoading ? (
-          <div className="text-slate-400 text-sm">جاري التحميل...</div>
+          <div className="text-slate-400 text-sm">بيتحمل...</div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {statCards.map(card => (
@@ -125,11 +125,11 @@ export function Settings() {
       <section className="space-y-3">
         <h2 className="font-bold text-slate-700 text-sm flex items-center gap-2">
           <KeyRound className="w-4 h-4 text-slate-400" />
-          تغيير كلمة مرور لوحة التحكم
+          غيّر كلمة السر
         </h2>
         <form onSubmit={handleChangePassword} className="neon-card p-5 rounded-2xl space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">كلمة المرور الحالية</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">كلمة السر الحالية</label>
             <input
               type="password" required value={currentPw} onChange={e => setCurrentPw(e.target.value)}
               className="neon-input w-full px-4 py-2.5 rounded-xl text-sm"
@@ -137,7 +137,7 @@ export function Settings() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">كلمة المرور الجديدة</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">كلمة السر الجديدة</label>
             <input
               type="password" required value={newPw} onChange={e => setNewPw(e.target.value)}
               className="neon-input w-full px-4 py-2.5 rounded-xl text-sm"
@@ -145,7 +145,7 @@ export function Settings() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">تأكيد كلمة المرور الجديدة</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">أكد كلمة السر الجديدة</label>
             <input
               type="password" required value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
               className="neon-input w-full px-4 py-2.5 rounded-xl text-sm"
@@ -158,7 +158,7 @@ export function Settings() {
             </p>
           )}
           <button type="submit" disabled={pwSaving} className="neon-btn w-full py-2.5 rounded-xl font-bold text-sm disabled:opacity-50">
-            {pwSaving ? 'جاري الحفظ...' : 'تغيير كلمة المرور'}
+            {pwSaving ? 'بيتحفظ...' : 'غيّر كلمة السر'}
           </button>
         </form>
       </section>
@@ -175,11 +175,11 @@ export function Settings() {
               <Trash2 className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <h3 className="font-bold text-red-700">إعادة تعيين المنصة</h3>
+              <h3 className="font-bold text-red-700">إعادة ضبط المنصة</h3>
               <p className="text-red-600/80 text-sm mt-0.5 leading-relaxed">
                 يحذف هذا الإجراء بشكل <strong>نهائي</strong> كل الحصص، الاختبارات، الواجبات، أكواد الوصول، وتسليمات الطلاب.
                 <br />
-                <strong>الحسابات (أسماء الطلاب وبريدهم) تظل محفوظة.</strong>
+                <strong>حسابات الطلاب هتفضل موجودة.</strong>
               </p>
             </div>
           </div>
@@ -202,7 +202,7 @@ export function Settings() {
               className="w-full py-2.5 rounded-xl font-bold text-sm bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
-              {resetting ? 'جاري الحذف...' : 'إعادة تعيين المنصة'}
+              {resetting ? 'بيتمسح...' : 'إعادة ضبط المنصة'}
             </button>
           </div>
         </div>

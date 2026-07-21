@@ -77,24 +77,24 @@ export function LessonView() {
       const res = await fetch('/api/student/validate-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lessonId: lesson.id, code }) });
       const data = await res.json();
       if (res.ok && data.success) { fetchLessonData(); }
-      else { setCodeError(data.error || 'كود غير صحيح'); }
-    } catch { setCodeError('حدث خطأ'); }
+      else { setCodeError(data.error || 'الكود غلط'); }
+    } catch { setCodeError('في مشكلة'); }
     setValidatingCode(false);
   };
 
   const handleSubmitQuiz = async () => {
-    if (answers.includes('')) return alert('الرجاء الإجابة على جميع الأسئلة');
+    if (answers.includes('')) return alert('لازم تجاوب على كل الأسئلة');
     setSubmittingQuiz(true);
     try {
       const res = await fetch('/api/student/submit-quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lessonId: lesson.id, answers }) });
       const data = await res.json();
       if (res.ok) { setQuizResult(data); fetchLessonData(); }
-    } catch { alert('خطأ'); }
+    } catch { alert('في مشكلة'); }
     setSubmittingQuiz(false);
   };
 
   if (loading || !lesson) return (
-    <div className="min-h-screen flex items-center justify-center text-slate-400">جاري التحميل...</div>
+    <div className="min-h-screen flex items-center justify-center text-slate-400">بيتحمل...</div>
   );
 
   const isVideoUnlocked = access?.quizPassed || access?.quizExempt || noQuizExists;
@@ -139,8 +139,8 @@ export function LessonView() {
                 <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
                   <CheckCircle className="w-8 h-8 text-emerald-500" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">✅ تم فتح الدرس</h3>
-                <p className="text-slate-500 max-w-sm text-sm">جاري التحضير...</p>
+                <h3 className="text-lg font-bold text-slate-800 mb-1">✅ الدرس اتفتح</h3>
+                <p className="text-slate-500 max-w-sm text-sm">بيتجهز...</p>
               </div>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-slate-100">
@@ -150,12 +150,12 @@ export function LessonView() {
                     : <Lock className="w-8 h-8 text-indigo-400" />}
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-1">
-                  {access ? '✅ الدرس مفتوح — أكمل الاختبار' : 'المحتوى مغلق'}
+                  {access ? '✅ الدرس مفتوح — خلّص الامتحان' : 'المحتوى مقفول'}
                 </h3>
                 <p className="text-slate-500 max-w-sm text-sm">
                   {needsCode
-                    ? 'أدخل كود الوصول الخاص بك لمشاهدة هذا الدرس.'
-                    : 'اجتز الاختبار أدناه لفتح الفيديو.'}
+                    ? 'حط الكود اللي معاك علشان تشوف الدرس.'
+                    : 'عدّي الامتحان اللي تحت علشان تفتح الفيديو.'}
                 </p>
               </div>
             )}
@@ -169,7 +169,7 @@ export function LessonView() {
               <Key className="w-6 h-6 text-indigo-600" />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-1">كود الوصول</h2>
-            <p className="text-slate-500 text-sm mb-6">أدخل الكود الذي حصلت عليه من مستر أحمد لفتح هذا الدرس.</p>
+            <p className="text-slate-500 text-sm mb-6">حط الكود اللي أخدته من مستر أحمد علشان تفتح الدرس.</p>
             <form onSubmit={handleValidateCode} className="space-y-3">
               <input
                 type="text" required placeholder="YCH-XXXXXX"
@@ -179,7 +179,7 @@ export function LessonView() {
               />
               {codeError && <p className="text-red-500 text-sm font-semibold">{codeError}</p>}
               <button type="submit" disabled={validatingCode} className="neon-btn w-full px-4 py-3 rounded-xl font-bold disabled:opacity-50">
-                {validatingCode ? 'جاري التحقق...' : 'تفعيل الكود'}
+                {validatingCode ? 'بيتحقق...' : 'فعّل الكود'}
               </button>
             </form>
           </div>
@@ -189,29 +189,29 @@ export function LessonView() {
         {needsQuiz && (
           <div className="neon-card p-4 sm:p-6 md:p-8 rounded-2xl">
             <div className="mb-5 pb-4 sm:mb-6 sm:pb-5 border-b border-slate-200">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900">اختبار الدرس</h2>
-              <p className="text-slate-500 text-sm mt-1">يجب اجتياز الاختبار لفتح الفيديو.</p>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">امتحان الدرس</h2>
+              <p className="text-slate-500 text-sm mt-1">لازم تعدّي الامتحان علشان تفتح الفيديو.</p>
             </div>
 
             {quizResult ? (
               <div className="space-y-6">
                 <div className={`p-6 rounded-2xl border text-center ${quizResult.passed ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                  <p className="text-slate-600 text-sm mb-1">درجتك في الاختبار</p>
+                  <p className="text-slate-600 text-sm mb-1">درجتك في الامتحان</p>
                   <p className={`text-5xl font-extrabold ${quizResult.passed ? 'text-emerald-600' : 'text-red-500'}`}>
                     {quizResult.score} / {quizResult.total}
                   </p>
                   <p className="text-slate-500 mt-1">({Math.round((quizResult.score / quizResult.total) * 100)}%)</p>
                   <p className={`mt-3 font-bold ${quizResult.passed ? 'text-emerald-700' : 'text-red-600'}`}>
-                    {quizResult.passed ? '🎉 مبروك! لقد اجتزت الاختبار وتم فتح الفيديو.' : 'لم تجتز الاختبار بعد.'}
+                    {quizResult.passed ? '🎉 مبروك! عدّيت الامتحان والفيديو اتفتح.' : 'لسه ما عدّيتيش الامتحان.'}
                   </p>
                   {!quizResult.passed && quizResult.score >= 5 && (
                     <button onClick={() => { setQuizResult(null); setAnswers([]); fetchQuiz(); }} className="neon-btn mt-4 px-6 py-2.5 rounded-xl font-bold">
-                      إعادة المحاولة
+                      حاول تاني
                     </button>
                   )}
                   {!quizResult.passed && quizResult.score < 5 && (
                     <p className="mt-4 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
-                      🔒 الدرس مقفول — تواصل مع مستر أحمد لفتح الحصة
+                      🔒 الدرس مقفول — كلم مستر أحمد علشان يفتحهولك
                     </p>
                   )}
                 </div>
@@ -222,16 +222,16 @@ export function LessonView() {
                         {r.isCorrect ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
                         <span className="font-bold text-slate-800 text-sm">سؤال {idx + 1}</span>
                       </div>
-                      {!r.isCorrect && <p className="text-red-600 text-xs">إجابتك: {r.studentAnswer || 'لم تجب'}</p>}
-                      <p className="text-emerald-700 text-xs font-semibold">الصحيحة: {r.correctAnswer}</p>
+                      {!r.isCorrect && <p className="text-red-600 text-xs">إجابتك: {r.studentAnswer || 'ما جبتيش'}</p>}
+                      <p className="text-emerald-700 text-xs font-semibold">الصح: {r.correctAnswer}</p>
                     </div>
                   ))}
                 </div>
               </div>
             ) : quizLoading ? (
-              <div className="text-center p-8 text-slate-400">جاري تحميل الاختبار...</div>
+              <div className="text-center p-8 text-slate-400">بيتحمل الامتحان...</div>
             ) : quizQuestions.length === 0 ? (
-              <div className="text-center p-8 text-slate-400">لم يتم إضافة اختبار لهذا الدرس بعد.</div>
+              <div className="text-center p-8 text-slate-400">مفيش امتحان للدرس ده لسه.</div>
             ) : (
               <>
                 <div className="space-y-6">
@@ -264,7 +264,7 @@ export function LessonView() {
                 </div>
                 <div className="mt-6 pt-6 border-t border-slate-200">
                   <button onClick={handleSubmitQuiz} disabled={submittingQuiz} className="neon-btn w-full py-4 rounded-xl font-bold text-base disabled:opacity-50">
-                    {submittingQuiz ? 'جاري الإرسال...' : 'تسليم الاختبار'}
+                    {submittingQuiz ? 'بيتبعت...' : 'سلّم الامتحان'}
                   </button>
                 </div>
               </>

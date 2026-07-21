@@ -4,7 +4,7 @@ import { GraduationCap, ChevronLeft } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 
 const CONTACT_TEACHER_MSG =
-  'تقريبا في خطا ممكن تتواصل مع مستر احمد علشان نحل المشكله';
+  'يبدو في مشكلة، كلم مستر أحمد علشان نحلها';
 
 export function GradeSelection() {
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -34,7 +34,7 @@ export function GradeSelection() {
           const data = await res.json();
           if (data.needsProfile) {
             // Already partially signed in — pre-fill Google info from saved profile
-            if (data.user?.name && data.user.name !== 'طالب') {
+            if (data.user?.name && data.user.name !== 'student') {
               setGoogleName(data.user.name);
               setName(data.user.name);
             }
@@ -71,7 +71,7 @@ export function GradeSelection() {
       if (res.ok) {
         if (data.needsProfile) {
           // Pre-fill form with Google account info
-          const gName = data.user?.name && data.user.name !== 'طالب' ? data.user.name : '';
+          const gName = data.user?.name && data.user.name !== 'student' ? data.user.name : '';
           setGoogleName(gName);
           setGoogleEmail(data.user?.email || '');
           setGooglePicture(data.picture || data.user?.picture || '');
@@ -84,7 +84,7 @@ export function GradeSelection() {
         if (data.error === 'DEVICE_LOCKED' || data.error === 'SESSION_CONFLICT') {
           setError(CONTACT_TEACHER_MSG);
         } else {
-          setError(data.error || 'فشل تسجيل الدخول بحساب جوجل');
+          setError(data.error || 'فشل تسجيل الدخول بجوجل');
         }
       }
     } catch (err) {
@@ -92,8 +92,8 @@ export function GradeSelection() {
       const code = (err as { code?: string })?.code;
       setError(
         code
-          ? `حدث خطأ أثناء تسجيل الدخول بحساب جوجل (${code})`
-          : 'حدث خطأ أثناء تسجيل الدخول بحساب جوجل',
+          ? `في مشكلة في تسجيل الدخول بجوجل (${code})`
+          : 'في مشكلة في تسجيل الدخول بجوجل',
       );
     }
     setSigningIn(false);
@@ -113,10 +113,10 @@ export function GradeSelection() {
         navigate('/student-dashboard');
       } else {
         const data = await res.json();
-        setError(data.error || 'حدث خطأ');
+        setError(data.error || 'في مشكلة');
       }
     } catch (err) {
-      setError('حدث خطأ');
+      setError('في مشكلة');
     }
     setSavingProfile(false);
   };
@@ -124,7 +124,7 @@ export function GradeSelection() {
   if (checkingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center text-slate-500">
-        جاري التحقق...
+        بيتحقق...
       </div>
     );
   }
@@ -150,13 +150,13 @@ export function GradeSelection() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1">
-            مرحباً بك في{' '}
+            أهلاً بيك في{' '}
             <span className="neon-text">YouChem</span>{' '}
             Platform
           </h1>
           <p className="text-xs font-semibold text-slate-400 mb-1">by Mr.ahmed</p>
           <p className="text-sm text-slate-500">
-            {needsProfile ? 'أكمل بياناتك للبدء' : 'سجل دخولك بحساب جوجل للبدء'}
+            {needsProfile ? 'خلّص بياناتك علشان تبدأ' : 'سجّل دخولك بجوجل علشان تبدأ'}
           </p>
         </div>
 
@@ -178,7 +178,7 @@ export function GradeSelection() {
               <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
               <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.084 5.571l6.19 5.238C41.396 35.606 44 30.24 44 24c0-1.341-.138-2.65-.389-3.917z" />
             </svg>
-            {signingIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول بحساب جوجل'}
+            {signingIn ? 'بيسجل دخولك...' : 'ادخل بحساب جوجل'}
           </button>
         ) : (
           <form onSubmit={handleCompleteProfile} className="space-y-4">
@@ -206,10 +206,10 @@ export function GradeSelection() {
             )}
 
             {[
-              { label: 'الاسم بالكامل', state: name, setter: setName, type: 'text', placeholder: 'اكتب اسمك بالكامل', dir: 'rtl' },
-              { label: 'رقم الهاتف', state: phone, setter: setPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr' },
+              { label: 'اسمك بالكامل', state: name, setter: setName, type: 'text', placeholder: 'اكتب اسمك بالكامل', dir: 'rtl' },
+              { label: 'رقم تليفونك', state: phone, setter: setPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr' },
               { label: 'رقم ولي الأمر', state: guardianPhone, setter: setGuardianPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr' },
-              { label: 'المدرسة', state: school, setter: setSchool, type: 'text', placeholder: '', dir: 'rtl' },
+              { label: 'مدرستك', state: school, setter: setSchool, type: 'text', placeholder: '', dir: 'rtl' },
             ].map(({ label, state, setter, type, placeholder, dir }) => (
               <div key={label}>
                 <label className="block text-sm font-semibold mb-1.5 text-slate-700">{label}</label>
@@ -226,11 +226,11 @@ export function GradeSelection() {
             ))}
 
             <div>
-              <label className="block text-sm font-semibold mb-1.5 text-slate-700">الصف الدراسي</label>
+              <label className="block text-sm font-semibold mb-1.5 text-slate-700">انت في أنهي صف؟</label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { value: '2nd_sec', label: 'الثاني الثانوي' },
-                  { value: '3rd_sec', label: 'الثالث الثانوي' },
+                  { value: '2nd_sec', label: 'تاني ثانوي' },
+                  { value: '3rd_sec', label: 'تالت ثانوي' },
                 ].map(({ value, label }) => (
                   <button
                     key={value}
@@ -254,7 +254,7 @@ export function GradeSelection() {
               disabled={savingProfile}
               className="neon-btn w-full font-bold py-3 rounded-xl disabled:opacity-50 mt-2"
             >
-              {savingProfile ? 'جاري الحفظ...' : 'دخول'}
+              {savingProfile ? 'بيتحفظ...' : 'يلا ادخل'}
             </button>
           </form>
         )}

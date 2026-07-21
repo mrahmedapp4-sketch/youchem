@@ -62,7 +62,7 @@ export function Quizzes() {
 
   const handleSaveQuiz = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedLesson) return alert('الرجاء اختيار حصة');
+    if (!selectedLesson) return alert('لازم تختار حصة');
     try {
       const res = await fetch('/api/youchem/quizzes', {
         method: 'POST',
@@ -70,29 +70,29 @@ export function Quizzes() {
         body: JSON.stringify({ lessonId: selectedLesson, questions }),
       });
       if (res.ok) {
-        alert('تم حفظ الاختبار بنجاح');
+        alert('اتحفظ الامتحان بنجاح');
         setQuestions(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
         fetchData();
       } else {
         const data = await res.json();
-        alert(data.error || 'خطأ في حفظ الاختبار');
+        alert(data.error || 'في مشكلة في حفظ الامتحان');
       }
-    } catch { alert('خطأ في حفظ الاختبار'); }
+    } catch { alert('في مشكلة في حفظ الامتحان'); }
   };
 
   const handleDeleteQuiz = async (quizId: string, lessonTitle: string) => {
-    if (!confirm(`هل أنت متأكد من حذف اختبار "${lessonTitle}"؟`)) return;
+    if (!confirm(`متأكد إنك تمسح امتحان "${lessonTitle}"؟`)) return;
     try {
       const res = await fetch(`/api/youchem/quizzes/${quizId}`, { method: 'DELETE' });
       if (res.ok) fetchData();
-      else alert('حدث خطأ أثناء الحذف');
-    } catch { alert('حدث خطأ'); }
+      else alert('في مشكلة في المسح');
+    } catch { alert('في مشكلة'); }
   };
 
   const handleImageChange = async (qIndex: number, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) return alert('الرجاء اختيار صورة PNG أو JPG');
+    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) return alert('لازم تختار صورة PNG أو JPG');
     if (file.size > 5 * 1024 * 1024) return alert('حجم الصورة كبير جداً (الحد 5 ميجا)');
     try { updateQuestion(qIndex, 'image', await resizeImageToFixedDimensions(file)); }
     catch { alert('تعذر معالجة الصورة'); }
@@ -107,8 +107,8 @@ export function Quizzes() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">إدارة الاختبارات</h1>
-        <p className="text-slate-500 text-sm mt-0.5">عرض الاختبارات الموجودة أو إنشاء اختبار جديد</p>
+        <h1 className="text-xl font-bold text-slate-900">إدارة الامتحانات</h1>
+        <p className="text-slate-500 text-sm mt-0.5">شوف الامتحانات الموجودة أو اعمل امتحان جديد</p>
       </div>
 
       {/* ── Existing quizzes ── */}
@@ -117,7 +117,7 @@ export function Quizzes() {
         {quizzes.length === 0 ? (
           <div className="neon-card p-8 rounded-2xl text-center text-slate-400 text-sm flex flex-col items-center gap-2">
             <FileQuestion className="w-8 h-8 text-slate-300" />
-            لا توجد اختبارات بعد
+            مفيش امتحانات لسه
           </div>
         ) : (
           <div className="space-y-2">
@@ -145,7 +145,7 @@ export function Quizzes() {
                     <button
                       onClick={() => handleDeleteQuiz(quiz.id, title)}
                       className="p-2 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                      title="حذف الاختبار"
+                      title="امسح الامتحان"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -181,7 +181,7 @@ export function Quizzes() {
 
       {/* ── Create new quiz ── */}
       <div className="space-y-3">
-        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">إنشاء اختبار جديد</h2>
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">اعمل امتحان جديد</h2>
         <form onSubmit={handleSaveQuiz} className="neon-card p-6 rounded-2xl space-y-6">
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">اختر الحصة</label>
@@ -190,7 +190,7 @@ export function Quizzes() {
             </select>
             {selectedLessonHasQuiz && (
               <p className="mt-2 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-                ⚠️ هذه الحصة عندها اختبار بالفعل — احذفه أولاً من القائمة بالأعلى لإنشاء اختبار جديد
+                ⚠️ الحصة دي عندها امتحان بالفعل — امسحه الأول من القائمة فوق علشان تعمل امتحان جديد
               </p>
             )}
           </div>
@@ -231,7 +231,7 @@ export function Quizzes() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-slate-600">الإجابة الصحيحة</label>
+                  <label className="block text-xs font-semibold text-slate-600">الإجابة الصح</label>
                   <div className="flex gap-2">
                     {ANSWER_LETTERS.map(letter => (
                       <button key={letter} type="button" onClick={() => updateQuestion(qIndex, 'correct_answer', letter)}
@@ -249,7 +249,7 @@ export function Quizzes() {
           </div>
 
           <div className="pt-4 border-t border-slate-200">
-            <button type="submit" disabled={selectedLessonHasQuiz} className="neon-btn w-full px-6 py-3 rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed">حفظ الاختبار</button>
+            <button type="submit" disabled={selectedLessonHasQuiz} className="neon-btn w-full px-6 py-3 rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed">احفظ الامتحان</button>
           </div>
         </form>
       </div>

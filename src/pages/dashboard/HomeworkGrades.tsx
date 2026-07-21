@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { ClipboardList } from 'lucide-react';
 
 const GRADE_LABEL: Record<string, string> = {
-  '2nd_sec': 'الثاني الثانوي',
-  '3rd_sec': 'الثالث الثانوي',
+  '2nd_sec': 'تاني ثانوي',
+  '3rd_sec': 'تالت ثانوي',
 };
 
 export function HomeworkGrades() {
@@ -19,8 +19,8 @@ export function HomeworkGrades() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="p-10 text-center text-slate-400 text-sm">جاري التحميل...</div>;
-  if (!data) return <div className="p-10 text-center text-red-400 text-sm">حدث خطأ في التحميل</div>;
+  if (loading) return <div className="p-10 text-center text-slate-400 text-sm">بيتحمل...</div>;
+  if (!data) return <div className="p-10 text-center text-red-400 text-sm">في مشكلة في التحميل</div>;
 
   const { students, homeworks, submissions } = data;
 
@@ -46,8 +46,8 @@ export function HomeworkGrades() {
   return (
     <div className="max-w-full space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">درجات الواجب</h1>
-        <p className="text-slate-500 text-sm mt-0.5">درجة كل طالب في كل واجب</p>
+        <h1 className="text-xl font-bold text-slate-900">درجات الواجبات</h1>
+        <p className="text-slate-500 text-sm mt-0.5">شوف درجة كل طالب في كل واجب</p>
       </div>
 
       {/* Controls */}
@@ -67,7 +67,7 @@ export function HomeworkGrades() {
         </div>
         <input
           type="text"
-          placeholder="بحث باسم الطالب أو البريد..."
+          placeholder="ابحث باسم الطالب أو الإيميل..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="neon-input flex-1 px-4 py-2 rounded-xl text-sm"
@@ -80,10 +80,10 @@ export function HomeworkGrades() {
         {gradeHomeworks.length === 0 ? (
           <div className="p-10 text-center text-slate-400 text-sm flex flex-col items-center gap-2">
             <ClipboardList className="w-8 h-8 text-slate-300" />
-            لا توجد واجبات لهذا الصف بعد
+            مفيش واجبات للصف ده لسه
           </div>
         ) : gradeStudents.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 text-sm">لا يوجد طلاب مسجلون في هذا الصف</div>
+          <div className="p-10 text-center text-slate-400 text-sm">مفيش طلاب مسجلين في الصف ده</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-right text-sm">
@@ -117,7 +117,7 @@ export function HomeworkGrades() {
                             {sub.score}/{sub.total}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">لم يسلّم</span>
+                          <span className="text-xs text-slate-400">ما سلمش</span>
                         )}
                       </td>
                     );

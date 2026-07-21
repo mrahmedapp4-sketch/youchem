@@ -34,7 +34,7 @@ export function HomeworkView() {
   }, [id, navigate]);
 
   const handleSubmit = async () => {
-    if (answers.includes('')) return alert('الرجاء الإجابة على جميع الأسئلة');
+    if (answers.includes('')) return alert('لازم تجاوب على كل الأسئلة');
     setSubmitting(true);
     try {
       const res = await fetch('/api/student/submit-homework', {
@@ -44,13 +44,13 @@ export function HomeworkView() {
       });
       const data = await res.json();
       if (res.ok) setResult(data);
-      else alert(data.error || 'حدث خطأ');
-    } catch { alert('حدث خطأ'); }
+      else alert(data.error || 'في مشكلة');
+    } catch { alert('في مشكلة'); }
     setSubmitting(false);
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center text-slate-400">جاري التحميل...</div>
+    <div className="min-h-screen flex items-center justify-center text-slate-400">بيتحمل...</div>
   );
 
   const displayed = result || pastResult;
@@ -122,9 +122,9 @@ export function HomeworkView() {
                     <span className="font-bold text-slate-800 text-sm">سؤال {r.questionNumber}</span>
                   </div>
                   {!r.isCorrect && (
-                    <p className="text-red-600 text-sm">إجابتك: {r.studentAnswer || 'لم تجب'}</p>
+                    <p className="text-red-600 text-sm">إجابتك: {r.studentAnswer || 'ما جبتيش'}</p>
                   )}
-                  <p className="text-emerald-700 text-sm font-semibold">الصحيحة: {r.correctAnswer}</p>
+                  <p className="text-emerald-700 text-sm font-semibold">الصح: {r.correctAnswer}</p>
                 </div>
               ))}
             </div>
@@ -169,7 +169,7 @@ export function HomeworkView() {
                 disabled={submitting}
                 className="neon-btn w-full py-3.5 rounded-xl font-bold text-base disabled:opacity-50"
               >
-                {submitting ? 'جاري التصحيح...' : 'تصحيح الواجب'}
+                {submitting ? 'بيتصحح...' : 'صحّح الواجب'}
               </button>
             </div>
           </div>

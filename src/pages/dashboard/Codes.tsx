@@ -47,19 +47,19 @@ export function Codes() {
       });
       const data = await res.json();
       if (data.success) {
-        setGeneratedMessage(`تم إنشاء ${data.generated} كود بنجاح.`);
+        setGeneratedMessage(`اتعمل ${data.generated} كود بنجاح.`);
         fetchCodes();
       }
-    } catch { alert('حدث خطأ أثناء الإنشاء'); }
+    } catch { alert('في مشكلة في الإنشاء'); }
     setIsGenerating(false);
   };
 
   const handleBurnCode = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الكود نهائياً؟')) return;
+    if (!confirm('متأكد إنك تمسح الكود ده نهائياً؟')) return;
     try {
       const res = await fetch(`/api/youchem/codes/${id}`, { method: 'DELETE' });
       if (res.ok) setCodesList(codesList.filter(c => c.id !== id));
-    } catch { alert('فشل في حذف الكود'); }
+    } catch { alert('فشل مسح الكود'); }
   };
 
   const getLessonTitle = (lId?: string) => {
@@ -75,7 +75,7 @@ export function Codes() {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900">أكواد الوصول</h1>
-          <p className="text-slate-500 text-sm mt-0.5">توليد وإدارة أكواد الوصول للطلاب</p>
+          <p className="text-slate-500 text-sm mt-0.5">توليد وإدارة الأكواد للطلاب</p>
         </div>
 
         {/* Generate controls */}
@@ -90,7 +90,7 @@ export function Codes() {
                 onChange={e => setLessonId(e.target.value)}
                 className="neon-input w-full pr-9 pl-3 py-2.5 rounded-xl text-sm appearance-none"
               >
-                <option value="">— بدون امتحان —</option>
+                <option value="">— من غير امتحان —</option>
                 {lessons.map((l: any) => (
                   <option key={l.id} value={l.id}>{l.title}</option>
                 ))}
@@ -130,7 +130,7 @@ export function Codes() {
       {/* Table */}
       <div className="neon-card rounded-2xl overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-slate-400 text-sm">جاري التحميل...</div>
+          <div className="p-10 text-center text-slate-400 text-sm">بيتحمل...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-right">
@@ -140,13 +140,13 @@ export function Codes() {
                   <th className="px-5 py-3">الامتحان</th>
                   <th className="px-5 py-3">الحالة</th>
                   <th className="px-5 py-3">الطالب</th>
-                  <th className="px-5 py-3">تاريخ التوليد</th>
+                  <th className="px-5 py-3">تاريخ الإنشاء</th>
                   <th className="px-5 py-3 text-center w-16">حذف</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {codesList.length === 0 && (
-                  <tr><td colSpan={6} className="p-10 text-center text-slate-400 text-sm">لا توجد أكواد مولدة.</td></tr>
+                  <tr><td colSpan={6} className="p-10 text-center text-slate-400 text-sm">مفيش أكواد اتعملت.</td></tr>
                 )}
                 {codesList.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors">
@@ -166,7 +166,7 @@ export function Codes() {
                     <td className="px-5 py-3.5">
                       {c.isUsed ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100 text-xs font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />مستخدم
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />اتاستخدم
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold">

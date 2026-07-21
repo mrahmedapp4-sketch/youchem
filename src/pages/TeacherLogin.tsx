@@ -19,10 +19,10 @@ export function TeacherLogin() {
       if (res.ok) {
         navigate('/youchem');
       } else {
-        setError('كلمة المرور غير صحيحة');
+        setError('كلمة السر غلط');
       }
     } catch {
-      setError('حدث خطأ بالاتصال');
+      setError('في مشكلة في الاتصال');
     }
   };
 
@@ -44,7 +44,7 @@ export function TeacherLogin() {
           <div className="h-20 w-48 bg-indigo-50 rounded-xl hidden" />
         </div>
 
-        <h1 className="text-xl font-bold text-center mb-1 text-slate-900">لوحة تحكم مستر أحمد</h1>
+        <h1 className="text-xl font-bold text-center mb-1 text-slate-900">لوحة تحكم مستر أحمد 🔐</h1>
         <p className="text-sm text-center text-slate-500 mb-6">YouChem Platform</p>
 
         {error && (
@@ -57,7 +57,7 @@ export function TeacherLogin() {
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-slate-700 flex items-center gap-2">
               <Lock className="w-4 h-4" />
-              كلمة المرور
+              كلمة السر
             </label>
             <input
               type="password"
@@ -69,7 +69,7 @@ export function TeacherLogin() {
             />
           </div>
           <button type="submit" className="neon-btn w-full font-bold py-3 rounded-xl">
-            دخول
+            ادخل
           </button>
         </form>
       </div>

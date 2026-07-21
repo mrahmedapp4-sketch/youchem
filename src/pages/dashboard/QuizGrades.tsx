@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Trophy } from 'lucide-react';
 
 const GRADE_LABEL: Record<string, string> = {
-  '2nd_sec': 'الثاني الثانوي',
-  '3rd_sec': 'الثالث الثانوي',
+  '2nd_sec': 'تاني ثانوي',
+  '3rd_sec': 'تالت ثانوي',
 };
 
 export function QuizGrades() {
@@ -19,8 +19,8 @@ export function QuizGrades() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="p-10 text-center text-slate-400 text-sm">جاري التحميل...</div>;
-  if (!data) return <div className="p-10 text-center text-red-400 text-sm">حدث خطأ في التحميل</div>;
+  if (loading) return <div className="p-10 text-center text-slate-400 text-sm">بيتحمل...</div>;
+  if (!data) return <div className="p-10 text-center text-red-400 text-sm">في مشكلة في التحميل</div>;
 
   const { students, lessons, accesses } = data;
 
@@ -50,8 +50,8 @@ export function QuizGrades() {
   return (
     <div className="max-w-full space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">درجات الاختبارات</h1>
-        <p className="text-slate-500 text-sm mt-0.5">درجة كل طالب في اختبار كل حصة</p>
+        <h1 className="text-xl font-bold text-slate-900">درجات الامتحانات</h1>
+        <p className="text-slate-500 text-sm mt-0.5">شوف درجة كل طالب في امتحان كل حصة</p>
       </div>
 
       {/* Controls */}
@@ -73,7 +73,7 @@ export function QuizGrades() {
         </div>
         <input
           type="text"
-          placeholder="بحث باسم الطالب أو البريد..."
+          placeholder="ابحث باسم الطالب أو الإيميل..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="neon-input flex-1 px-4 py-2 rounded-xl text-sm"
@@ -86,10 +86,10 @@ export function QuizGrades() {
         {gradeLessons.length === 0 ? (
           <div className="p-10 text-center text-slate-400 text-sm flex flex-col items-center gap-2">
             <Trophy className="w-8 h-8 text-slate-300" />
-            لم يجتز أي طالب اختباراً في هذا الصف بعد
+            مفيش طالب عدّى امتحان في الصف ده لسه
           </div>
         ) : gradeStudents.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 text-sm">لا يوجد طلاب مسجلون في هذا الصف</div>
+          <div className="p-10 text-center text-slate-400 text-sm">مفيش طلاب مسجلين في الصف ده</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-right text-sm">
@@ -128,9 +128,9 @@ export function QuizGrades() {
                             {acc.quizScore ?? 0}/{acc.quizTotal}
                           </span>
                         ) : acc ? (
-                          <span className="text-xs text-amber-500">معفى</span>
+                          <span className="text-xs text-amber-500">معفي</span>
                         ) : (
-                          <span className="text-xs text-slate-400">لم يجتز</span>
+                          <span className="text-xs text-slate-400">ما عدّاش</span>
                         )}
                       </td>
                     );

@@ -37,15 +37,15 @@ export function UploadVideo() {
         body: JSON.stringify({ title: lessonTitle, gradeLevel: lessonGrade, platform: lessonPlatform, videoUrl: lessonUrl }),
       });
       if (res.ok) { setLessonTitle(''); setLessonUrl(''); setShowLessonForm(false); fetchLessons(); }
-    } catch { alert('حدث خطأ أثناء إضافة الحصة'); }
+    } catch { alert('في مشكلة في إضافة الحصة'); }
   };
 
   const handleDeleteLesson = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف الحصة؟')) return;
+    if (!confirm('متأكد إنك تمسح الحصة دي؟')) return;
     try {
       const res = await fetch(`/api/youchem/lessons/${id}`, { method: 'DELETE' });
       if (res.ok) fetchLessons();
-    } catch { alert('فشل في الحذف'); }
+    } catch { alert('فشل المسح'); }
   };
 
   const openEditLesson = (lesson: any) => {
@@ -63,8 +63,8 @@ export function UploadVideo() {
         body: JSON.stringify({ title: editTitle, gradeLevel: editGrade, platform: editPlatform, videoUrl: editUrl }),
       });
       if (res.ok) { setEditingLessonId(null); fetchLessons(); }
-      else alert('حدث خطأ أثناء حفظ التعديل');
-    } catch { alert('حدث خطأ أثناء حفظ التعديل'); }
+      else alert('في مشكلة في حفظ التعديل');
+    } catch { alert('في مشكلة في حفظ التعديل'); }
     setSavingEdit(false);
   };
 
@@ -90,22 +90,22 @@ export function UploadVideo() {
         </div>
         <button onClick={() => setShowLessonForm(!showLessonForm)} className="neon-btn px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 text-sm">
           <Plus className="w-4 h-4" />
-          إضافة حصة جديدة
+          ضيف حصة جديدة
         </button>
       </div>
 
       {/* Add form */}
       {showLessonForm && (
         <div className="neon-card p-6 rounded-2xl">
-          <h2 className="text-sm font-bold text-slate-800 mb-4">إضافة حصة جديدة</h2>
+          <h2 className="text-sm font-bold text-slate-800 mb-4">ضيف حصة جديدة</h2>
           <form onSubmit={handleAddLesson} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div><label className={LABEL_CLS}>الصف الدراسي</label>
               <select value={lessonGrade} onChange={e => setLessonGrade(e.target.value)} className={SELECT_CLS}>
-                <option value="2nd_sec">الثاني الثانوي</option>
-                <option value="3rd_sec">الثالث الثانوي</option>
+                <option value="2nd_sec">تاني ثانوي</option>
+                <option value="3rd_sec">تالت ثانوي</option>
               </select>
             </div>
-            <div><label className={LABEL_CLS}>عنوان الدرس</label>
+            <div><label className={LABEL_CLS}>اسم الحصة</label>
               <input type="text" required value={lessonTitle} onChange={e => setLessonTitle(e.target.value)} className={INPUT_CLS} />
             </div>
             <div><label className={LABEL_CLS}>المنصة</label>
@@ -127,12 +127,12 @@ export function UploadVideo() {
 
       {/* Lessons list */}
       {loading ? (
-        <div className="text-center p-10 text-slate-400">جاري التحميل...</div>
+        <div className="text-center p-10 text-slate-400">بيتحمل...</div>
       ) : (
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="divide-y divide-slate-100">
             {lessons.length === 0 ? (
-              <div className="p-10 text-slate-400 text-center text-sm">لا توجد حصص مضافة حتى الآن.</div>
+              <div className="p-10 text-slate-400 text-center text-sm">مفيش حصص مضافة لحد دلوقتي.</div>
             ) : lessons.map((lesson: any) => (
               <div key={lesson.id} className={`px-5 py-4 flex items-center justify-between transition-colors hover:bg-slate-50 ${lesson.isHidden ? 'opacity-50' : ''}`}>
                 <div className="flex items-center gap-4 min-w-0">
@@ -145,7 +145,7 @@ export function UploadVideo() {
                       {lesson.isHidden && <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-medium">مخفي</span>}
                     </h4>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-slate-400">{lesson.gradeLevel === '2nd_sec' ? 'الثاني الثانوي' : 'الثالث الثانوي'}</span>
+                      <span className="text-xs text-slate-400">{lesson.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : 'تالت ثانوي'}</span>
                       <span className="text-slate-200">·</span>
                       <span className="text-xs text-slate-400 uppercase">{lesson.platform}</span>
                     </div>
@@ -180,10 +180,10 @@ export function UploadVideo() {
             </div>
             <form onSubmit={handleSaveEditLesson} className="space-y-4">
               {[
-                { label: 'عنوان الدرس', el: <input type="text" required value={editTitle} onChange={e => setEditTitle(e.target.value)} className={INPUT_CLS} /> },
+                { label: 'اسم الحصة', el: <input type="text" required value={editTitle} onChange={e => setEditTitle(e.target.value)} className={INPUT_CLS} /> },
                 { label: 'الصف الدراسي', el: (
                   <select value={editGrade} onChange={e => setEditGrade(e.target.value)} className={SELECT_CLS}>
-                    <option value="2nd_sec">الثاني الثانوي</option><option value="3rd_sec">الثالث الثانوي</option>
+                    <option value="2nd_sec">تاني ثانوي</option><option value="3rd_sec">تالت ثانوي</option>
                   </select>
                 )},
                 { label: 'المنصة', el: (
@@ -197,7 +197,7 @@ export function UploadVideo() {
               ))}
               <div className="flex gap-3 pt-2">
                 <button type="submit" disabled={savingEdit} className="neon-btn flex-1 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50">
-                  {savingEdit ? 'جاري الحفظ...' : 'حفظ التعديل'}
+                  {savingEdit ? 'بيتحفظ...' : 'احفظ التعديل'}
                 </button>
                 <button type="button" onClick={() => setEditingLessonId(null)} className="px-4 py-2.5 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
                   إلغاء

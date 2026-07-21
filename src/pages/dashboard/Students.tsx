@@ -24,69 +24,69 @@ export function Students() {
   };
 
   const handleToggleExempt = async (userId: string) => {
-    if (!selectedLessonId) return alert('الرجاء اختيار حصة أولاً');
+    if (!selectedLessonId) return alert('لازم تختار حصة الأول');
     try {
       const res = await fetch(`/api/youchem/students/${userId}/lessons/${selectedLessonId}/exempt`, { method: 'PATCH' });
       if (res.ok) fetchData();
-    } catch { alert('حدث خطأ'); }
+    } catch { alert('في مشكلة'); }
   };
 
   const handleToggleBlock = async (userId: string) => {
     try {
       const res = await fetch(`/api/youchem/students/${userId}/block`, { method: 'PATCH' });
       if (res.ok) fetchData();
-      else alert('حدث خطأ');
-    } catch { alert('حدث خطأ'); }
+      else alert('في مشكلة');
+    } catch { alert('في مشكلة'); }
   };
 
   const handleDeleteStudent = async (userId: string, name: string) => {
-    if (!confirm(`هل أنت متأكد من حذف حساب "${name}" نهائياً؟ لا يمكن التراجع.`)) return;
+    if (!confirm(`متأكد إنك تمسح حساب "${name}" نهائياً؟ مش هيتراجع.`)) return;
     try {
       const res = await fetch(`/api/youchem/students/${userId}`, { method: 'DELETE' });
       if (res.ok) fetchData();
-      else alert('حدث خطأ');
-    } catch { alert('حدث خطأ'); }
+      else alert('في مشكلة');
+    } catch { alert('في مشكلة'); }
   };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
 
       <div>
-        <h1 className="text-xl font-bold text-slate-900">سجل الطلاب</h1>
-        <p className="text-slate-500 text-sm mt-0.5">متابعة الطلاب المسجلين وإدارة الاستثناءات والحظر</p>
+        <h1 className="text-xl font-bold text-slate-900">الطلاب المسجلين</h1>
+        <p className="text-slate-500 text-sm mt-0.5">شوف الطلاب وعمل إعفاء أو حظر</p>
       </div>
 
       {/* Lesson selector */}
       <div className="neon-card p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <label className="font-semibold text-slate-700 text-sm shrink-0">الحصة للاستثناءات:</label>
+        <label className="font-semibold text-slate-700 text-sm shrink-0">اختار الحصة للإعفاء:</label>
         <select
           value={selectedLessonId} onChange={e => setSelectedLessonId(e.target.value)}
           className="neon-input flex-1 max-w-xs px-4 py-2 rounded-xl text-sm"
         >
           {lessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
-          {lessons.length === 0 && <option value="">لا توجد حصص</option>}
+          {lessons.length === 0 && <option value="">مفيش حصص</option>}
         </select>
       </div>
 
       {/* Table */}
       <div className="neon-card rounded-2xl overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-slate-400 text-sm">جاري التحميل...</div>
+          <div className="p-10 text-center text-slate-400 text-sm">بيتحمل...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-right">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wide">
                 <tr>
                   <th className="px-5 py-3">الاسم</th>
-                  <th className="px-5 py-3">البريد الإلكتروني</th>
+                  <th className="px-5 py-3">الإيميل</th>
                   <th className="px-5 py-3">الصف</th>
-                  <th className="px-5 py-3 text-center">استثناء الاختبار</th>
+                  <th className="px-5 py-3 text-center">إعفاء من الامتحان</th>
                   <th className="px-5 py-3 text-center">إدارة الحساب</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {students.length === 0 && (
-                  <tr><td colSpan={5} className="p-10 text-center text-slate-400 text-sm">لا يوجد طلاب مسجلون حتى الآن.</td></tr>
+                  <tr><td colSpan={5} className="p-10 text-center text-slate-400 text-sm">مفيش طلاب مسجلين لحد دلوقتي.</td></tr>
                 )}
                 {students.map((student: any) => {
                   const accessForLesson = student.lessonAccesses?.find((a: any) => a.lessonId === selectedLessonId);
@@ -96,7 +96,7 @@ export function Students() {
                     <tr key={student.id} className={`hover:bg-slate-50 transition-colors ${isBlocked ? 'opacity-60' : ''}`}>
                       <td className="px-5 py-4 font-bold text-slate-900 text-sm">
                         <div className="flex items-center gap-2">
-                          {student.name || 'غير معروف'}
+                          {student.name || 'مش معروف'}
                           {isBlocked && (
                             <span className="text-xs bg-red-50 text-red-600 border border-red-100 px-2 py-0.5 rounded-full font-medium">محظور</span>
                           )}
@@ -104,7 +104,7 @@ export function Students() {
                       </td>
                       <td className="px-5 py-4 text-slate-500 text-sm">{student.email}</td>
                       <td className="px-5 py-4 text-slate-500 text-sm">
-                        {student.gradeLevel === '2nd_sec' ? 'الثاني الثانوي' : student.gradeLevel === '3rd_sec' ? 'الثالث الثانوي' : '—'}
+                        {student.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : student.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '—'}
                       </td>
                       <td className="px-5 py-4 text-center">
                         <button
@@ -115,14 +115,14 @@ export function Students() {
                               : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                           }`}
                         >
-                          {isExempt ? <><ShieldCheck className="w-3.5 h-3.5" /> معفى</> : <><ShieldAlert className="w-3.5 h-3.5" /> تفعيل الإعفاء</>}
+                          {isExempt ? <><ShieldCheck className="w-3.5 h-3.5" /> معفي</> : <><ShieldAlert className="w-3.5 h-3.5" /> اعمله معفي</>}
                         </button>
                       </td>
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => handleToggleBlock(student.id)}
-                            title={isBlocked ? 'إلغاء الحظر' : 'حظر الطالب'}
+                            title={isBlocked ? 'الغي الحظر' : 'احظر الطالب'}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors border ${
                               isBlocked
                                 ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
@@ -133,7 +133,7 @@ export function Students() {
                           </button>
                           <button
                             onClick={() => handleDeleteStudent(student.id, student.name)}
-                            title="حذف الحساب"
+                            title="امسح الحساب"
                             className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

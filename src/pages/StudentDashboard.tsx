@@ -50,6 +50,7 @@ export function StudentDashboard() {
   /* fullscreen image (inside modal) */
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
 
+
   /* ── Data fetching ── */
   useEffect(() => {
     (async () => {
@@ -113,7 +114,7 @@ export function StudentDashboard() {
         body: JSON.stringify({ code: code.trim().toUpperCase(), lessonId: modalLesson.id }),
       });
       const data = await res.json();
-      if (!res.ok) { setCodeError(data.error || 'حدث خطأ'); setUnlocking(false); return; }
+      if (!res.ok) { setCodeError(data.error || 'في مشكلة'); setUnlocking(false); return; }
 
       if (data.quizExists) {
         setQuestions(data.questions);
@@ -124,7 +125,7 @@ export function StudentDashboard() {
         setModalStep('access');
       }
     } catch {
-      setCodeError('حدث خطأ، تحقق من الاتصال');
+      setCodeError('في مشكلة، اتأكد من النت');
     }
     setUnlocking(false);
   };
@@ -152,10 +153,10 @@ export function StudentDashboard() {
         setModalStep('results');
         if (data.score >= Math.ceil(data.total / 2)) await refreshAccesses();
       } else {
-        alert(data.error || 'حدث خطأ');
+        alert(data.error || 'في مشكلة');
       }
     } catch {
-      alert('حدث خطأ، تحقق من الاتصال');
+      alert('في مشكلة، اتأكد من النت');
     }
     setSubmitting(false);
   };
@@ -188,8 +189,8 @@ export function StudentDashboard() {
 
         {/* Welcome */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">مرحباً بك 👋</h2>
-          <p className="text-slate-500 mt-1 text-sm sm:text-base">استكمل رحلة التعلم الخاصة بك.</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">أهلاً بيك 👋</h2>
+          <p className="text-slate-500 mt-1 text-sm sm:text-base">كمّل رحلتك في التعليم.</p>
         </div>
 
         {/* Tabs */}
@@ -212,7 +213,7 @@ export function StudentDashboard() {
 
         {/* ── Lessons Grid ── */}
         {section === 'lessons' && (loading ? (
-          <div className="text-center p-12 text-slate-400">جاري التحميل...</div>
+          <div className="text-center p-12 text-slate-400">بيتحمل...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {lessons.map((lesson) => {
@@ -240,7 +241,7 @@ export function StudentDashboard() {
                     </h3>
                     <div className="mt-auto flex items-center justify-between pt-3 border-t border-slate-100">
                       <span className={`text-xs font-semibold ${isUnlocked ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        {isUnlocked ? '✓ تم فتح الحصة' : 'مغلق — يتطلب كود'}
+                        {isUnlocked ? '✓ الحصة متاحة' : 'مقفول — محتاج كود'}
                       </span>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isUnlocked ? 'bg-indigo-50' : 'bg-slate-100'}`}>
                         {isUnlocked
@@ -265,7 +266,7 @@ export function StudentDashboard() {
 
             {lessons.length === 0 && (
               <div className="col-span-full p-12 text-center text-slate-400 neon-card rounded-2xl">
-                لا توجد حصص متاحة في هذا الصف الدراسي حالياً.
+                مفيش حصص متاحة في صفك دلوقتي.
               </div>
             )}
           </div>
@@ -273,7 +274,7 @@ export function StudentDashboard() {
 
         {/* ── Homework Grid ── */}
         {section === 'homework' && (homeworksLoading ? (
-          <div className="text-center p-12 text-slate-400">جاري التحميل...</div>
+          <div className="text-center p-12 text-slate-400">بيتحمل...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {homeworks.map((hw) => (
@@ -287,20 +288,20 @@ export function StudentDashboard() {
                 <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100">
                   {hw.submission ? (
                     <span className="text-sm font-bold text-emerald-600">
-                      ✓ التصحيح: {hw.submission.score} / {hw.submission.total}
+                      ✓ درجتك: {hw.submission.score} / {hw.submission.total}
                     </span>
                   ) : (
-                    <span className="text-sm text-slate-400">لم تتم الإجابة بعد</span>
+                    <span className="text-sm text-slate-400">ما جاوبتش لسه</span>
                   )}
                   <Link to={`/homework/${hw.id}`} className="neon-btn px-4 py-2 rounded-lg text-sm font-bold">
-                    {hw.submission ? 'عرض' : 'حل الواجب'}
+                    {hw.submission ? 'شوف' : 'حل الواجب'}
                   </Link>
                 </div>
               </div>
             ))}
             {homeworks.length === 0 && (
               <div className="col-span-full p-12 text-center text-slate-400 neon-card rounded-2xl">
-                لا توجد واجبات متاحة حالياً.
+                مفيش واجبات متاحة دلوقتي.
               </div>
             )}
           </div>
@@ -343,10 +344,10 @@ export function StudentDashboard() {
               <div>
                 <p className="font-bold text-slate-900 text-sm leading-snug">{modalLesson.title}</p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {modalStep === 'code'    ? 'أدخل كود الوصول'
+                  {modalStep === 'code'    ? 'حط كود الوصول'
                   : modalStep === 'exam'   ? 'امتحان القبول'
                   : modalStep === 'results'? 'نتيجة الامتحان'
-                  :                          'تم فتح الحصة'}
+                  :                          'الحصة اتفتحت'}
                 </p>
               </div>
               <button
@@ -369,7 +370,7 @@ export function StudentDashboard() {
                   </div>
                   <div className="text-center">
                     <h2 className="text-xl font-bold text-slate-900 mb-1">كود الوصول</h2>
-                    <p className="text-sm text-slate-500">أدخل الكود الذي أعطاك إياه مستر أحمد</p>
+                    <p className="text-sm text-slate-500">حط الكود اللي أداهولك مستر أحمد</p>
                   </div>
                   <form onSubmit={handleCodeSubmit} className="space-y-4">
                     <input
@@ -388,9 +389,9 @@ export function StudentDashboard() {
                       {unlocking
                         ? <span className="flex items-center justify-center gap-2">
                             <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                            جاري التحقق...
+                            بيتحقق...
                           </span>
-                        : 'تفعيل الكود'}
+                        : 'فعّل الكود'}
                     </button>
                   </form>
                 </div>
@@ -400,7 +401,7 @@ export function StudentDashboard() {
               {modalStep === 'exam' && (
                 <div className="space-y-5">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-slate-500">أجب على جميع الأسئلة ثم اضغط تصحيح</p>
+                    <p className="text-sm text-slate-500">جاوب على كل الأسئلة وبعدين اضغط تصحيح</p>
                     <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-3 py-1 rounded-full shrink-0">
                       {questions.length} سؤال
                     </span>
@@ -451,7 +452,7 @@ export function StudentDashboard() {
                         </div>
 
                         {isMissing && (
-                          <p className="text-red-500 text-xs font-semibold">⚠ الرجاء الإجابة على هذا السؤال</p>
+                          <p className="text-red-500 text-xs font-semibold">⚠ لازم تجاوب على السؤال ده</p>
                         )}
                       </div>
                     );
@@ -461,7 +462,7 @@ export function StudentDashboard() {
                     onClick={handleSubmitExam} disabled={submitting}
                     className="neon-btn w-full py-4 rounded-xl font-bold text-base disabled:opacity-50 mt-2"
                   >
-                    {submitting ? 'جاري الإرسال...' : 'تصحيح الامتحان ✓'}
+                    {submitting ? 'بيتبعت...' : 'صحّح الامتحان ✓'}
                   </button>
                 </div>
               )}
@@ -477,15 +478,15 @@ export function StudentDashboard() {
                     <p className="text-slate-500 text-sm mb-3">{pct}%</p>
                     <p className={`font-bold text-base ${passed ? 'text-emerald-700' : 'text-red-600'}`}>
                       {passed
-                        ? '🎉 أحسنت! لقد اجتزت الامتحان'
-                        : '❌ لم تجتز الامتحان — تواصل مع مستر أحمد للحصول على إعفاء'}
+                        ? '🎉 برافو! عدّيت الامتحان'
+                        : '❌ ما عدّيتيش الامتحان — كلم مستر أحمد علشان يعفيك'}
                     </p>
                     {passed && (
                       <Link
                         to={`/lessons/${modalLesson.id}`}
                         className="neon-btn inline-block mt-4 px-8 py-3 rounded-xl font-bold text-base"
                       >
-                        دخول الحصة →
+                        ادخل الحصة →
                       </Link>
                     )}
                   </div>
@@ -528,7 +529,7 @@ export function StudentDashboard() {
                         </div>
                         <div className="flex items-center gap-2 rounded-xl px-4 py-3 font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <CheckCircle className="w-4 h-4 shrink-0" />
-                          <span className="text-xs text-slate-400 font-normal shrink-0">الصحيحة:</span>
+                          <span className="text-xs text-slate-400 font-normal shrink-0">الصح:</span>
                           <span>{r.correctAnswer}</span>
                           <span className="text-xs opacity-60">({ANSWER_LABELS[r.correctAnswer] ?? ''})</span>
                         </div>
@@ -540,7 +541,7 @@ export function StudentDashboard() {
                     onClick={closeModal}
                     className="w-full py-3 rounded-xl font-bold text-sm text-slate-500 border border-slate-200 hover:bg-slate-50 transition-colors"
                   >
-                    العودة للداشبورد
+                    ارجع للداشبورد
                   </button>
                 </div>
               )}
@@ -552,17 +553,17 @@ export function StudentDashboard() {
                     <CheckCircle className="w-8 h-8 text-emerald-500" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900">✅ تم فتح الحصة</h2>
+                    <h2 className="text-xl font-bold text-slate-900">✅ الحصة اتفتحت</h2>
                     <p className="text-slate-500 text-sm mt-1">{modalLesson.title}</p>
                   </div>
                   <Link
                     to={`/lessons/${modalLesson.id}`}
                     className="neon-btn w-full py-4 rounded-xl font-bold text-base block"
                   >
-                    دخول الحصة →
+                    ادخل الحصة →
                   </Link>
                   <button onClick={closeModal} className="w-full text-slate-400 hover:text-indigo-600 text-sm transition-colors">
-                    العودة للداشبورد
+                    ارجع للداشبورد
                   </button>
                 </div>
               )}

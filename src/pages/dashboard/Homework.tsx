@@ -4,8 +4,8 @@ import { FileText, Trash2, UploadCloud } from 'lucide-react';
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 
 const GRADE_LABEL: Record<string, string> = {
-  '2nd_sec': 'الثاني الثانوي',
-  '3rd_sec': 'الثالث الثانوي',
+  '2nd_sec': 'تاني ثانوي',
+  '3rd_sec': 'تالت ثانوي',
 };
 
 export function Homework() {
@@ -40,15 +40,15 @@ export function Homework() {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
-    if (file.type !== 'application/pdf') return alert('الرجاء اختيار ملف PDF فقط');
+    if (file.type !== 'application/pdf') return alert('لازم تختار ملف PDF بس');
     if (file.size > 25 * 1024 * 1024) return alert('حجم الملف كبير جداً (الحد 25 ميجا)');
     setPdfFile(file);
   };
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return alert('الرجاء كتابة عنوان للواجب');
-    if (!pdfFile) return alert('الرجاء اختيار ملف PDF');
+    if (!title.trim()) return alert('لازم تكتب عنوان للواجب');
+    if (!pdfFile) return alert('لازم تختار ملف PDF');
     setSaving(true);
     try {
       const formData = new FormData();
@@ -59,7 +59,7 @@ export function Homework() {
       formData.append('pdf', pdfFile);
       const res = await fetch('/api/youchem/homework', { method: 'POST', body: formData });
       if (res.ok) {
-        alert('تم حفظ الواجب بنجاح');
+        alert('اتحفظ الواجب بنجاح');
         setTitle('');
         setPdfFile(null);
         setNumQuestions(10);
@@ -67,25 +67,25 @@ export function Homework() {
         fetchHomeworks();
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || 'حدث خطأ');
+        alert(data.error || 'في مشكلة');
       }
-    } catch { alert('حدث خطأ أثناء حفظ الواجب'); }
+    } catch { alert('في مشكلة في حفظ الواجب'); }
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الواجب؟')) return;
+    if (!confirm('متأكد إنك تمسح الواجب ده؟')) return;
     try {
       const res = await fetch(`/api/youchem/homework/${id}`, { method: 'DELETE' });
       if (res.ok) fetchHomeworks();
-    } catch { alert('فشل في الحذف'); }
+    } catch { alert('فشل المسح'); }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">إدارة الواجبات</h1>
-        <p className="text-slate-500 text-sm mt-0.5">ارفع ملف PDF وحدد الإجابات الصحيحة (نظام بابل شيت)</p>
+        <p className="text-slate-500 text-sm mt-0.5">ارفع ملف PDF وحدد إجابات النموذج</p>
       </div>
 
       <form onSubmit={handleSave} className="neon-card p-6 rounded-2xl space-y-6">
@@ -104,8 +104,8 @@ export function Homework() {
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1.5">الصف الدراسي</label>
           <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value as any)} className="neon-input w-full px-4 py-2.5 rounded-xl text-sm">
-            <option value="2nd_sec">الثاني الثانوي</option>
-            <option value="3rd_sec">الثالث الثانوي</option>
+            <option value="2nd_sec">تاني ثانوي</option>
+            <option value="3rd_sec">تالت ثانوي</option>
           </select>
         </div>
 
@@ -118,12 +118,12 @@ export function Homework() {
                 <FileText className="w-5 h-5 text-indigo-600 shrink-0" />
                 <span className="text-slate-800 text-sm font-semibold truncate">{pdfFile.name}</span>
               </div>
-              <button type="button" onClick={() => setPdfFile(null)} className="text-red-500 hover:text-red-600 text-sm font-semibold shrink-0">إزالة</button>
+              <button type="button" onClick={() => setPdfFile(null)} className="text-red-500 hover:text-red-600 text-sm font-semibold shrink-0">شيله</button>
             </div>
           ) : (
             <label className="flex flex-col items-center justify-center w-full py-10 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">
               <UploadCloud className="w-7 h-7 text-slate-400 mb-2" />
-              <span className="text-sm text-slate-500">اضغط لرفع ملف PDF</span>
+              <span className="text-sm text-slate-500">اضغط علشان ترفع PDF</span>
               <input type="file" accept="application/pdf,.pdf" onChange={handleFileChange} className="hidden" />
             </label>
           )}
@@ -138,7 +138,7 @@ export function Homework() {
 
         {/* Answer key */}
         <div className="space-y-3">
-          <label className="block text-sm font-semibold text-slate-700">نموذج الإجابة الصحيحة</label>
+          <label className="block text-sm font-semibold text-slate-700">نموذج الإجابات</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {answerKey.map((ans, idx) => (
               <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
@@ -160,7 +160,7 @@ export function Homework() {
 
         <div className="pt-4 border-t border-slate-200">
           <button type="submit" disabled={saving} className="neon-btn w-full px-6 py-3 rounded-xl font-bold disabled:opacity-50">
-            {saving ? 'جاري الحفظ...' : 'حفظ الواجب'}
+            {saving ? 'بيتحفظ...' : 'احفظ الواجب'}
           </button>
         </div>
       </form>
@@ -172,7 +172,7 @@ export function Homework() {
         </div>
         <div className="divide-y divide-slate-100">
           {homeworks.length === 0 ? (
-            <div className="p-10 text-slate-400 text-center text-sm">لا توجد واجبات منشورة حتى الآن.</div>
+            <div className="p-10 text-slate-400 text-center text-sm">مفيش واجبات منشورة لحد دلوقتي.</div>
           ) : homeworks.map((hw: any) => (
             <div key={hw.id} className="px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">

@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 
 const navItems = [
   { path: '/youchem/upload', label: 'إدارة الفيديوهات', icon: Upload },
-  { path: '/youchem/codes', label: 'أكواد الوصول', icon: Key },
-  { path: '/youchem/quizzes', label: 'الاختبارات', icon: FileQuestion },
+  { path: '/youchem/codes', label: 'الأكواد', icon: Key },
+  { path: '/youchem/quizzes', label: 'الامتحانات', icon: FileQuestion },
   { path: '/youchem/homework', label: 'الواجبات', icon: FileText },
   { path: '/youchem/students', label: 'الطلاب', icon: Users },
-  { path: '/youchem/emails', label: 'البريد', icon: Mail },
-  { path: '/youchem/grades/homework', label: 'درجات الواجب', icon: ClipboardList },
-  { path: '/youchem/grades/quiz', label: 'درجات الاختبارات', icon: Trophy },
+  { path: '/youchem/emails', label: 'الإيميلات', icon: Mail },
+  { path: '/youchem/grades/homework', label: 'درجات الواجبات', icon: ClipboardList },
+  { path: '/youchem/grades/quiz', label: 'درجات الامتحانات', icon: Trophy },
   { path: '/youchem/settings', label: 'الإعدادات', icon: Settings },
 ];
 
@@ -85,7 +85,7 @@ export function DashboardLayout() {
             className="flex items-center gap-3 px-4 py-2.5 w-full text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors font-medium text-sm"
           >
             <LogOut className="w-4 h-4" />
-            تسجيل الخروج
+            اخرج
           </button>
         </div>
       </aside>
