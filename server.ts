@@ -12,18 +12,25 @@ import { randomBytes } from 'crypto';
 import { execSync } from 'child_process';
 import puppeteer from 'puppeteer-core';
 
-// Resolve Chromium executable once at startup.
-// tsx may run with a stripped PATH so `which` can fail even when chromium is
-// installed as a Nix package. We fall back to scanning the Nix store directly.
+// Resolve the real Chromium ELF binary at startup.
+// On Replit/NixOS the `chromium` command is a bash wrapper script, not the
+// actual binary. Puppeteer-core checks the file header and rejects scripts,
+// so we must find the ELF. Strategy:
+//   1. CHROMIUM_PATH env var override (fastest)
+//   2. Read the wrapper script pointed to by `which chromium` and extract the
+//      `exec "..."` line — that's always the real binary path.
+//   3. Fallback: /usr/bin/chromium (non-Nix systems)
 const CHROMIUM_PATH: string = (() => {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-  try { const p = execSync('which chromium 2>/dev/null').toString().trim(); if (p) return p; } catch {}
-  try { const p = execSync('which chromium-browser 2>/dev/null').toString().trim(); if (p) return p; } catch {}
   try {
-    const p = execSync(
-      'find /nix/store -maxdepth 4 -name "chromium" -type f 2>/dev/null | head -1'
-    ).toString().trim();
-    if (p) return p;
+    const wrapper = execSync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null')
+      .toString().trim();
+    if (wrapper) {
+      const contents = fs.readFileSync(wrapper, 'utf8');
+      // The wrapper ends with: exec "/nix/store/.../chromium"  ...flags... "$@"
+      const m = contents.match(/^exec\s+"([^"]+)"/m);
+      if (m && m[1] && fs.existsSync(m[1])) return m[1];
+    }
   } catch {}
   return '/usr/bin/chromium';
 })();
