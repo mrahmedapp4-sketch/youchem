@@ -526,10 +526,15 @@ app.patch('/api/youchem/students/:userId/lessons/:lessonId/exempt', authenticate
     );
 
     if (access) {
+      const newExempt = !access.quizExempt;
       const updated = jsonDb.update(
         'studentLessonAccess',
         (a: DbStudentLessonAccess) => a.userId === userId && a.lessonId === lessonId,
-        { quizExempt: !access.quizExempt }
+        {
+          quizExempt: newExempt,
+          // Granting exemption clears the lock so the student can access the lesson
+          ...(newExempt ? { lessonLocked: false } : {}),
+        }
       );
       res.json(updated);
     } else {
@@ -539,6 +544,7 @@ app.patch('/api/youchem/students/:userId/lessons/:lessonId/exempt', authenticate
         unlockedAt: new Date().toISOString(),
         quizPassed: false,
         quizExempt: true,
+        lessonLocked: false,
       };
       jsonDb.insert('studentLessonAccess', inserted);
       res.json(inserted);
@@ -757,11 +763,23 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
       'studentLessonAccess',
       (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
     );
+    // Lesson gets locked if score < 5 (out of 10) or < 50% of total.
+    // Once locked, only teacher exemption or a passing retake clears it.
+    const nowLocked = !passed;
+
     if (existing) {
+      const alreadyPassed = existing.quizPassed;
       jsonDb.update(
         'studentLessonAccess',
         (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
-        { quizPassed: passed || existing.quizPassed, quizScore: score, quizTotal: total, quizResults: results }
+        {
+          quizPassed: passed || alreadyPassed,
+          quizScore: score,
+          quizTotal: total,
+          quizResults: results,
+          lessonLocked: alreadyPassed ? false : nowLocked,
+          quizAttempts: (existing.quizAttempts || 0) + 1,
+        }
       );
     } else {
       jsonDb.insert('studentLessonAccess', {
@@ -773,6 +791,8 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
         quizScore: score,
         quizTotal: total,
         quizResults: results,
+        lessonLocked: nowLocked,
+        quizAttempts: 1,
       });
     }
 
@@ -921,11 +941,21 @@ app.post('/api/student/exam/submit', authenticateStudent, async (req, res) => {
       'studentLessonAccess',
       (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
     );
+    const nowLocked2 = !passed;
+
     if (existing) {
+      const alreadyPassed2 = existing.quizPassed;
       jsonDb.update(
         'studentLessonAccess',
         (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
-        { quizPassed: passed || existing.quizPassed, quizScore: score, quizTotal: total, quizResults: persistResults }
+        {
+          quizPassed: passed || alreadyPassed2,
+          quizScore: score,
+          quizTotal: total,
+          quizResults: persistResults,
+          lessonLocked: alreadyPassed2 ? false : nowLocked2,
+          quizAttempts: (existing.quizAttempts || 0) + 1,
+        }
       );
     } else {
       jsonDb.insert('studentLessonAccess', {
@@ -933,6 +963,8 @@ app.post('/api/student/exam/submit', authenticateStudent, async (req, res) => {
         unlockedAt: new Date().toISOString(),
         quizPassed: passed, quizExempt: false,
         quizScore: score, quizTotal: total, quizResults: persistResults,
+        lessonLocked: nowLocked2,
+        quizAttempts: 1,
       });
     }
 
@@ -1121,14 +1153,22 @@ function buildStudentPdfHtml(
       : a.quizTotal != null
         ? `<span class="badge ${a.quizPassed ? 'green' : 'red'}">${a.quizScore}/${a.quizTotal}</span>`
         : `<span class="muted">—</span>`;
-    const passed = a.quizPassed ? '<span style="color:#15803d;font-weight:700">✓</span>'
-                 : a.quizExempt ? '<span style="color:#92400e">—</span>'
-                 : '<span style="color:#b91c1c;font-weight:700">✗</span>';
+    const passedCell = a.quizPassed
+      ? '<span style="color:#15803d;font-weight:700">✓ اجتاز</span>'
+      : a.quizExempt
+      ? '<span style="color:#92400e;font-weight:700">معفي</span>'
+      : a.lessonLocked
+      ? '<span style="color:#b91c1c;font-weight:700">🔒 مقفول</span>'
+      : '<span style="color:#b91c1c;font-weight:700">✗ لم يجتز</span>';
+    const attemptsCell = a.quizAttempts != null
+      ? `<span class="muted">${a.quizAttempts}</span>`
+      : `<span class="muted">—</span>`;
     return `<tr>
       <td>${escHtml(lesson?.title || a.lessonId)}</td>
       <td class="center">${a.viewingMinutes || 0} د</td>
       <td class="center">${quizCell}</td>
-      <td class="center">${passed}</td>
+      <td class="center">${passedCell}</td>
+      <td class="center">${attemptsCell}</td>
       <td class="center muted">${new Date(a.unlockedAt).toLocaleDateString('ar-EG')}</td>
     </tr>`;
   }).join('');
@@ -1328,7 +1368,8 @@ function buildStudentPdfHtml(
           <th>اسم الحصة</th>
           <th style="width:80px" class="center">وقت المشاهدة</th>
           <th style="width:100px" class="center">درجة الامتحان</th>
-          <th style="width:70px" class="center">اجتاز؟</th>
+          <th style="width:90px" class="center">الحالة</th>
+          <th style="width:55px" class="center">المحاولات</th>
           <th style="width:85px" class="center">تاريخ الفتح</th>
         </tr></thead>
         <tbody>${lessonRows}</tbody>

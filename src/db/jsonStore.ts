@@ -68,6 +68,11 @@ export interface DbStudentLessonAccess {
   quizResults?: Array<{ question: string; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }>;
   // Minutes the student spent on the lesson viewing page (incremented by heartbeat)
   viewingMinutes?: number;
+  // True when the student submitted the quiz and scored < 5/10 — the lesson
+  // is locked until the teacher exempts them (quizExempt) or they retake and pass.
+  lessonLocked?: boolean;
+  // How many times the student has attempted the quiz
+  quizAttempts?: number;
 }
 
 // A homework is a PDF the teacher publishes for a lesson, plus a bubble-sheet

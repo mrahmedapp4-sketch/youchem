@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Key, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowRight, Lock, Key, CheckCircle, XCircle, RefreshCw, X } from 'lucide-react';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -23,9 +23,10 @@ export function LessonView() {
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [quizResult, setQuizResult] = useState<any>(null);
 
+  // When true, student dismissed the quiz with X — video stays accessible (unless locked)
+  const [quizDismissed, setQuizDismissed] = useState(false);
+
   // ── Viewing-time heartbeat ────────────────────────────────────────────────
-  // Fires every 60 seconds while the student is on this page AND has access
-  // to the lesson. Each call increments viewingMinutes by 1 server-side.
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const accessRef = useRef<any>(null);
   accessRef.current = access;
@@ -34,7 +35,7 @@ export function LessonView() {
     if (!id) return;
     heartbeatRef.current = setInterval(() => {
       const currentAccess = accessRef.current;
-      if (!currentAccess) return; // no access yet, don't count
+      if (!currentAccess) return;
       fetch('/api/student/lesson-heartbeat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,13 +117,38 @@ export function LessonView() {
     setSubmittingQuiz(false);
   };
 
+  const handleRetakeQuiz = () => {
+    setQuizResult(null);
+    setAnswers([]);
+    setQuizDismissed(false);
+    fetchQuiz();
+  };
+
+  const handleDismissQuiz = () => {
+    setQuizDismissed(true);
+  };
+
   if (loading || !lesson) return (
     <div className="min-h-screen flex items-center justify-center text-slate-400">بيتحمل...</div>
   );
 
-  const isVideoUnlocked = access?.quizPassed || access?.quizExempt || noQuizExists;
+  // ── Derived state ──────────────────────────────────────────────────────────
+  // Code entry unlocks the lesson immediately. The only exception is when the
+  // student already submitted the quiz and scored < 5/10 (lessonLocked=true),
+  // in which case the lesson is re-locked until the teacher exempts them OR
+  // they retake and pass.
+  const isLessonLocked = access?.lessonLocked && !access?.quizExempt;
+  const isVideoUnlocked = access && !isLessonLocked;
   const needsCode = !access;
-  const needsQuiz = access && !access.quizPassed && !access.quizExempt && !noQuizExists;
+
+  // Show quiz section when: has code, not yet passed, not exempt, quiz exists,
+  // AND (lesson is locked — must show for retake — OR quiz not dismissed yet)
+  const showQuizSection =
+    access &&
+    !access.quizPassed &&
+    !access.quizExempt &&
+    !noQuizExists &&
+    (isLessonLocked || !quizDismissed);
 
   const extractYoutubeId = (url: string) => {
     const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
@@ -157,7 +183,6 @@ export function LessonView() {
                 ? <iframe src={lesson.videoUrl.replace('player.mediadelivery.net/play/', 'iframe.mediadelivery.net/embed/')} className="absolute inset-0 w-full h-full" allowFullScreen allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" />
                 : <iframe src={`https://player.vimeo.com/video/${lesson.videoUrl}?dnt=1`} className="absolute inset-0 w-full h-full" allowFullScreen />
             ) : quizLoading && access ? (
-              /* Code was accepted — still checking if quiz is required */
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-slate-100">
                 <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
                   <CheckCircle className="w-8 h-8 text-emerald-500" />
@@ -165,21 +190,25 @@ export function LessonView() {
                 <h3 className="text-lg font-bold text-slate-800 mb-1">✅ الدرس اتفتح</h3>
                 <p className="text-slate-500 max-w-sm text-sm">بيتجهز...</p>
               </div>
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-slate-100">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${access ? 'bg-amber-50 border border-amber-200' : 'bg-indigo-50 border border-indigo-100'}`}>
-                  {access
-                    ? <CheckCircle className="w-8 h-8 text-amber-500" />
-                    : <Lock className="w-8 h-8 text-indigo-400" />}
+            ) : isLessonLocked ? (
+              /* Locked because student failed the quiz (< 5/10) */
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-red-50 to-slate-100">
+                <div className="w-16 h-16 rounded-full bg-red-100 border border-red-200 flex items-center justify-center mb-4">
+                  <Lock className="w-8 h-8 text-red-500" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">
-                  {access ? '✅ الدرس مفتوح — خلّص الامتحان' : 'المحتوى مقفول'}
-                </h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-1">🔒 الحصة مقفولة</h3>
                 <p className="text-slate-500 max-w-sm text-sm">
-                  {needsCode
-                    ? 'حط الكود اللي معاك علشان تشوف الدرس.'
-                    : 'عدّي الامتحان اللي تحت علشان تفتح الفيديو.'}
+                  جبت {access.quizScore}/{access.quizTotal} في الامتحان. اعمل إعادة الامتحان من تحت أو كلم مستر أحمد علشان يفتحهالك.
                 </p>
+              </div>
+            ) : (
+              /* Needs code */
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-slate-100">
+                <div className="w-16 h-16 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-4">
+                  <Lock className="w-8 h-8 text-indigo-400" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-1">المحتوى مقفول</h3>
+                <p className="text-slate-500 max-w-sm text-sm">حط الكود اللي معاك علشان تشوف الدرس.</p>
               </div>
             )}
           </div>
@@ -209,11 +238,27 @@ export function LessonView() {
         )}
 
         {/* ── Quiz ── */}
-        {needsQuiz && (
+        {showQuizSection && (
           <div className="neon-card p-4 sm:p-6 md:p-8 rounded-2xl">
-            <div className="mb-5 pb-4 sm:mb-6 sm:pb-5 border-b border-slate-200">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900">امتحان الدرس</h2>
-              <p className="text-slate-500 text-sm mt-1">لازم تعدّي الامتحان علشان تفتح الفيديو.</p>
+            <div className="mb-5 pb-4 sm:mb-6 sm:pb-5 border-b border-slate-200 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900">امتحان الدرس</h2>
+                <p className="text-slate-500 text-sm mt-0.5">
+                  {isLessonLocked
+                    ? 'الحصة مقفولة — اعمل إعادة الامتحان وجيب ٥/١٠ أو أكتر علشان تفتحها.'
+                    : 'خد الامتحان علشان تثبت إنك فاهم الدرس.'}
+                </p>
+              </div>
+              {/* X button — only shown when lesson is NOT locked (dismissing is allowed) */}
+              {!isLessonLocked && (
+                <button
+                  onClick={handleDismissQuiz}
+                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                  title="تخطي الامتحان (الحصة تفضل مفتوحة)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
             {quizResult ? (
@@ -225,19 +270,28 @@ export function LessonView() {
                   </p>
                   <p className="text-slate-500 mt-1">({Math.round((quizResult.score / quizResult.total) * 100)}%)</p>
                   <p className={`mt-3 font-bold ${quizResult.passed ? 'text-emerald-700' : 'text-red-600'}`}>
-                    {quizResult.passed ? '🎉 مبروك! عدّيت الامتحان والفيديو اتفتح.' : 'لسه ما عدّيتيش الامتحان.'}
+                    {quizResult.passed ? '🎉 مبروك! عدّيت الامتحان والفيديو اتفتح.' : '❌ لم تجتز الامتحان.'}
                   </p>
-                  {!quizResult.passed && quizResult.score >= 5 && (
-                    <button onClick={() => { setQuizResult(null); setAnswers([]); fetchQuiz(); }} className="neon-btn mt-4 px-6 py-2.5 rounded-xl font-bold">
-                      حاول تاني
-                    </button>
-                  )}
-                  {!quizResult.passed && quizResult.score < 5 && (
-                    <p className="mt-4 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
-                      🔒 الدرس مقفول — كلم مستر أحمد علشان يفتحهولك
-                    </p>
+
+                  {!quizResult.passed && (
+                    <div className="mt-4 space-y-3">
+                      {/* Locked notice */}
+                      <p className="text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
+                        🔒 الحصة مقفولة — كلم مستر أحمد علشان يفتحهالك، أو اعمل إعادة الامتحان
+                      </p>
+                      {/* Retake button */}
+                      <button
+                        onClick={handleRetakeQuiz}
+                        className="inline-flex items-center gap-2 neon-btn px-6 py-2.5 rounded-xl font-bold"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        إعادة الامتحان
+                      </button>
+                    </div>
                   )}
                 </div>
+
+                {/* Per-question breakdown */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {(quizResult.results || []).map((r: any, idx: number) => (
                     <div key={idx} className={`p-4 rounded-xl border space-y-1 ${r.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
@@ -285,8 +339,8 @@ export function LessonView() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-6 pt-6 border-t border-slate-200">
-                  <button onClick={handleSubmitQuiz} disabled={submittingQuiz} className="neon-btn w-full py-4 rounded-xl font-bold text-base disabled:opacity-50">
+                <div className="mt-6 pt-6 border-t border-slate-200 flex gap-3">
+                  <button onClick={handleSubmitQuiz} disabled={submittingQuiz} className="neon-btn flex-1 py-4 rounded-xl font-bold text-base disabled:opacity-50">
                     {submittingQuiz ? 'بيتبعت...' : 'سلّم الامتحان'}
                   </button>
                 </div>
@@ -295,6 +349,19 @@ export function LessonView() {
           </div>
         )}
 
+        {/* ── Quiz dismissed notice ── */}
+        {access && quizDismissed && !isLessonLocked && !access.quizPassed && !access.quizExempt && !noQuizExists && (
+          <div className="neon-card p-4 rounded-2xl flex items-center justify-between gap-4">
+            <p className="text-sm text-slate-500">تخطيت الامتحان — الحصة مفتوحة. ممكن ترجعله في أي وقت.</p>
+            <button
+              onClick={() => setQuizDismissed(false)}
+              className="text-sm font-bold text-indigo-600 hover:underline shrink-0 flex items-center gap-1"
+            >
+              <RefreshCw className="w-4 h-4" />
+              خد الامتحان
+            </button>
+          </div>
+        )}
 
       </main>
     </div>
