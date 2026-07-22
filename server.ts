@@ -1148,13 +1148,15 @@ app.get('/api/youchem/student-file/:userId', authenticateTeacher, async (req, re
 
 // ── PDF helpers ───────────────────────────────────────────────────────────────
 
-/** Build the full HTML string for a student's PDF report. */
+/** Build the full HTML string for a student's PDF report.
+ *  Pass autoPrint=true to inject a window.print() call on load (browser-print flow). */
 function buildStudentPdfHtml(
   user: DbUser,
   accesses: DbStudentLessonAccess[],
   homeworkSubmissions: DbHomeworkSubmission[],
   lessons: DbLesson[],
   homeworks: DbHomework[],
+  autoPrint = false,
 ): string {
   const gradeLabel   = user.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : user.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '—';
   const registeredDate = new Date(user.createdAt).toLocaleDateString('ar-EG');
@@ -1347,6 +1349,7 @@ function buildStudentPdfHtml(
     color: #94a3b8;
   }
 </style>
+${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(); });</script>` : ''}
 </head>
 <body>
 <div class="page">
