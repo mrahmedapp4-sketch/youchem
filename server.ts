@@ -101,7 +101,7 @@ fs.mkdirSync(STUDENT_PDFS_DIR, { recursive: true });
 
 // Pre-load brand images as base64 once at startup (avoids repeated disk reads)
 const _logoPath  = path.join(process.cwd(), 'public', 'logo.png');
-const _stampPath = path.join(process.cwd(), 'attached_assets', 'Gemini_Generated_Image_dlfsxndlfsxndlfs_1784734646261.png');
+const _stampPath = path.join(process.cwd(), 'attached_assets', 'image_1784762402890.png');
 const LOGO_B64  = fs.existsSync(_logoPath)  ? `data:image/png;base64,${fs.readFileSync(_logoPath).toString('base64')}`  : '';
 const STAMP_B64 = fs.existsSync(_stampPath) ? `data:image/png;base64,${fs.readFileSync(_stampPath).toString('base64')}` : '';
 // Homework PDFs require authentication — no unauthenticated static serving.
