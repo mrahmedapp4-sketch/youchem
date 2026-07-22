@@ -1240,7 +1240,9 @@ function buildStudentPdfHtml(
     margin-bottom: 18px;
     gap: 12px;
   }
-  .header-logo { height: 60px; width: auto; object-fit: contain; flex-shrink: 0; }
+  .header-logos { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .header-logo  { height: 60px; width: auto; object-fit: contain; }
+  .header-stamp { height: 80px; width: auto; object-fit: contain; mix-blend-mode: multiply; }
   .header-center { text-align: center; flex: 1; }
   .header-center h1 { font-size: 19px; font-weight: 900; color: #1e3a8a; letter-spacing: -0.3px; }
   .header-center p  { font-size: 10px; color: #64748b; margin-top: 3px; }
@@ -1356,7 +1358,10 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
 
   <!-- ── Header ── -->
   <div class="header">
-    ${LOGO_B64 ? `<img src="${LOGO_B64}" class="header-logo" alt="YouChem">` : '<div style="width:60px"></div>'}
+    <div class="header-logos">
+      ${LOGO_B64 ? `<img src="${LOGO_B64}" class="header-logo" alt="YouChem">` : ''}
+      ${STAMP_B64 ? `<img src="${STAMP_B64}" class="header-stamp" alt="YouChem Stamp">` : ''}
+    </div>
     <div class="header-center">
       <h1>ملف الطالب</h1>
       <p>منصة يوتشيم التعليمية &mdash; YouChem Educational Platform</p>
@@ -1408,9 +1413,8 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
         <tbody>${hwRows}</tbody>
       </table>`}
 
-  <!-- ── Verification row (stamp + signature) — normal flow, never overlaps ── -->
+  <!-- ── Verification row (signature only) ── -->
   <div class="verify-row">
-    ${STAMP_B64 ? `<img src="${STAMP_B64}" class="verify-stamp" alt="YouChem Stamp">` : '<div style="width:130px"></div>'}
     <div class="verify-sig">
       <div class="sig-line"></div>
       <div class="sig-label">توقيع المعلم / المراجع</div>
