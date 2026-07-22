@@ -47,7 +47,7 @@ export function StudentFiles() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${studentName || userId}_ملف.csv`;
+        a.download = `${studentName || userId}_ملف.pdf`;
         a.click();
         URL.revokeObjectURL(url);
       }
