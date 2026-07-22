@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Key, Plus, Trash2, CheckCircle, BookOpen } from 'lucide-react';
+import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe } from 'lucide-react';
 
 export function Codes() {
   const [count, setCount] = useState(50);
@@ -9,6 +9,8 @@ export function Codes() {
   const [codesList, setCodesList] = useState<any[]>([]);
   const [lessons, setLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // Track which code was just copied (to show ✓ feedback)
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([fetchCodes(), fetchLessons()]);
@@ -38,20 +40,17 @@ export function Codes() {
   };
 
   const handleGenerate = async () => {
-    if (!lessonId) {
-      alert('لازم تختار الحصة المرتبطة بالكود قبل التوليد');
-      return;
-    }
     setIsGenerating(true); setGeneratedMessage('');
     try {
       const res = await fetch('/api/youchem/codes/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count, lessonId }),
+        body: JSON.stringify({ count, lessonId: lessonId || undefined }),
       });
       const data = await res.json();
       if (data.success) {
-        setGeneratedMessage(`اتعمل ${data.generated} كود بنجاح لـ "${getLessonTitle(lessonId)}".`);
+        const label = lessonId ? `"${getLessonTitle(lessonId)}"` : 'كل الحصص (عام)';
+        setGeneratedMessage(`اتعمل ${data.generated} كود بنجاح لـ ${label}.`);
         fetchCodes();
       }
     } catch { alert('في مشكلة في الإنشاء'); }
@@ -64,6 +63,23 @@ export function Codes() {
       const res = await fetch(`/api/youchem/codes/${id}`, { method: 'DELETE' });
       if (res.ok) setCodesList(codesList.filter(c => c.id !== id));
     } catch { alert('فشل مسح الكود'); }
+  };
+
+  const handleCopy = (codeString: string, id: string) => {
+    navigator.clipboard.writeText(codeString).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1800);
+    }).catch(() => {
+      // Fallback for older browsers
+      const el = document.createElement('textarea');
+      el.value = codeString;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1800);
+    });
   };
 
   const getLessonTitle = (lId?: string) => {
@@ -86,7 +102,7 @@ export function Codes() {
         <div className="neon-card rounded-2xl p-4 flex flex-col gap-3 min-w-[260px]" dir="rtl">
           {/* Lesson picker */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">الامتحان المرتبط بالكود</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">الحصة المرتبطة (اختياري)</label>
             <div className="relative">
               <BookOpen className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <select
@@ -94,12 +110,15 @@ export function Codes() {
                 onChange={e => setLessonId(e.target.value)}
                 className="neon-input w-full pr-9 pl-3 py-2.5 rounded-xl text-sm appearance-none"
               >
-                <option value="">— اختر الحصة (مطلوب) —</option>
+                <option value="">— عام (يشتغل على كل الحصص) —</option>
                 {lessons.map((l: any) => (
                   <option key={l.id} value={l.id}>{l.title}</option>
                 ))}
               </select>
             </div>
+            <p className="text-xs text-slate-400 mt-1">
+              {lessonId ? 'الكود ده هيشتغل بس على الحصة دي.' : 'الكود العام يشتغل على أي حصة.'}
+            </p>
           </div>
 
           {/* Count + generate button */}
@@ -141,7 +160,7 @@ export function Codes() {
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wide">
                 <tr>
                   <th className="px-5 py-3">الكود</th>
-                  <th className="px-5 py-3">الامتحان</th>
+                  <th className="px-5 py-3">الحصة</th>
                   <th className="px-5 py-3">الحالة</th>
                   <th className="px-5 py-3">الطالب</th>
                   <th className="px-5 py-3">تاريخ الإنشاء</th>
@@ -157,14 +176,32 @@ export function Codes() {
                     <td className="px-5 py-3.5 font-mono text-slate-800 font-semibold text-sm">
                       <div className="flex items-center gap-2">
                         <Key className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        {c.codeString}
+                        <span>{c.codeString}</span>
+                        {/* Copy button */}
+                        <button
+                          onClick={() => handleCopy(c.codeString, c.id)}
+                          className={`p-1 rounded transition-colors shrink-0 ${
+                            copiedId === c.id
+                              ? 'text-emerald-600 bg-emerald-50'
+                              : 'text-slate-300 hover:text-indigo-500 hover:bg-indigo-50'
+                          }`}
+                          title="نسخ الكود"
+                        >
+                          {copiedId === c.id
+                            ? <CheckCircle className="w-3.5 h-3.5" />
+                            : <Copy className="w-3.5 h-3.5" />
+                          }
+                        </button>
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-sm max-w-[180px]">
                       {c.lessonId ? (
                         <span className="text-indigo-700 font-medium truncate block">{getLessonTitle(c.lessonId)}</span>
                       ) : (
-                        <span className="text-slate-300">—</span>
+                        <span className="inline-flex items-center gap-1 text-slate-500 text-xs font-medium">
+                          <Globe className="w-3 h-3" />
+                          عام
+                        </span>
                       )}
                     </td>
                     <td className="px-5 py-3.5">
