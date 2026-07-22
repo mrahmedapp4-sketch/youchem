@@ -78,6 +78,16 @@ const DATA_ROOT = process.env.RAILWAY_VOLUME_MOUNT_PATH
 const UPLOADS_DIR = path.join(DATA_ROOT, 'uploads', 'homeworks');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 console.log(`[server] Using uploads directory: ${UPLOADS_DIR}`);
+
+// Student PDF files – saved on first registration, overwritten on each download
+const STUDENT_PDFS_DIR = path.join(DATA_ROOT, 'student-pdfs');
+fs.mkdirSync(STUDENT_PDFS_DIR, { recursive: true });
+
+// Pre-load brand images as base64 once at startup (avoids repeated disk reads)
+const _logoPath  = path.join(process.cwd(), 'public', 'logo.png');
+const _stampPath = path.join(process.cwd(), 'attached_assets', 'Gemini_Generated_Image_dlfsxndlfsxndlfs_1784734646261.png');
+const LOGO_B64  = fs.existsSync(_logoPath)  ? `data:image/png;base64,${fs.readFileSync(_logoPath).toString('base64')}`  : '';
+const STAMP_B64 = fs.existsSync(_stampPath) ? `data:image/png;base64,${fs.readFileSync(_stampPath).toString('base64')}` : '';
 // Homework PDFs require authentication — no unauthenticated static serving.
 // Both students and teachers can fetch them; the route checks either cookie.
 app.get('/uploads/homeworks/:filename', (req, res, next) => {
@@ -1088,76 +1098,79 @@ app.get('/api/youchem/student-file/:userId', authenticateTeacher, async (req, re
   }
 });
 
-// ── Teacher: download student file as PDF (via Puppeteer) ────────────────────
-app.get('/api/youchem/student-file/:userId/download', authenticateTeacher, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
-    if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
+// ── PDF helpers ───────────────────────────────────────────────────────────────
 
-    const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === userId);
-    const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
-    const lessons = jsonDb.getAll('lessons') as DbLesson[];
-    const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
+/** Build the full HTML string for a student's PDF report. */
+function buildStudentPdfHtml(
+  user: DbUser,
+  accesses: DbStudentLessonAccess[],
+  homeworkSubmissions: DbHomeworkSubmission[],
+  lessons: DbLesson[],
+  homeworks: DbHomework[],
+): string {
+  const gradeLabel   = user.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : user.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '—';
+  const registeredDate = new Date(user.createdAt).toLocaleDateString('ar-EG');
+  const generatedDate  = new Date().toLocaleDateString('ar-EG');
 
-    const gradeLabel = user.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : user.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '—';
-    const registeredDate = new Date(user.createdAt).toLocaleDateString('ar-EG');
-    const generatedDate = new Date().toLocaleDateString('ar-EG');
+  const escHtml = (v: any) => String(v ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-    // Read logo + stamp as base64 data URIs
-    const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-    const stampPath = path.join(process.cwd(), 'attached_assets', 'Gemini_Generated_Image_dlfsxndlfsxndlfs_1784734646261.png');
-    const logoB64 = fs.existsSync(logoPath) ? `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}` : '';
-    const stampB64 = fs.existsSync(stampPath) ? `data:image/png;base64,${fs.readFileSync(stampPath).toString('base64')}` : '';
+  const lessonRows = accesses.map((a: DbStudentLessonAccess) => {
+    const lesson = lessons.find((l: DbLesson) => l.id === a.lessonId);
+    const quizCell = a.quizExempt
+      ? `<span class="badge amber">معفي</span>`
+      : a.quizTotal != null
+        ? `<span class="badge ${a.quizPassed ? 'green' : 'red'}">${a.quizScore}/${a.quizTotal}</span>`
+        : `<span class="muted">—</span>`;
+    const passed = a.quizPassed ? '<span style="color:#15803d;font-weight:700">✓</span>'
+                 : a.quizExempt ? '<span style="color:#92400e">—</span>'
+                 : '<span style="color:#b91c1c;font-weight:700">✗</span>';
+    return `<tr>
+      <td>${escHtml(lesson?.title || a.lessonId)}</td>
+      <td class="center">${a.viewingMinutes || 0} د</td>
+      <td class="center">${quizCell}</td>
+      <td class="center">${passed}</td>
+      <td class="center muted">${new Date(a.unlockedAt).toLocaleDateString('ar-EG')}</td>
+    </tr>`;
+  }).join('');
 
-    // ── Lesson rows ────────────────────────────────────────────────────────────
-    const lessonRows = accesses.map((a: DbStudentLessonAccess) => {
-      const lesson = lessons.find((l: DbLesson) => l.id === a.lessonId);
-      const quizCell = a.quizExempt
-        ? `<span class="badge amber">معفي</span>`
-        : a.quizTotal != null
-          ? `<span class="badge ${a.quizPassed ? 'green' : 'red'}">${a.quizScore}/${a.quizTotal}</span>`
-          : `<span class="muted">—</span>`;
-      return `
-        <tr>
-          <td>${lesson?.title || a.lessonId}</td>
-          <td class="center">${a.viewingMinutes || 0} دقيقة</td>
-          <td class="center">${quizCell}</td>
-          <td class="center">${a.quizPassed ? '✓' : a.quizExempt ? '—' : '✗'}</td>
-          <td class="center muted">${new Date(a.unlockedAt).toLocaleDateString('ar-EG')}</td>
-        </tr>`;
-    }).join('');
+  const hwRows = homeworkSubmissions.map((s: DbHomeworkSubmission) => {
+    const hw  = homeworks.find((h: DbHomework) => h.id === s.homeworkId);
+    const pct = s.total > 0 ? Math.round((s.score / s.total) * 100) : 0;
+    return `<tr>
+      <td>${escHtml(hw?.title || s.homeworkId)}</td>
+      <td class="center"><span class="badge ${pct >= 50 ? 'green' : 'red'}">${s.score}/${s.total}</span></td>
+      <td class="center">${pct}%</td>
+      <td class="center muted">${new Date(s.createdAt).toLocaleDateString('ar-EG')}</td>
+    </tr>`;
+  }).join('');
 
-    // ── Homework rows ──────────────────────────────────────────────────────────
-    const hwRows = homeworkSubmissions.map((s: DbHomeworkSubmission) => {
-      const hw = homeworks.find((h: DbHomework) => h.id === s.homeworkId);
-      const pct = s.total > 0 ? Math.round((s.score / s.total) * 100) : 0;
-      return `
-        <tr>
-          <td>${hw?.title || s.homeworkId}</td>
-          <td class="center"><span class="badge ${pct >= 50 ? 'green' : 'red'}">${s.score}/${s.total}</span></td>
-          <td class="center">${pct}%</td>
-          <td class="center muted">${new Date(s.createdAt).toLocaleDateString('ar-EG')}</td>
-        </tr>`;
-    }).join('');
-
-    // ── HTML template ──────────────────────────────────────────────────────────
-    const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    font-family: 'Cairo', 'Arial', sans-serif;
+    font-family: 'Cairo', 'Tahoma', 'Arial', sans-serif;
     direction: rtl;
+    unicode-bidi: bidi-override;
     color: #1e293b;
-    background: #fff;
-    font-size: 12px;
-    line-height: 1.6;
+    background: #ffffff;
+    font-size: 11.5px;
+    line-height: 1.65;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  .page { padding: 36px 40px 100px; position: relative; min-height: 100vh; }
+
+  /* ── Page wrapper: all normal flow, nothing fixed ── */
+  .page {
+    padding: 28px 36px 32px;
+    min-width: 600px;
+  }
 
   /* ── Header ── */
   .header {
@@ -1165,65 +1178,61 @@ app.get('/api/youchem/student-file/:userId/download', authenticateTeacher, async
     align-items: center;
     justify-content: space-between;
     border-bottom: 3px solid #1e3a8a;
-    padding-bottom: 16px;
-    margin-bottom: 20px;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    gap: 12px;
   }
-  .header-logo { height: 64px; object-fit: contain; }
-  .header-title { text-align: center; flex: 1; }
-  .header-title h1 { font-size: 20px; font-weight: 900; color: #1e3a8a; }
-  .header-title p { font-size: 11px; color: #64748b; margin-top: 2px; }
-  .header-date { font-size: 10px; color: #94a3b8; text-align: left; }
+  .header-logo { height: 60px; width: auto; object-fit: contain; flex-shrink: 0; }
+  .header-center { text-align: center; flex: 1; }
+  .header-center h1 { font-size: 19px; font-weight: 900; color: #1e3a8a; letter-spacing: -0.3px; }
+  .header-center p  { font-size: 10px; color: #64748b; margin-top: 3px; }
+  .header-right { font-size: 9.5px; color: #94a3b8; text-align: right; white-space: nowrap; }
 
-  /* ── Section headings ── */
+  /* ── Section banner ── */
   .section-title {
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    background: linear-gradient(90deg, #1e3a8a 0%, #2563eb 100%);
     color: #fff;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 700;
-    padding: 7px 16px;
-    border-radius: 8px;
-    margin: 18px 0 10px;
+    padding: 6px 14px;
+    border-radius: 7px;
+    margin: 16px 0 9px;
+    letter-spacing: 0.2px;
   }
 
-  /* ── Profile grid ── */
+  /* ── Profile 3-column grid ── */
   .profile-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 4px;
+    gap: 8px;
   }
   .info-box {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: 7px;
+    padding: 7px 11px;
+    overflow: hidden;
   }
-  .info-box .label { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-  .info-box .value { font-size: 12px; font-weight: 700; color: #1e293b; margin-top: 2px; }
+  .info-box .lbl { font-size: 8.5px; color: #94a3b8; letter-spacing: 0.4px; text-transform: uppercase; }
+  .info-box .val { font-size: 11.5px; font-weight: 700; color: #1e293b; margin-top: 1px; word-break: break-all; }
 
   /* ── Tables ── */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-  }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
   thead tr { background: #eff6ff; }
   thead th {
-    padding: 8px 12px;
+    padding: 7px 11px;
     font-weight: 700;
     color: #1e40af;
     text-align: right;
     border-bottom: 2px solid #bfdbfe;
-    font-size: 11px;
+    white-space: nowrap;
   }
   tbody tr:nth-child(even) { background: #f8fafc; }
-  tbody td {
-    padding: 7px 12px;
-    border-bottom: 1px solid #f1f5f9;
-    color: #334155;
-  }
-  .center { text-align: center; }
-  .muted { color: #94a3b8; }
+  tbody tr:hover { background: #f0f9ff; }
+  tbody td { padding: 6px 11px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+  .center { text-align: center !important; }
+  .muted  { color: #94a3b8; }
+  .empty-note { color: #94a3b8; font-style: italic; padding: 10px 0; text-align: center; }
 
   /* ── Badges ── */
   .badge {
@@ -1232,140 +1241,201 @@ app.get('/api/youchem/student-file/:userId/download', authenticateTeacher, async
     border-radius: 20px;
     font-weight: 700;
     font-size: 10px;
+    white-space: nowrap;
   }
-  .badge.green  { background: #dcfce7; color: #15803d; }
-  .badge.red    { background: #fee2e2; color: #b91c1c; }
-  .badge.amber  { background: #fef3c7; color: #92400e; }
+  .badge.green { background: #dcfce7; color: #15803d; }
+  .badge.red   { background: #fee2e2; color: #b91c1c; }
+  .badge.amber { background: #fef3c7; color: #92400e; }
 
-  /* ── Stamp ── */
-  .stamp {
-    position: fixed;
-    bottom: 30px;
-    left: 40px;
-    width: 140px;
-    height: 140px;
-    object-fit: contain;
-    opacity: 0.75;
-    transform: rotate(-8deg);
-  }
-
-  /* ── Footer ── */
-  .footer {
-    position: fixed;
-    bottom: 0;
-    left: 0; right: 0;
-    height: 32px;
+  /* ── Verification row (stamp + signature) — NORMAL FLOW, not fixed ── */
+  .verify-row {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
-    padding: 0 40px;
+    margin-top: 28px;
+    padding-top: 16px;
+    border-top: 1px dashed #cbd5e1;
+    gap: 16px;
+  }
+  .verify-stamp {
+    width: 130px;
+    height: 130px;
+    object-fit: contain;
+    /* multiply removes the white background of the stamp PNG */
+    mix-blend-mode: multiply;
+    transform: rotate(-6deg);
+    flex-shrink: 0;
+  }
+  .verify-sig {
+    flex: 1;
+    text-align: center;
+    padding-bottom: 8px;
+  }
+  .verify-sig .sig-line {
+    border-bottom: 1.5px solid #334155;
+    width: 70%;
+    margin: 0 auto 6px;
+    height: 32px;
+  }
+  .verify-sig .sig-label { font-size: 10px; color: #64748b; }
+
+  /* ── Footer — NORMAL FLOW, always below all content ── */
+  .doc-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 8px;
     border-top: 1px solid #e2e8f0;
     font-size: 9px;
     color: #94a3b8;
   }
-  .empty-note { color: #94a3b8; font-style: italic; padding: 12px 0; text-align: center; }
 </style>
 </head>
 <body>
 <div class="page">
 
-  <!-- Header -->
+  <!-- ── Header ── -->
   <div class="header">
-    ${logoB64 ? `<img src="${logoB64}" class="header-logo" alt="YouChem">` : '<div style="width:64px"></div>'}
-    <div class="header-title">
+    ${LOGO_B64 ? `<img src="${LOGO_B64}" class="header-logo" alt="YouChem">` : '<div style="width:60px"></div>'}
+    <div class="header-center">
       <h1>ملف الطالب</h1>
-      <p>منصة يوتشيم التعليمية — YouChem Platform</p>
+      <p>منصة يوتشيم التعليمية &mdash; YouChem Educational Platform</p>
     </div>
-    <div class="header-date">تاريخ الإصدار<br>${generatedDate}</div>
+    <div class="header-right">تاريخ الإصدار<br><strong>${escHtml(generatedDate)}</strong></div>
   </div>
 
-  <!-- Profile -->
-  <div class="section-title">📋 بيانات الطالب</div>
+  <!-- ── Profile ── -->
+  <div class="section-title">&#x1F4CB; بيانات الطالب</div>
   <div class="profile-grid">
-    <div class="info-box"><div class="label">الاسم</div><div class="value">${user.name || '—'}</div></div>
-    <div class="info-box"><div class="label">الإيميل</div><div class="value" style="font-size:10px">${user.email || '—'}</div></div>
-    <div class="info-box"><div class="label">الصف الدراسي</div><div class="value">${gradeLabel}</div></div>
-    <div class="info-box"><div class="label">رقم الهاتف</div><div class="value">${user.phone || '—'}</div></div>
-    <div class="info-box"><div class="label">هاتف ولي الأمر</div><div class="value">${user.guardianPhone || '—'}</div></div>
-    <div class="info-box"><div class="label">المدرسة</div><div class="value">${user.school || '—'}</div></div>
-    <div class="info-box"><div class="label">تاريخ التسجيل</div><div class="value">${registeredDate}</div></div>
-    <div class="info-box"><div class="label">الحصص المفتوحة</div><div class="value">${accesses.length}</div></div>
-    <div class="info-box"><div class="label">الواجبات المسلّمة</div><div class="value">${homeworkSubmissions.length}</div></div>
+    <div class="info-box"><div class="lbl">الاسم الكامل</div><div class="val">${escHtml(user.name)}</div></div>
+    <div class="info-box"><div class="lbl">البريد الإلكتروني</div><div class="val" style="font-size:9.5px">${escHtml(user.email)}</div></div>
+    <div class="info-box"><div class="lbl">الصف الدراسي</div><div class="val">${escHtml(gradeLabel)}</div></div>
+    <div class="info-box"><div class="lbl">رقم الهاتف</div><div class="val">${escHtml(user.phone || '—')}</div></div>
+    <div class="info-box"><div class="lbl">هاتف ولي الأمر</div><div class="val">${escHtml(user.guardianPhone || '—')}</div></div>
+    <div class="info-box"><div class="lbl">المدرسة</div><div class="val">${escHtml(user.school || '—')}</div></div>
+    <div class="info-box"><div class="lbl">تاريخ التسجيل</div><div class="val">${escHtml(registeredDate)}</div></div>
+    <div class="info-box"><div class="lbl">الحصص المفتوحة</div><div class="val">${accesses.length}</div></div>
+    <div class="info-box"><div class="lbl">الواجبات المسلّمة</div><div class="val">${homeworkSubmissions.length}</div></div>
   </div>
 
-  <!-- Lessons -->
-  <div class="section-title">📚 الحصص ووقت المشاهدة</div>
+  <!-- ── Lessons ── -->
+  <div class="section-title">&#x1F4DA; الحصص ووقت المشاهدة</div>
   ${accesses.length === 0
-    ? `<p class="empty-note">لم يفتح الطالب أي حصة بعد</p>`
+    ? '<p class="empty-note">لم يفتح الطالب أي حصة بعد</p>'
     : `<table>
-        <thead>
-          <tr>
-            <th>اسم الحصة</th>
-            <th style="width:110px;text-align:center">وقت المشاهدة</th>
-            <th style="width:100px;text-align:center">درجة الامتحان</th>
-            <th style="width:80px;text-align:center">اجتاز؟</th>
-            <th style="width:90px;text-align:center">تاريخ الفتح</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>اسم الحصة</th>
+          <th style="width:80px" class="center">وقت المشاهدة</th>
+          <th style="width:100px" class="center">درجة الامتحان</th>
+          <th style="width:70px" class="center">اجتاز؟</th>
+          <th style="width:85px" class="center">تاريخ الفتح</th>
+        </tr></thead>
         <tbody>${lessonRows}</tbody>
       </table>`}
 
-  <!-- Homework -->
-  <div class="section-title">📝 الواجبات</div>
+  <!-- ── Homework ── -->
+  <div class="section-title">&#x1F4DD; الواجبات</div>
   ${homeworkSubmissions.length === 0
-    ? `<p class="empty-note">لم يسلّم الطالب أي واجب بعد</p>`
+    ? '<p class="empty-note">لم يسلّم الطالب أي واجب بعد</p>'
     : `<table>
-        <thead>
-          <tr>
-            <th>اسم الواجب</th>
-            <th style="width:100px;text-align:center">الدرجة</th>
-            <th style="width:80px;text-align:center">النسبة</th>
-            <th style="width:100px;text-align:center">تاريخ التسليم</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>اسم الواجب</th>
+          <th style="width:100px" class="center">الدرجة</th>
+          <th style="width:70px" class="center">النسبة</th>
+          <th style="width:100px" class="center">تاريخ التسليم</th>
+        </tr></thead>
         <tbody>${hwRows}</tbody>
       </table>`}
 
-  <!-- Stamp -->
-  ${stampB64 ? `<img src="${stampB64}" class="stamp" alt="YouChem Stamp">` : ''}
-
-  <!-- Footer -->
-  <div class="footer">
-    <span>YouChem Educational Platform — منصة يوتشيم</span>
-    <span>تم الإصدار بتاريخ ${generatedDate}</span>
+  <!-- ── Verification row (stamp + signature) — normal flow, never overlaps ── -->
+  <div class="verify-row">
+    ${STAMP_B64 ? `<img src="${STAMP_B64}" class="verify-stamp" alt="YouChem Stamp">` : '<div style="width:130px"></div>'}
+    <div class="verify-sig">
+      <div class="sig-line"></div>
+      <div class="sig-label">توقيع المعلم / المراجع</div>
+    </div>
   </div>
+
+  <!-- ── Footer ── -->
+  <div class="doc-footer">
+    <span>YouChem Educational Platform &mdash; منصة يوتشيم التعليمية</span>
+    <span>صدر بتاريخ ${escHtml(generatedDate)}</span>
+  </div>
+
 </div>
 </body>
 </html>`;
+}
 
-    // ── Generate PDF with Puppeteer ────────────────────────────────────────────
-    const browser = await puppeteer.launch({
-      executablePath: CHROMIUM_PATH,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--font-render-hinting=none',
-      ],
-      headless: true,
-    });
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '0', bottom: '0', left: '0', right: '0' },
-      });
-      const safeName = (user.name || userId).replace(/[^a-zA-Z\u0600-\u06FF0-9 _-]/g, '').trim();
-      const filename = `${safeName}_ملف.pdf`;
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
-      res.send(pdfBuffer);
-    } finally {
-      await browser.close();
-    }
+/** Launch Chromium, render the HTML, return PDF bytes. */
+async function renderPdfBuffer(html: string): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    executablePath: CHROMIUM_PATH,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--font-render-hinting=none',
+    ],
+    headless: true,
+  });
+  try {
+    const page = await browser.newPage();
+    // networkidle2 lets Google Fonts finish loading without timing out on slow DNS
+    await page.setContent(html, { waitUntil: 'networkidle2', timeout: 30_000 });
+    return Buffer.from(await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' },
+    }));
+  } finally {
+    await browser.close();
+  }
+}
+
+/** Generate a student PDF and save it to disk (fire-and-forget safe). */
+async function saveStudentPdfToDisk(userId: string): Promise<void> {
+  try {
+    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
+    if (!user) return;
+    const accesses           = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === userId);
+    const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
+    const lessons  = jsonDb.getAll('lessons')  as DbLesson[];
+    const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
+    const html   = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks);
+    const buffer = await renderPdfBuffer(html);
+    const outPath = path.join(STUDENT_PDFS_DIR, `${userId}.pdf`);
+    fs.writeFileSync(outPath, buffer);
+    console.log(`[PDF] Saved student file: ${outPath}`);
+  } catch (err: any) {
+    console.error(`[PDF] Auto-save failed for ${userId}:`, err.message);
+  }
+}
+
+// ── Teacher: download student file as PDF ─────────────────────────────────────
+app.get('/api/youchem/student-file/:userId/download', authenticateTeacher, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
+    if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
+
+    const accesses            = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === userId);
+    const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
+    const lessons   = jsonDb.getAll('lessons')   as DbLesson[];
+    const homeworks = jsonDb.getAll('homeworks')  as DbHomework[];
+
+    const html   = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks);
+    const buffer = await renderPdfBuffer(html);
+
+    // Also overwrite the saved copy so it's always current
+    fs.writeFileSync(path.join(STUDENT_PDFS_DIR, `${userId}.pdf`), buffer);
+
+    const safeName = (user.name || userId).replace(/[^a-zA-Z\u0600-\u06FF0-9 _-]/g, '').trim();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(`${safeName}_ملف.pdf`)}`);
+    res.send(buffer);
   } catch (err: any) {
     console.error('[PDF] Generation failed:', err.message);
     res.status(500).json({ error: 'فشل توليد الملف: ' + err.message });
