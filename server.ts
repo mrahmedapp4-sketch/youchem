@@ -1474,6 +1474,26 @@ async function saveStudentPdfToDisk(userId: string): Promise<void> {
   }
 }
 
+// ── Teacher: view student file as HTML in browser ────────────────────────────
+app.get('/api/youchem/student-file/:userId/view', authenticateTeacher, (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
+    if (!user) return res.status(404).send('<p>الطالب غير موجود</p>');
+
+    const accesses            = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === userId);
+    const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
+    const lessons   = jsonDb.getAll('lessons')   as DbLesson[];
+    const homeworks = jsonDb.getAll('homeworks')  as DbHomework[];
+
+    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err: any) {
+    res.status(500).send('<p>فشل توليد التقرير: ' + err.message + '</p>');
+  }
+});
+
 // ── Teacher: download student file as PDF ─────────────────────────────────────
 app.get('/api/youchem/student-file/:userId/download', authenticateTeacher, async (req, res) => {
   try {

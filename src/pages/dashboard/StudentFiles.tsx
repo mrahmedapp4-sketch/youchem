@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, FolderOpen, Download, ChevronDown, ChevronUp, Clock, CheckCircle, XCircle, BookOpen, FileText } from 'lucide-react';
+import { Search, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Clock, CheckCircle, XCircle, BookOpen, FileText } from 'lucide-react';
 
 const GRADE_LABEL: Record<string, string> = {
   '2nd_sec': 'تاني ثانوي',
@@ -14,7 +14,6 @@ export function StudentFiles() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fileData, setFileData] = useState<Record<string, any>>({});
   const [fileLoading, setFileLoading] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/youchem/students')
@@ -38,21 +37,8 @@ export function StudentFiles() {
     setFileLoading(null);
   };
 
-  const handleDownload = async (userId: string, studentName: string) => {
-    setDownloading(userId);
-    try {
-      const res = await fetch(`/api/youchem/student-file/${userId}/download`);
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${studentName || userId}_ملف.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch { alert('في مشكلة في التحميل'); }
-    setDownloading(null);
+  const handleOpen = (userId: string) => {
+    window.open(`/api/youchem/student-file/${userId}/view`, '_blank');
   };
 
   const filtered = students
@@ -114,7 +100,6 @@ export function StudentFiles() {
               const isOpen = selectedId === student.id;
               const file = fileData[student.id];
               const isLoadingFile = fileLoading === student.id;
-              const isDownloading = downloading === student.id;
 
               return (
                 <div key={student.id}>
@@ -150,17 +135,13 @@ export function StudentFiles() {
                       <div>مفتوحة</div>
                     </div>
 
-                    {/* Download */}
+                    {/* Open report */}
                     <button
-                      onClick={e => { e.stopPropagation(); handleDownload(student.id, student.name); }}
-                      disabled={isDownloading}
-                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors shrink-0 disabled:opacity-40"
-                      title="تحميل ملف Excel"
+                      onClick={e => { e.stopPropagation(); handleOpen(student.id); }}
+                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors shrink-0"
+                      title="فتح التقرير في تاب جديد"
                     >
-                      {isDownloading
-                        ? <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-                        : <Download className="w-4 h-4" />
-                      }
+                      <ExternalLink className="w-4 h-4" />
                     </button>
 
                     {/* Toggle */}
@@ -250,18 +231,14 @@ export function StudentFiles() {
                             )}
                           </div>
 
-                          {/* Download button */}
+                          {/* Open report button */}
                           <div className="pt-1">
                             <button
-                              onClick={() => handleDownload(file.user.id, file.user.name)}
-                              disabled={isDownloading}
-                              className="neon-btn flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
+                              onClick={() => handleOpen(file.user.id)}
+                              className="neon-btn flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm"
                             >
-                              {isDownloading
-                                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                : <Download className="w-4 h-4" />
-                              }
-                              تحميل ملف Excel
+                              <ExternalLink className="w-4 h-4" />
+                              فتح التقرير
                             </button>
                           </div>
                         </>
