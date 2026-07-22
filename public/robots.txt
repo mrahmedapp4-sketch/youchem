@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /youchem/
+Disallow: /uploads/
+
+# Sitemap
+Sitemap: https://youchem.up.railway.app/sitemap.xml
