@@ -66,6 +66,8 @@ export interface DbStudentLessonAccess {
   quizScore?: number;
   quizTotal?: number;
   quizResults?: Array<{ question: string; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }>;
+  // Minutes the student spent on the lesson viewing page (incremented by heartbeat)
+  viewingMinutes?: number;
 }
 
 // A homework is a PDF the teacher publishes for a lesson, plus a bubble-sheet

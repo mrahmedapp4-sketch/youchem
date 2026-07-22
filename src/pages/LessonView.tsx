@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowRight, Lock, Key, CheckCircle, XCircle } from 'lucide-react';
 
@@ -22,6 +22,29 @@ export function LessonView() {
   const [answers, setAnswers] = useState<string[]>([]);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [quizResult, setQuizResult] = useState<any>(null);
+
+  // ── Viewing-time heartbeat ────────────────────────────────────────────────
+  // Fires every 60 seconds while the student is on this page AND has access
+  // to the lesson. Each call increments viewingMinutes by 1 server-side.
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const accessRef = useRef<any>(null);
+  accessRef.current = access;
+
+  useEffect(() => {
+    if (!id) return;
+    heartbeatRef.current = setInterval(() => {
+      const currentAccess = accessRef.current;
+      if (!currentAccess) return; // no access yet, don't count
+      fetch('/api/student/lesson-heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lessonId: id }),
+      }).catch(() => {/* ignore network errors */});
+    }, 60_000);
+    return () => {
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    };
+  }, [id]);
 
   useEffect(() => {
     fetchLessonData();

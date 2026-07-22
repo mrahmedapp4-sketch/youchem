@@ -16,6 +16,13 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 - Default teacher login password used by `server.ts` is a hardcoded value (`port5`) — should be replaced with a real credential/secret before going live.
 - `data/db.json` is created automatically on first run if missing; back it up before making risky changes since it's the only copy of lesson/quiz/student data.
 
+## Changes (July 22, 2026)
+- **Lesson-specific codes enforced:** Codes with a `lessonId` can now only unlock that exact lesson. `/api/student/validate-code` and `/api/student/exam/unlock` both reject codes used on the wrong lesson. The Codes dashboard UI now requires selecting a lesson before generating (dropdown changed to "مطلوب").
+- **Grades pages removed:** "درجات الواجبات" and "درجات الامتحانات" dashboard tabs removed. The files `HomeworkGrades.tsx` and `QuizGrades.tsx` are deleted; the server API endpoints remain but are unused.
+- **File storage in production:** `server.ts` and `jsonStore.ts` now default to `/app/data` when `NODE_ENV=production` and no other path env var is set (was `./data`). Dev still uses `./data`. Set `DATA_DIR` env var to override on any platform.
+- **Viewing-time heartbeat:** `LessonView.tsx` sends `POST /api/student/lesson-heartbeat` every 60 seconds while a student with access is on a lesson page. Each call increments `viewingMinutes` on the `DbStudentLessonAccess` record server-side.
+- **Student Files tab:** New dashboard tab "ملفات الطلاب" (`/youchem/student-files`, `src/pages/dashboard/StudentFiles.tsx`). Teacher can search/filter students, expand any student to see: profile info, minutes spent per lesson, quiz scores, homework scores. Each student has a download button that fetches a UTF-8 CSV file (BOM-prefixed, Excel-compatible with Arabic) containing all their activity data.
+
 ## Notes from import setup (July 13, 2026)
 - `TEACHER_PASSWORD` secret is now set (server.ts throws on boot without it). `JWT_SECRET` still falls back to `SESSION_SECRET` if unset.
 - App verified running and reachable (login screen renders, Google sign-in button present).

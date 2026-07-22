@@ -38,16 +38,20 @@ export function Codes() {
   };
 
   const handleGenerate = async () => {
+    if (!lessonId) {
+      alert('لازم تختار الحصة المرتبطة بالكود قبل التوليد');
+      return;
+    }
     setIsGenerating(true); setGeneratedMessage('');
     try {
       const res = await fetch('/api/youchem/codes/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count, lessonId: lessonId || undefined }),
+        body: JSON.stringify({ count, lessonId }),
       });
       const data = await res.json();
       if (data.success) {
-        setGeneratedMessage(`اتعمل ${data.generated} كود بنجاح.`);
+        setGeneratedMessage(`اتعمل ${data.generated} كود بنجاح لـ "${getLessonTitle(lessonId)}".`);
         fetchCodes();
       }
     } catch { alert('في مشكلة في الإنشاء'); }
@@ -90,7 +94,7 @@ export function Codes() {
                 onChange={e => setLessonId(e.target.value)}
                 className="neon-input w-full pr-9 pl-3 py-2.5 rounded-xl text-sm appearance-none"
               >
-                <option value="">— من غير امتحان —</option>
+                <option value="">— اختر الحصة (مطلوب) —</option>
                 {lessons.map((l: any) => (
                   <option key={l.id} value={l.id}>{l.title}</option>
                 ))}

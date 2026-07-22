@@ -7,8 +7,7 @@ import { Quizzes } from './pages/dashboard/Quizzes';
 import { Homework } from './pages/dashboard/Homework';
 import { Students } from './pages/dashboard/Students';
 import { Emails } from './pages/dashboard/Emails';
-import { HomeworkGrades } from './pages/dashboard/HomeworkGrades';
-import { QuizGrades } from './pages/dashboard/QuizGrades';
+import { StudentFiles } from './pages/dashboard/StudentFiles';
 import { HomeworkView } from './pages/HomeworkView';
 import { Settings } from './pages/dashboard/Settings';
 import { TeacherLogin } from './pages/TeacherLogin';
@@ -40,8 +39,7 @@ export default function App() {
             <Route path="homework" element={<Homework />} />
             <Route path="students" element={<Students />} />
             <Route path="emails" element={<Emails />} />
-            <Route path="grades/homework" element={<HomeworkGrades />} />
-            <Route path="grades/quiz" element={<QuizGrades />} />
+            <Route path="student-files" element={<StudentFiles />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Route>

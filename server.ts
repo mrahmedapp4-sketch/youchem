@@ -62,6 +62,8 @@ const DATA_ROOT = process.env.RAILWAY_VOLUME_MOUNT_PATH
   ? path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH)
   : process.env.DATA_DIR
     ? path.resolve(process.env.DATA_DIR)
+    : process.env.NODE_ENV === 'production'
+    ? '/app/data'
     : path.join(process.cwd(), 'data');
 const UPLOADS_DIR = path.join(DATA_ROOT, 'uploads', 'homeworks');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -657,6 +659,10 @@ app.post('/api/student/validate-code', authenticateStudent, async (req, res) => 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === code);
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
+    // Enforce lesson-specific codes: a code tied to a lesson can ONLY unlock that lesson.
+    if (key.lessonId && key.lessonId !== lessonId) {
+      return res.status(400).json({ error: 'هذا الكود خاص بحصة مختلفة' });
+    }
 
     jsonDb.update('codes', (c: DbCode) => c.id === key.id, { isUsed: true, usedBy: studentId });
 
@@ -767,6 +773,10 @@ app.post('/api/student/exam/unlock', authenticateStudent, async (req, res) => {
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
     if (key.isUsed && key.usedBy !== studentId) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
+    // Enforce lesson-specific codes
+    if (key.lessonId && key.lessonId !== lessonId) {
+      return res.status(400).json({ error: 'هذا الكود خاص بحصة مختلفة' });
+    }
 
     // Mark code as used on first use
     if (!key.isUsed) {
@@ -1012,6 +1022,122 @@ app.post('/api/student/submit-homework', authenticateStudent, async (req, res) =
     jsonDb.insert('homeworkSubmissions', submission);
 
     res.json({ score, total: homework.numQuestions, results });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Student: lesson viewing heartbeat (increments viewingMinutes once per call) ──
+app.post('/api/student/lesson-heartbeat', authenticateStudent, async (req, res) => {
+  try {
+    const { lessonId } = req.body;
+    const studentId = (req as any).studentId;
+    if (!lessonId) return res.status(400).json({ error: 'lessonId مطلوب' });
+    const access = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+    );
+    if (access) {
+      jsonDb.update(
+        'studentLessonAccess',
+        (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
+        { viewingMinutes: (access.viewingMinutes || 0) + 1 }
+      );
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Teacher: student file (profile + full activity) ───────────────────────────
+app.get('/api/youchem/student-file/:userId', authenticateTeacher, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
+    if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
+
+    const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === userId);
+    const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
+    const lessons = jsonDb.getAll('lessons') as DbLesson[];
+    const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
+
+    const enrichedAccesses = accesses.map((a: DbStudentLessonAccess) => {
+      const lesson = lessons.find((l: DbLesson) => l.id === a.lessonId);
+      return { ...a, lessonTitle: lesson?.title || a.lessonId, gradeLevel: lesson?.gradeLevel };
+    });
+
+    const enrichedSubmissions = homeworkSubmissions.map((s: DbHomeworkSubmission) => {
+      const hw = homeworks.find((h: DbHomework) => h.id === s.homeworkId);
+      return { ...s, homeworkTitle: hw?.title || s.homeworkId };
+    });
+
+    res.json({ user, accesses: enrichedAccesses, homeworkSubmissions: enrichedSubmissions });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Teacher: download student file as CSV ─────────────────────────────────────
+app.get('/api/youchem/student-file/:userId/download', authenticateTeacher, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
+    if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
+
+    const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === userId);
+    const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
+    const lessons = jsonDb.getAll('lessons') as DbLesson[];
+    const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
+
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows: string[] = [];
+
+    // ── Section 1: Profile ────────────────────────────────────────────────────
+    rows.push('=== بيانات الطالب ===');
+    rows.push(['الاسم', 'الإيميل', 'الهاتف', 'هاتف ولي الأمر', 'المدرسة', 'الصف', 'تاريخ التسجيل'].map(esc).join(','));
+    const gradeLabel = user.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : user.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '';
+    rows.push([user.name, user.email, user.phone || '', user.guardianPhone || '', user.school || '', gradeLabel, new Date(user.createdAt).toLocaleDateString('ar-EG')].map(esc).join(','));
+    rows.push('');
+
+    // ── Section 2: Lessons ────────────────────────────────────────────────────
+    rows.push('=== الحصص ===');
+    rows.push(['الحصة', 'وقت المشاهدة (دقائق)', 'درجة الامتحان', 'المجموع', 'اجتاز الامتحان', 'تاريخ الفتح'].map(esc).join(','));
+    for (const a of accesses) {
+      const lesson = lessons.find((l: DbLesson) => l.id === a.lessonId);
+      const quizStatus = a.quizExempt ? 'معفي' : a.quizPassed ? 'نعم' : 'لا';
+      rows.push([
+        lesson?.title || a.lessonId,
+        a.viewingMinutes || 0,
+        a.quizScore != null ? a.quizScore : '—',
+        a.quizTotal != null ? a.quizTotal : '—',
+        quizStatus,
+        new Date(a.unlockedAt).toLocaleDateString('ar-EG'),
+      ].map(esc).join(','));
+    }
+    rows.push('');
+
+    // ── Section 3: Homework ───────────────────────────────────────────────────
+    rows.push('=== الواجبات ===');
+    rows.push(['الواجب', 'الدرجة', 'المجموع', 'النسبة', 'تاريخ التسليم'].map(esc).join(','));
+    for (const s of homeworkSubmissions) {
+      const hw = homeworks.find((h: DbHomework) => h.id === s.homeworkId);
+      const pct = s.total > 0 ? Math.round((s.score / s.total) * 100) + '%' : '—';
+      rows.push([
+        hw?.title || s.homeworkId,
+        s.score,
+        s.total,
+        pct,
+        new Date(s.createdAt).toLocaleDateString('ar-EG'),
+      ].map(esc).join(','));
+    }
+
+    // UTF-8 BOM so Excel opens Arabic correctly
+    const csv = '\uFEFF' + rows.join('\r\n');
+    const filename = `${(user.name || userId).replace(/[^a-zA-Z\u0600-\u06FF0-9 _-]/g, '')}_ملف.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.send(csv);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
