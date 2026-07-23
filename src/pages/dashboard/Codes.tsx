@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe } from 'lucide-react';
+import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe, FileDown } from 'lucide-react';
 
 export function Codes() {
   const [count, setCount] = useState(50);
@@ -88,6 +88,24 @@ export function Codes() {
     return l?.title || lId;
   };
 
+  const handleExportTxt = () => {
+    const lines = codesList.map(c => {
+      const status = c.isUsed ? 'اتاستخدم' : 'متاح';
+      const lesson = c.lessonId ? getLessonTitle(c.lessonId) : 'عام';
+      const usedBy = c.usedByName || '—';
+      return `${c.codeString}\t${status}\t${lesson}\t${usedBy}`;
+    });
+    const header = 'الكود\tالحالة\tالحصة\tالطالب';
+    const content = [header, ...lines].join('\r\n');
+    const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `youchem-codes-${new Date().toLocaleDateString('en-CA')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
 
@@ -96,6 +114,15 @@ export function Codes() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">أكواد الوصول</h1>
           <p className="text-slate-500 text-sm mt-0.5">توليد وإدارة الأكواد للطلاب</p>
+          {codesList.length > 0 && (
+            <button
+              onClick={handleExportTxt}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors border border-indigo-200"
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              تصدير كل الأكواد (.txt)
+            </button>
+          )}
         </div>
 
         {/* Generate controls */}
