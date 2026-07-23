@@ -89,15 +89,8 @@ export function Codes() {
   };
 
   const handleExportTxt = () => {
-    const lines = codesList.map(c => {
-      const status = c.isUsed ? 'اتاستخدم' : 'متاح';
-      const lesson = c.lessonId ? getLessonTitle(c.lessonId) : 'عام';
-      const usedBy = c.usedByName || '—';
-      return `${c.codeString}\t${status}\t${lesson}\t${usedBy}`;
-    });
-    const header = 'الكود\tالحالة\tالحصة\tالطالب';
-    const content = [header, ...lines].join('\r\n');
-    const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
+    const content = codesList.map(c => c.codeString).join('\r\n');
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
