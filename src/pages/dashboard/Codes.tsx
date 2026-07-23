@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe, FileDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export function Codes() {
   const [count, setCount] = useState(50);
@@ -89,14 +90,11 @@ export function Codes() {
   };
 
   const handleExportTxt = () => {
-    const content = codesList.map(c => c.codeString).join('\r\n');
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `youchem-codes-${new Date().toLocaleDateString('en-CA')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const ws = XLSX.utils.aoa_to_sheet(codesList.map(c => [c.codeString]));
+    ws['!cols'] = [{ wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Codes');
+    XLSX.writeFile(wb, `youchem-codes-${new Date().toLocaleDateString('en-CA')}.xlsx`);
   };
 
   return (
@@ -113,7 +111,7 @@ export function Codes() {
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors border border-indigo-200"
             >
               <FileDown className="w-3.5 h-3.5" />
-              تصدير كل الأكواد (.txt)
+              تصدير كل الأكواد (.xlsx)
             </button>
           )}
         </div>
