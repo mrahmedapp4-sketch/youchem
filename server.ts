@@ -1377,7 +1377,7 @@ function buildStudentPdfHtml(
   }
   .header-logos { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .header-logo  { height: 60px; width: auto; object-fit: contain; }
-  .header-stamp { height: 80px; width: auto; object-fit: contain; mix-blend-mode: multiply; }
+  .header-stamp { height: 80px; width: auto; object-fit: contain; }
   .header-center { text-align: center; flex: 1; }
   .header-center h1 { font-size: 19px; font-weight: 900; color: #1e3a8a; letter-spacing: -0.3px; }
   .header-center p  { font-size: 10px; color: #64748b; margin-top: 3px; }
@@ -1469,7 +1469,9 @@ function buildStudentPdfHtml(
     height: 270px;
     object-fit: contain;
     object-position: center;
-    mix-blend-mode: multiply;
+    opacity: 1 !important;
+    visibility: visible !important;
+    filter: none !important;
   }
   .verify-stamp-label {
     font-size: 12px;
@@ -1499,7 +1501,9 @@ function buildStudentPdfHtml(
     max-width: none;
     object-fit: contain;
     object-position: center;
-    mix-blend-mode: multiply;
+    opacity: 1 !important;
+    visibility: visible !important;
+    filter: none !important;
     margin: 0;
   }
   .verify-sig .sig-label {
@@ -1597,11 +1601,11 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
   <div class="verify-row">
     ${STAMP_B64 ? `
     <div class="verify-stamp-box">
-      <img src="${STAMP_B64}" class="verify-stamp" width="270" height="270" loading="eager" decoding="sync" alt="ختم YouChem">
+      <img src="${STAMP_B64}" class="verify-stamp" width="270" height="270" loading="eager" decoding="sync" style="display:block !important; visibility:visible !important; opacity:1 !important;" alt="ختم YouChem">
       <div class="verify-stamp-label">موثق من Mr.Ahmed</div>
     </div>` : ''}
     <div class="verify-sig">
-      ${SIGN_B64 ? `<div class="sig-frame"><img src="${SIGN_B64}" class="sig-img" width="620" height="310" loading="eager" decoding="sync" alt="توقيع Mr.Ahmed"></div>` : '<div class="sig-frame"></div>'}
+      ${SIGN_B64 ? `<div class="sig-frame"><img src="${SIGN_B64}" class="sig-img" width="620" height="310" loading="eager" decoding="sync" style="display:block !important; visibility:visible !important; opacity:1 !important;" alt="توقيع Mr.Ahmed"></div>` : '<div class="sig-frame"></div>'}
       <div class="sig-label">توقيع المعلم / المراجع</div>
     </div>
   </div>
@@ -1634,6 +1638,16 @@ async function renderPdfBuffer(html: string): Promise<Buffer> {
     const page = await browser.newPage();
     // networkidle2 lets Google Fonts finish loading without timing out on slow DNS
     await page.setContent(html, { waitUntil: 'networkidle2' as any, timeout: 30_000 });
+    await page.evaluate(async () => {
+      const images = Array.from(document.images);
+      await Promise.all(images.map((image) => {
+        if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          image.addEventListener('load', () => resolve(), { once: true });
+          image.addEventListener('error', () => resolve(), { once: true });
+        });
+      }));
+    });
     return Buffer.from(await page.pdf({
       format: 'A4',
       printBackground: true,
