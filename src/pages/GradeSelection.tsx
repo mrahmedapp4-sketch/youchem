@@ -22,9 +22,21 @@ export function GradeSelection() {
   const [phone, setPhone] = useState('');
   const [guardianPhone, setGuardianPhone] = useState('');
   const [school, setSchool] = useState('');
-  const [gradeLevel, setGradeLevel] = useState('2nd_sec');
+  const [gradeLevel, setGradeLevel] = useState('');
 
   const navigate = useNavigate();
+
+  const fillProfileFromUser = (user: any, googleFallbackName = '') => {
+    const savedName = user?.name && user.name !== 'طالب' ? user.name : googleFallbackName;
+    setGoogleName(savedName);
+    setGoogleEmail(user?.email || '');
+    setGooglePicture(user?.picture || '');
+    setName(savedName);
+    setPhone(user?.phone || '');
+    setGuardianPhone(user?.guardianPhone || '');
+    setSchool(user?.school || '');
+    setGradeLevel(user?.gradeLevel || '');
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -33,13 +45,8 @@ export function GradeSelection() {
         if (res.ok) {
           const data = await res.json();
           if (data.needsProfile) {
-            // Already partially signed in — pre-fill Google info from saved profile
-            if (data.user?.name && data.user.name !== 'student') {
-              setGoogleName(data.user.name);
-              setName(data.user.name);
-            }
-            if (data.user?.email) setGoogleEmail(data.user.email);
-            if (data.user?.picture) setGooglePicture(data.user.picture);
+            // Restore every saved value and leave only missing fields to fill.
+            fillProfileFromUser(data.user);
             setNeedsProfile(true);
           } else {
             navigate('/student-dashboard');
@@ -72,10 +79,7 @@ export function GradeSelection() {
         if (data.needsProfile) {
           // Pre-fill form with Google account info
           const gName = data.user?.name && data.user.name !== 'student' ? data.user.name : '';
-          setGoogleName(gName);
-          setGoogleEmail(data.user?.email || '');
-          setGooglePicture(data.picture || data.user?.picture || '');
-          if (gName) setName(gName);
+          fillProfileFromUser({ ...data.user, picture: data.picture || data.user?.picture }, gName);
           setNeedsProfile(true);
         } else {
           navigate('/student-dashboard');
@@ -102,12 +106,26 @@ export function GradeSelection() {
   const handleCompleteProfile = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!name.trim() || !phone.trim() || !guardianPhone.trim() || !school.trim() || !gradeLevel) {
+      setError('لازم تكمّل كل البيانات قبل الدخول');
+      return;
+    }
+    if (gradeLevel !== '2nd_sec' && gradeLevel !== '3rd_sec') {
+      setError('اختار الصف الدراسي');
+      return;
+    }
     setSavingProfile(true);
     try {
       const res = await fetch('/api/student/complete-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, guardianPhone, school, gradeLevel }),
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          guardianPhone: guardianPhone.trim(),
+          school: school.trim(),
+          gradeLevel,
+        }),
       });
       if (res.ok) {
         navigate('/student-dashboard');

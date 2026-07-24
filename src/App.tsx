@@ -11,6 +11,7 @@ import { StudentFiles } from './pages/dashboard/StudentFiles';
 import { HomeworkView } from './pages/HomeworkView';
 import { Settings } from './pages/dashboard/Settings';
 import { TeacherLogin } from './pages/TeacherLogin';
+import { StudentProfileGuard } from './components/StudentProfileGuard';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { LessonView } from './pages/LessonView';
 import { GradeSelection } from './pages/GradeSelection';
@@ -23,9 +24,11 @@ export default function App() {
         {/* STUDENT FLOW */}
         <Route path="/" element={<GradeSelection />} />
         <Route path="/exam" element={<Navigate to="/student-dashboard" replace />} />
-        <Route path="/student-dashboard" element={<StudentDashboard />} />
-        <Route path="/lessons/:id" element={<LessonView />} />
-        <Route path="/homework/:id" element={<HomeworkView />} />
+        <Route element={<StudentProfileGuard />}>
+          <Route path="/student-dashboard" element={<StudentDashboard />} />
+          <Route path="/lessons/:id" element={<LessonView />} />
+          <Route path="/homework/:id" element={<HomeworkView />} />
+        </Route>
         
         {/* TEACHER FLOW */}
         <Route path="/youchem/login" element={<TeacherLogin />} />

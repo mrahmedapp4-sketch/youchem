@@ -215,6 +215,32 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
   }
 };
 
+const getMissingStudentProfileFields = (user: DbUser): string[] => {
+  const missing: string[] = [];
+  if (!user.name?.trim() || user.name.trim() === 'طالب') missing.push('name');
+  if (!user.phone?.trim()) missing.push('phone');
+  if (!user.guardianPhone?.trim()) missing.push('guardianPhone');
+  if (!user.school?.trim()) missing.push('school');
+  if (user.gradeLevel !== '2nd_sec' && user.gradeLevel !== '3rd_sec') missing.push('gradeLevel');
+  return missing;
+};
+
+const requireCompleteStudentProfile = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const studentId = (req as any).studentId;
+  const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const missingFields = getMissingStudentProfileFields(user);
+  if (missingFields.length > 0) {
+    return res.status(403).json({
+      error: 'PROFILE_INCOMPLETE',
+      needsProfile: true,
+      missingFields,
+    });
+  }
+  next();
+};
+
 // --- TEACHER API ---
 app.post('/api/teacher/login', async (req, res) => {
   const { password } = req.body;
@@ -643,8 +669,9 @@ app.post('/api/student/google-login', async (req, res) => {
     );
     res.cookie('student_token', token, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
-    const needsProfile = !user.name || user.name === 'طالب' || !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
-    res.json({ success: true, user, needsProfile, picture });
+    const missingFields = getMissingStudentProfileFields(user);
+    const needsProfile = missingFields.length > 0;
+    res.json({ success: true, user, needsProfile, missingFields, picture });
   } catch (err: any) {
     console.error('Google login failed:', err.message);
     res.status(401).json({ error: 'فشل تسجيل الدخول بحساب جوجل' });
@@ -655,18 +682,35 @@ app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
   const studentId = (req as any).studentId;
   const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const needsProfile = !user.name || user.name === 'طالب' || !user.phone || !user.guardianPhone || !user.school || !user.gradeLevel;
-  res.json({ success: true, user, needsProfile });
+  const missingFields = getMissingStudentProfileFields(user);
+  const needsProfile = missingFields.length > 0;
+  res.json({ success: true, user, needsProfile, missingFields });
 });
 
 app.post('/api/student/complete-profile', authenticateStudent, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
     const { name, phone, guardianPhone, school, gradeLevel } = req.body;
-    if (!name || !phone || !guardianPhone || !school || !gradeLevel) {
+    if (
+      typeof name !== 'string' ||
+      typeof phone !== 'string' ||
+      typeof guardianPhone !== 'string' ||
+      typeof school !== 'string' ||
+      !name.trim() ||
+      !phone.trim() ||
+      !guardianPhone.trim() ||
+      !school.trim() ||
+      (gradeLevel !== '2nd_sec' && gradeLevel !== '3rd_sec')
+    ) {
       return res.status(400).json({ error: 'الرجاء إدخال الاسم ورقم الهاتف ورقم ولي الأمر والمدرسة والصف الدراسي' });
     }
-    const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, { name, phone, guardianPhone, school, gradeLevel });
+    const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, {
+      name: name.trim(),
+      phone: phone.trim(),
+      guardianPhone: guardianPhone.trim(),
+      school: school.trim(),
+      gradeLevel,
+    });
     if (!updated) return res.status(404).json({ error: 'المستخدم غير موجود' });
     res.json({ success: true, user: updated });
   } catch (err: any) {
@@ -682,7 +726,7 @@ app.post('/api/student/logout', (req, res) => {
   res.clearCookie('student_token', COOKIE_OPTS).json({ success: true });
 });
 
-app.get('/api/student/lessons', authenticateStudent, async (req, res) => {
+app.get('/api/student/lessons', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
     const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
@@ -700,7 +744,7 @@ app.get('/api/student/lessons', authenticateStudent, async (req, res) => {
   }
 });
 
-app.post('/api/student/validate-code', authenticateStudent, async (req, res) => {
+app.post('/api/student/validate-code', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { lessonId, code } = req.body;
     const studentId = (req as any).studentId;
@@ -731,7 +775,7 @@ app.post('/api/student/validate-code', authenticateStudent, async (req, res) => 
 });
 
 // Fetch the real quiz for a lesson, with correct answers stripped so students can't see them.
-app.get('/api/student/quiz/:lessonId', authenticateStudent, async (req, res) => {
+app.get('/api/student/quiz/:lessonId', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { lessonId } = req.params;
     const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
@@ -747,7 +791,7 @@ app.get('/api/student/quiz/:lessonId', authenticateStudent, async (req, res) => 
   }
 });
 
-app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
+app.post('/api/student/submit-quiz', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { lessonId, answers } = req.body;
     const studentId = (req as any).studentId;
@@ -828,7 +872,7 @@ app.post('/api/student/submit-quiz', authenticateStudent, async (req, res) => {
 // ── Exam flow (standalone: code → lesson picker → quiz → corrected results) ──
 
 // Validate a generic code + lessonId, create access, return quiz questions if any.
-app.post('/api/student/exam/unlock', authenticateStudent, async (req, res) => {
+app.post('/api/student/exam/unlock', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { code, lessonId } = req.body;
     const studentId = (req as any).studentId;
@@ -879,7 +923,7 @@ app.post('/api/student/exam/unlock', authenticateStudent, async (req, res) => {
 });
 
 // Legacy: validate code and return quiz questions (images included, answers stripped)
-app.post('/api/student/exam/start', authenticateStudent, async (req, res) => {
+app.post('/api/student/exam/start', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { code } = req.body;
     const studentId = (req as any).studentId;
@@ -928,7 +972,7 @@ app.post('/api/student/exam/start', authenticateStudent, async (req, res) => {
 });
 
 // Step 2: submit answers and return full corrected results (with images)
-app.post('/api/student/exam/submit', authenticateStudent, async (req, res) => {
+app.post('/api/student/exam/submit', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { lessonId, answers } = req.body;
     const studentId = (req as any).studentId;
@@ -998,7 +1042,7 @@ app.post('/api/student/exam/submit', authenticateStudent, async (req, res) => {
 });
 
 // Homework: fetch the PDF + question count for a lesson, without the answer key.
-app.get('/api/student/homework/:homeworkId', authenticateStudent, async (req, res) => {
+app.get('/api/student/homework/:homeworkId', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { homeworkId } = req.params;
     const studentId = (req as any).studentId;
@@ -1037,7 +1081,7 @@ app.get('/api/student/homework/:homeworkId', authenticateStudent, async (req, re
 });
 
 // Aggregated homework list for the student's grade, no lesson access required.
-app.get('/api/student/homeworks', authenticateStudent, async (req, res) => {
+app.get('/api/student/homeworks', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
     const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
@@ -1066,7 +1110,7 @@ app.get('/api/student/homeworks', authenticateStudent, async (req, res) => {
   }
 });
 
-app.post('/api/student/submit-homework', authenticateStudent, async (req, res) => {
+app.post('/api/student/submit-homework', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { homeworkId, answers } = req.body;
     const studentId = (req as any).studentId;
@@ -1103,7 +1147,7 @@ app.post('/api/student/submit-homework', authenticateStudent, async (req, res) =
 });
 
 // ── Student: lesson viewing heartbeat (increments viewingMinutes once per call) ──
-app.post('/api/student/lesson-heartbeat', authenticateStudent, async (req, res) => {
+app.post('/api/student/lesson-heartbeat', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { lessonId } = req.body;
     const studentId = (req as any).studentId;

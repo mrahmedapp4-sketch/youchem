@@ -8,7 +8,7 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 - **Database:** a single JSON file at `data/db.json` (not committed to git — contains student PII), read/written through `src/db/jsonStore.ts`. Holds `users`, `lessons`, `quizzes`, `codes`, `studentLessonAccess`. No Postgres/Drizzle anymore — that layer was fully removed.
 - **Auth:**
   - Teachers: password login → JWT cookie (`server.ts`).
-  - Students: Google sign-in. Frontend uses the Firebase client SDK (`src/lib/firebase.ts`, config in `firebase-applet-config.json` — public client config, not secret) to run `signInWithPopup`, then sends the Google ID token to `POST /api/student/google-login`, which verifies it server-side with `google-auth-library`'s `OAuth2Client.verifyIdToken` (audience = the Firebase project's OAuth web client ID) and issues a JWT cookie. First-time students are prompted to complete their profile (phone, school, grade) via `POST /api/student/complete-profile`.
+  - Students: Google sign-in. Frontend uses the Firebase client SDK (`src/lib/firebase.ts`, config in `firebase-applet-config.json` — public client config, not secret) to run `signInWithPopup`, then sends the Google ID token to `POST /api/student/google-login`, which verifies it server-side with `google-auth-library`'s `OAuth2Client.verifyIdToken` (audience = the Firebase project's OAuth web client ID) and issues a JWT cookie. Students with any missing profile field are prompted to complete it via `POST /api/student/complete-profile` every time they reopen the app.
 - **Other integrations referenced but not yet wired up:** Google Gemini (`@google/genai`), Vimeo TUS uploads — no server code currently calls these, they're leftover from the AI Studio scaffold
 
 ## Running the app
