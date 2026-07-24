@@ -107,6 +107,16 @@ const LOGO_B64   = fs.existsSync(_logoPath)  ? `data:image/png;base64,${fs.readF
 const STAMP_B64  = fs.existsSync(_stampPath) ? `data:image/png;base64,${fs.readFileSync(_stampPath).toString('base64')}` : '';
 const SIGN_B64   = fs.existsSync(_signPath)  ? `data:image/png;base64,${fs.readFileSync(_signPath).toString('base64')}`  : '';
 console.log(`[server] Logo: ${LOGO_B64 ? 'yes' : 'NO'}, Stamp: ${STAMP_B64 ? 'yes' : 'NO'}, Sign: ${SIGN_B64 ? 'yes' : 'NO'}`);
+
+// The browser HTML report uses normal same-origin image URLs. This avoids
+// making the report depend on inline data URLs or the PDF renderer.
+app.get('/report-stamp.png', (_req, res) => {
+  res.type('png').set('Cache-Control', 'public, max-age=3600').sendFile(_stampPath);
+});
+app.get('/report-signature.png', (_req, res) => {
+  res.type('png').set('Cache-Control', 'public, max-age=3600').sendFile(_signPath);
+});
+
 // Homework PDFs require authentication — no unauthenticated static serving.
 // Both students and teachers can fetch them; the route checks either cookie.
 app.get('/uploads/homeworks/:filename', (req, res, next) => {
@@ -1290,10 +1300,13 @@ function buildStudentPdfHtml(
   lessons: DbLesson[],
   homeworks: DbHomework[],
   autoPrint = false,
+  useReportAssetUrls = false,
 ): string {
   const gradeLabel   = user.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : user.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '—';
   const registeredDate = new Date(user.createdAt).toLocaleDateString('ar-EG');
   const generatedDate  = new Date().toLocaleDateString('ar-EG');
+  const stampSrc = useReportAssetUrls ? '/report-stamp.png' : STAMP_B64;
+  const signatureSrc = useReportAssetUrls ? '/report-signature.png' : SIGN_B64;
 
   const escHtml = (v: any) => String(v ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
@@ -1362,7 +1375,7 @@ function buildStudentPdfHtml(
   /* ── Page wrapper: all normal flow, nothing fixed ── */
   .page {
     padding: 28px 36px 32px;
-    min-width: 600px;
+    min-width: 0;
   }
 
   /* ── Header ── */
@@ -1447,6 +1460,7 @@ function buildStudentPdfHtml(
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
+    flex-wrap: wrap;
     margin-top: 28px;
     padding: 20px 18px 10px;
     border-top: 1px dashed #cbd5e1;
@@ -1461,14 +1475,19 @@ function buildStudentPdfHtml(
     align-items: center;
     gap: 8px;
     width: 280px;
-    flex: 0 0 280px;
+    flex: 0 1 280px;
+    max-width: 100%;
+    overflow: hidden;
   }
   .verify-stamp {
     display: block;
     width: 270px;
     height: 270px;
+    max-width: none;
     object-fit: contain;
     object-position: center;
+    transform: scale(1.85);
+    transform-origin: center;
     opacity: 1 !important;
     visibility: visible !important;
     filter: none !important;
@@ -1481,13 +1500,15 @@ function buildStudentPdfHtml(
   }
   .verify-sig {
     width: 400px;
-    flex: 0 0 400px;
+    flex: 0 1 400px;
+    max-width: 100%;
     text-align: center;
     padding-bottom: 10px;
   }
   .sig-frame {
     width: 390px;
     height: 190px;
+    max-width: 100%;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -1501,6 +1522,8 @@ function buildStudentPdfHtml(
     max-width: none;
     object-fit: contain;
     object-position: center;
+    transform: scale(2.1);
+    transform-origin: center;
     opacity: 1 !important;
     visibility: visible !important;
     filter: none !important;
@@ -1599,13 +1622,13 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
 
   <!-- ── Verification row (stamp + signature) ── -->
   <div class="verify-row">
-    ${STAMP_B64 ? `
+    ${stampSrc ? `
     <div class="verify-stamp-box">
-      <img src="${STAMP_B64}" class="verify-stamp" width="270" height="270" loading="eager" decoding="sync" style="display:block !important; visibility:visible !important; opacity:1 !important;" alt="ختم YouChem">
+      <img src="${stampSrc}" class="verify-stamp" width="270" height="270" loading="eager" decoding="sync" style="display:block !important; visibility:visible !important; opacity:1 !important;" alt="ختم YouChem">
       <div class="verify-stamp-label">موثق من Mr.Ahmed</div>
     </div>` : ''}
     <div class="verify-sig">
-      ${SIGN_B64 ? `<div class="sig-frame"><img src="${SIGN_B64}" class="sig-img" width="620" height="310" loading="eager" decoding="sync" style="display:block !important; visibility:visible !important; opacity:1 !important;" alt="توقيع Mr.Ahmed"></div>` : '<div class="sig-frame"></div>'}
+      ${signatureSrc ? `<div class="sig-frame"><img src="${signatureSrc}" class="sig-img" width="620" height="310" loading="eager" decoding="sync" style="display:block !important; visibility:visible !important; opacity:1 !important;" alt="توقيع Mr.Ahmed"></div>` : '<div class="sig-frame"></div>'}
       <div class="sig-label">توقيع المعلم / المراجع</div>
     </div>
   </div>
@@ -1689,7 +1712,7 @@ app.get('/api/youchem/student-file/:userId/view', authenticateTeacher, (req, res
     const lessons   = jsonDb.getAll('lessons')   as DbLesson[];
     const homeworks = jsonDb.getAll('homeworks')  as DbHomework[];
 
-    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks);
+    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks, false, true);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err: any) {
