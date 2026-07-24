@@ -1448,10 +1448,10 @@ function buildStudentPdfHtml(
     align-items: flex-end;
     justify-content: space-between;
     margin-top: 28px;
-    padding-top: 16px;
+    padding: 20px 18px 10px;
     border-top: 1px dashed #cbd5e1;
-    gap: 16px;
-    min-height: 240px;
+    gap: 24px;
+    min-height: 300px;
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -1459,40 +1459,54 @@ function buildStudentPdfHtml(
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    width: 230px;
-    flex: 0 0 230px;
+    gap: 8px;
+    width: 280px;
+    flex: 0 0 280px;
   }
   .verify-stamp {
     display: block;
-    width: 220px;
-    height: 220px;
+    width: 270px;
+    height: 270px;
     object-fit: contain;
     object-position: center;
     mix-blend-mode: multiply;
   }
   .verify-stamp-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: #1e3a8a;
     text-align: center;
   }
   .verify-sig {
-    width: 300px;
-    flex: 0 0 300px;
+    width: 400px;
+    flex: 0 0 400px;
     text-align: center;
-    padding-bottom: 8px;
+    padding-bottom: 10px;
+  }
+  .sig-frame {
+    width: 390px;
+    height: 190px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
   }
   .verify-sig .sig-img {
     display: block;
-    width: 290px;
-    height: 145px;
+    width: 620px;
+    height: 310px;
+    max-width: none;
     object-fit: contain;
     object-position: center;
     mix-blend-mode: multiply;
-    margin: 0 auto 4px;
+    margin: 0;
   }
-  .verify-sig .sig-label { font-size: 10px; color: #64748b; }
+  .verify-sig .sig-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+  }
 
   @media print {
     .verify-row {
@@ -1583,11 +1597,11 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
   <div class="verify-row">
     ${STAMP_B64 ? `
     <div class="verify-stamp-box">
-      <img src="${STAMP_B64}" class="verify-stamp" width="220" height="220" loading="eager" decoding="sync" alt="ختم YouChem">
+      <img src="${STAMP_B64}" class="verify-stamp" width="270" height="270" loading="eager" decoding="sync" alt="ختم YouChem">
       <div class="verify-stamp-label">موثق من Mr.Ahmed</div>
     </div>` : ''}
     <div class="verify-sig">
-      ${SIGN_B64 ? `<img src="${SIGN_B64}" class="sig-img" width="290" height="145" loading="eager" decoding="sync" alt="توقيع Mr.Ahmed">` : '<div style="height:145px"></div>'}
+      ${SIGN_B64 ? `<div class="sig-frame"><img src="${SIGN_B64}" class="sig-img" width="620" height="310" loading="eager" decoding="sync" alt="توقيع Mr.Ahmed"></div>` : '<div class="sig-frame"></div>'}
       <div class="sig-label">توقيع المعلم / المراجع</div>
     </div>
   </div>
