@@ -1317,14 +1317,24 @@ function buildStudentPdfHtml(
     border-top: 1px dashed #cbd5e1;
     gap: 16px;
   }
+  .verify-stamp-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
   .verify-stamp {
     width: 130px;
     height: 130px;
     object-fit: contain;
-    /* multiply removes the white background of the stamp PNG */
     mix-blend-mode: multiply;
-    transform: rotate(-6deg);
-    flex-shrink: 0;
+  }
+  .verify-stamp-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1e3a8a;
+    text-align: center;
   }
   .verify-sig {
     flex: 1;
@@ -1360,7 +1370,6 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
   <div class="header">
     <div class="header-logos">
       ${LOGO_B64 ? `<img src="${LOGO_B64}" class="header-logo" alt="YouChem">` : ''}
-      ${STAMP_B64 ? `<img src="${STAMP_B64}" class="header-stamp" alt="YouChem Stamp">` : ''}
     </div>
     <div class="header-center">
       <h1>ملف الطالب</h1>
@@ -1413,8 +1422,13 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
         <tbody>${hwRows}</tbody>
       </table>`}
 
-  <!-- ── Verification row (signature only) ── -->
+  <!-- ── Verification row (stamp + signature) ── -->
   <div class="verify-row">
+    ${STAMP_B64 ? `
+    <div class="verify-stamp-box">
+      <img src="${STAMP_B64}" class="verify-stamp" alt="YouChem Stamp">
+      <div class="verify-stamp-label">موثق من Mr.Ahmed</div>
+    </div>` : ''}
     <div class="verify-sig">
       <div class="sig-line"></div>
       <div class="sig-label">توقيع المعلم / المراجع</div>
