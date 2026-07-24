@@ -6,6 +6,8 @@ import { signInWithGoogle } from '../lib/firebase';
 const CONTACT_TEACHER_MSG =
   'يبدو في مشكلة، كلم مستر أحمد علشان نحلها';
 
+const PHONE_PATTERN = /^01\d{9}$/;
+
 export function GradeSelection() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
@@ -106,8 +108,25 @@ export function GradeSelection() {
   const handleCompleteProfile = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!name.trim() || !phone.trim() || !guardianPhone.trim() || !school.trim() || !gradeLevel) {
-      setError('لازم تكمّل كل البيانات قبل الدخول');
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedGuardianPhone = guardianPhone.trim();
+    const trimmedSchool = school.trim();
+
+    if (Array.from(trimmedName).length <= 8) {
+      setError('الاسم لازم يكون أكتر من 8 حروف');
+      return;
+    }
+    if (!PHONE_PATTERN.test(trimmedPhone)) {
+      setError('رقم الطالب لازم يبدأ بـ 01 ويكون 11 رقم');
+      return;
+    }
+    if (!PHONE_PATTERN.test(trimmedGuardianPhone)) {
+      setError('رقم ولي الأمر لازم يبدأ بـ 01 ويكون 11 رقم');
+      return;
+    }
+    if (!trimmedSchool) {
+      setError('اكتب اسم المدرسة');
       return;
     }
     if (gradeLevel !== '2nd_sec' && gradeLevel !== '3rd_sec') {
@@ -120,10 +139,10 @@ export function GradeSelection() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
-          phone: phone.trim(),
-          guardianPhone: guardianPhone.trim(),
-          school: school.trim(),
+          name: trimmedName,
+          phone: trimmedPhone,
+          guardianPhone: trimmedGuardianPhone,
+          school: trimmedSchool,
           gradeLevel,
         }),
       });
@@ -224,16 +243,20 @@ export function GradeSelection() {
             )}
 
             {[
-              { label: 'اسمك بالكامل', state: name, setter: setName, type: 'text', placeholder: 'اكتب اسمك بالكامل', dir: 'rtl' },
-              { label: 'رقم تليفونك', state: phone, setter: setPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr' },
-              { label: 'رقم ولي الأمر', state: guardianPhone, setter: setGuardianPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr' },
+              { label: 'اسمك بالكامل (أكثر من 8 حروف)', state: name, setter: setName, type: 'text', placeholder: 'اكتب اسمك بالكامل', dir: 'rtl', minLength: 9 },
+              { label: 'رقم الطالب (11 رقم ويبدأ بـ 01)', state: phone, setter: setPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr', inputMode: 'numeric', pattern: '01[0-9]{9}', maxLength: 11 },
+              { label: 'رقم ولي الأمر (11 رقم ويبدأ بـ 01)', state: guardianPhone, setter: setGuardianPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr', inputMode: 'numeric', pattern: '01[0-9]{9}', maxLength: 11 },
               { label: 'مدرستك', state: school, setter: setSchool, type: 'text', placeholder: '', dir: 'rtl' },
-            ].map(({ label, state, setter, type, placeholder, dir }) => (
+            ].map(({ label, state, setter, type, placeholder, dir, minLength, inputMode, pattern, maxLength }) => (
               <div key={label}>
                 <label className="block text-sm font-semibold mb-1.5 text-slate-700">{label}</label>
                 <input
                   type={type}
                   required
+                  minLength={minLength}
+                  maxLength={maxLength}
+                  inputMode={inputMode as any}
+                  pattern={pattern}
                   dir={dir as any}
                   className="neon-input w-full p-3 rounded-xl"
                   value={state}

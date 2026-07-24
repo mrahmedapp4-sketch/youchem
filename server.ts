@@ -215,14 +215,40 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
   }
 };
 
+const getStudentProfileErrors = (profile: {
+  name?: unknown;
+  phone?: unknown;
+  guardianPhone?: unknown;
+  school?: unknown;
+  gradeLevel?: unknown;
+}): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  const name = typeof profile.name === 'string' ? profile.name.trim() : '';
+  const phone = typeof profile.phone === 'string' ? profile.phone.trim() : '';
+  const guardianPhone = typeof profile.guardianPhone === 'string' ? profile.guardianPhone.trim() : '';
+  const school = typeof profile.school === 'string' ? profile.school.trim() : '';
+
+  if (Array.from(name).length <= 8 || name === 'طالب') {
+    errors.name = 'الاسم لازم يكون أكتر من 8 حروف';
+  }
+  if (!/^01\d{9}$/.test(phone)) {
+    errors.phone = 'رقم الطالب لازم يبدأ بـ 01 ويكون 11 رقم';
+  }
+  if (!/^01\d{9}$/.test(guardianPhone)) {
+    errors.guardianPhone = 'رقم ولي الأمر لازم يبدأ بـ 01 ويكون 11 رقم';
+  }
+  if (!school) {
+    errors.school = 'اكتب اسم المدرسة';
+  }
+  if (profile.gradeLevel !== '2nd_sec' && profile.gradeLevel !== '3rd_sec') {
+    errors.gradeLevel = 'اختار الصف الدراسي';
+  }
+
+  return errors;
+};
+
 const getMissingStudentProfileFields = (user: DbUser): string[] => {
-  const missing: string[] = [];
-  if (!user.name?.trim() || user.name.trim() === 'طالب') missing.push('name');
-  if (!user.phone?.trim()) missing.push('phone');
-  if (!user.guardianPhone?.trim()) missing.push('guardianPhone');
-  if (!user.school?.trim()) missing.push('school');
-  if (user.gradeLevel !== '2nd_sec' && user.gradeLevel !== '3rd_sec') missing.push('gradeLevel');
-  return missing;
+  return Object.keys(getStudentProfileErrors(user));
 };
 
 const requireCompleteStudentProfile = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -230,12 +256,13 @@ const requireCompleteStudentProfile = (req: express.Request, res: express.Respon
   const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  const missingFields = getMissingStudentProfileFields(user);
-  if (missingFields.length > 0) {
+  const profileErrors = getStudentProfileErrors(user);
+  if (Object.keys(profileErrors).length > 0) {
     return res.status(403).json({
       error: 'PROFILE_INCOMPLETE',
       needsProfile: true,
-      missingFields,
+      missingFields: Object.keys(profileErrors),
+      profileErrors,
     });
   }
   next();
@@ -669,9 +696,10 @@ app.post('/api/student/google-login', async (req, res) => {
     );
     res.cookie('student_token', token, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
-    const missingFields = getMissingStudentProfileFields(user);
+    const profileErrors = getStudentProfileErrors(user);
+    const missingFields = Object.keys(profileErrors);
     const needsProfile = missingFields.length > 0;
-    res.json({ success: true, user, needsProfile, missingFields, picture });
+    res.json({ success: true, user, needsProfile, missingFields, profileErrors, picture });
   } catch (err: any) {
     console.error('Google login failed:', err.message);
     res.status(401).json({ error: 'فشل تسجيل الدخول بحساب جوجل' });
@@ -682,27 +710,22 @@ app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
   const studentId = (req as any).studentId;
   const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const missingFields = getMissingStudentProfileFields(user);
+  const profileErrors = getStudentProfileErrors(user);
+  const missingFields = Object.keys(profileErrors);
   const needsProfile = missingFields.length > 0;
-  res.json({ success: true, user, needsProfile, missingFields });
+  res.json({ success: true, user, needsProfile, missingFields, profileErrors });
 });
 
 app.post('/api/student/complete-profile', authenticateStudent, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
     const { name, phone, guardianPhone, school, gradeLevel } = req.body;
-    if (
-      typeof name !== 'string' ||
-      typeof phone !== 'string' ||
-      typeof guardianPhone !== 'string' ||
-      typeof school !== 'string' ||
-      !name.trim() ||
-      !phone.trim() ||
-      !guardianPhone.trim() ||
-      !school.trim() ||
-      (gradeLevel !== '2nd_sec' && gradeLevel !== '3rd_sec')
-    ) {
-      return res.status(400).json({ error: 'الرجاء إدخال الاسم ورقم الهاتف ورقم ولي الأمر والمدرسة والصف الدراسي' });
+    const profileErrors = getStudentProfileErrors({ name, phone, guardianPhone, school, gradeLevel });
+    if (Object.keys(profileErrors).length > 0) {
+      return res.status(400).json({
+        error: Object.values(profileErrors)[0],
+        profileErrors,
+      });
     }
     const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, {
       name: name.trim(),
