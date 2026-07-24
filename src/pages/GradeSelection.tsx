@@ -220,6 +220,13 @@ export function GradeSelection() {
         ) : (
           <form onSubmit={handleCompleteProfile} className="space-y-4">
 
+            <div
+              className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-bold text-center leading-relaxed"
+              role="alert"
+            >
+              أي بيانات خاطئة تؤدي إلى غلق الحساب فورًا
+            </div>
+
             {/* Google account info banner */}
             {(googlePicture || googleEmail) && (
               <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl p-3">
