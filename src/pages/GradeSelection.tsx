@@ -213,7 +213,7 @@ export function GradeSelection() {
           </h1>
           <p className="text-xs font-semibold text-slate-400 mb-1">by Mr.ahmed</p>
           <p className="text-sm text-slate-500">
-            {needsProfile ? 'خلّص بياناتك علشان تبدأ' : 'سجّل دخولك بجوجل علشان تبدأ'}
+            {needsProfile ? 'صفحة استكمال بيانات الطالب' : 'سجّل دخولك بجوجل علشان تبدأ'}
           </p>
         </div>
 
@@ -247,6 +247,10 @@ export function GradeSelection() {
               تنبيه مهم: لازم تكتب بياناتك الحقيقية والصحيحة. أي بيانات غير صالحة تؤدي إلى غلق الحساب وحظر الجهاز.
             </div>
 
+            <div className="bg-indigo-50 border border-indigo-100 text-indigo-800 rounded-xl p-3 text-sm text-center leading-relaxed">
+              املأ كل البيانات المطلوبة؛ بعد الحفظ هتتسجل مباشرةً في ملف الطالب، ومش هتقدر تدخل المنصة قبل اكتمالها.
+            </div>
+
             {/* Google account info banner */}
             {(googlePicture || googleEmail) && (
               <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl p-3">
@@ -270,7 +274,7 @@ export function GradeSelection() {
             )}
 
             {[
-              { label: 'اسمك بالكامل (أكثر من 8 حروف)', state: name, setter: setName, type: 'text', placeholder: 'اكتب اسمك بالكامل', dir: 'rtl', minLength: 9 },
+              { label: 'اسمك بالكامل (8 حروف على الأقل)', state: name, setter: setName, type: 'text', placeholder: 'اكتب اسمك بالكامل', dir: 'rtl', minLength: 8 },
               { label: 'رقم الطالب (11 رقم ويبدأ بـ 01)', state: phone, setter: setPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr', inputMode: 'numeric', pattern: '01[0-9]{9}', maxLength: 11 },
               { label: 'رقم ولي الأمر (11 رقم ويبدأ بـ 01)', state: guardianPhone, setter: setGuardianPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr', inputMode: 'numeric', pattern: '01[0-9]{9}', maxLength: 11 },
               { label: 'مدرستك', state: school, setter: setSchool, type: 'text', placeholder: '', dir: 'rtl' },
@@ -322,7 +326,7 @@ export function GradeSelection() {
               disabled={savingProfile}
               className="neon-btn w-full font-bold py-3 rounded-xl disabled:opacity-50 mt-2"
             >
-              {savingProfile ? 'بيتحفظ...' : 'يلا ادخل'}
+              {savingProfile ? 'بيتحفظ في ملفك...' : 'احفظ البيانات وادخل'}
             </button>
           </form>
         )}
