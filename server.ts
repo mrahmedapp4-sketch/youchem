@@ -102,9 +102,11 @@ fs.mkdirSync(STUDENT_PDFS_DIR, { recursive: true });
 // Pre-load brand images as base64 once at startup (avoids repeated disk reads)
 const _logoPath  = path.join(process.cwd(), 'public', 'logo.png');
 const _stampPath = path.join(process.cwd(), 'attached_assets', 'image_1784762402890.png');
-const LOGO_B64  = fs.existsSync(_logoPath)  ? `data:image/png;base64,${fs.readFileSync(_logoPath).toString('base64')}`  : '';
-const STAMP_B64 = fs.existsSync(_stampPath) ? `data:image/png;base64,${fs.readFileSync(_stampPath).toString('base64')}` : '';
-console.log(`[server] Logo loaded: ${LOGO_B64 ? 'yes' : 'NO'}, Stamp loaded: ${STAMP_B64 ? 'yes' : 'NO (path: ' + _stampPath + ')'}`);
+const _signPath  = path.join(process.cwd(), 'attached_assets', 'Sign_1784906969294.png');
+const LOGO_B64   = fs.existsSync(_logoPath)  ? `data:image/png;base64,${fs.readFileSync(_logoPath).toString('base64')}`  : '';
+const STAMP_B64  = fs.existsSync(_stampPath) ? `data:image/png;base64,${fs.readFileSync(_stampPath).toString('base64')}` : '';
+const SIGN_B64   = fs.existsSync(_signPath)  ? `data:image/png;base64,${fs.readFileSync(_signPath).toString('base64')}`  : '';
+console.log(`[server] Logo: ${LOGO_B64 ? 'yes' : 'NO'}, Stamp: ${STAMP_B64 ? 'yes' : 'NO'}, Sign: ${SIGN_B64 ? 'yes' : 'NO'}`);
 // Homework PDFs require authentication — no unauthenticated static serving.
 // Both students and teachers can fetch them; the route checks either cookie.
 app.get('/uploads/homeworks/:filename', (req, res, next) => {
@@ -410,10 +412,14 @@ app.get('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
 
 app.post('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
   try {
-    const { lessonId, questions } = req.body;
+    const { lessonId, questions, examDurationMinutes } = req.body;
     const existing = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
     if (existing) return res.status(409).json({ error: 'يوجد اختبار بالفعل لهذه الحصة — احذفه أولاً لإنشاء اختبار جديد' });
-    const quiz: DbQuiz = { id: newId(), lessonId, questions, createdAt: new Date().toISOString() };
+    const quiz: DbQuiz = {
+      id: newId(), lessonId, questions,
+      examDurationMinutes: examDurationMinutes ? Number(examDurationMinutes) : undefined,
+      createdAt: new Date().toISOString(),
+    };
     jsonDb.insert('quizzes', quiz);
     res.json(quiz);
   } catch (err: any) {
@@ -866,7 +872,7 @@ app.post('/api/student/exam/unlock', authenticateStudent, async (req, res) => {
       image: q.image || null,
     }));
 
-    res.json({ quizExists: true, questions: sanitized, lessonId });
+    res.json({ quizExists: true, questions: sanitized, lessonId, examDurationMinutes: quiz.examDurationMinutes || 0 });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1324,12 +1330,12 @@ function buildStudentPdfHtml(
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
   }
   .verify-stamp {
-    width: 130px;
-    height: 130px;
+    width: 180px;
+    height: 180px;
     object-fit: contain;
   }
   .verify-stamp-label {
@@ -1343,11 +1349,11 @@ function buildStudentPdfHtml(
     text-align: center;
     padding-bottom: 8px;
   }
-  .verify-sig .sig-line {
-    border-bottom: 1.5px solid #334155;
-    width: 70%;
-    margin: 0 auto 6px;
-    height: 32px;
+  .verify-sig .sig-img {
+    height: 70px;
+    object-fit: contain;
+    margin: 0 auto 4px;
+    display: block;
   }
   .verify-sig .sig-label { font-size: 10px; color: #64748b; }
 
@@ -1432,7 +1438,7 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
       <div class="verify-stamp-label">موثق من Mr.Ahmed</div>
     </div>` : ''}
     <div class="verify-sig">
-      <div class="sig-line"></div>
+      ${SIGN_B64 ? `<img src="${SIGN_B64}" class="sig-img" alt="توقيع">` : '<div style="height:70px"></div>'}
       <div class="sig-label">توقيع المعلم / المراجع</div>
     </div>
   </div>

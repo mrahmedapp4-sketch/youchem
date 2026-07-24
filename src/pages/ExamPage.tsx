@@ -1,8 +1,8 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Key, CheckCircle, XCircle, Maximize2, X,
-  BookOpen, GraduationCap, ArrowRight,
+  BookOpen, GraduationCap, ArrowRight, Clock,
 } from 'lucide-react';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
@@ -35,6 +35,8 @@ export function ExamPage() {
   const [answers, setAnswers]     = useState<string[]>([]);
   const [submitting, setSubmitting]   = useState(false);
   const [unanswered, setUnanswered]   = useState(false);
+  const [timeLeft, setTimeLeft]   = useState<number | null>(null); // seconds, null = no limit
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ── Step 4: results ── */
   const [results, setResults] = useState<Result[]>([]);
@@ -66,14 +68,43 @@ export function ExamPage() {
       .finally(() => setLessonsLoading(false));
   }, [navigate]);
 
+  /* ── Timer ── */
+  useEffect(() => {
+    if (step === 'exam' && timeLeft !== null && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev === null) return null;
+          if (prev <= 1) { clearInterval(timerRef.current!); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [step, timeLeft !== null]);
+
+  // auto-submit when timer hits 0
+  useEffect(() => {
+    if (timeLeft === 0 && step === 'exam' && !submitting) {
+      handleSubmitExam();
+    }
+  }, [timeLeft]);
+
   /* ── Helpers ── */
   const goNewExam = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
     setCode(''); setCodeError('');
     setSelectedLesson(null);
     setQuestions([]); setAnswers([]);
     setResults([]); setScore(0); setTotal(0);
+    setTimeLeft(null);
     setStep('lesson');
     window.scrollTo(0, 0);
+  };
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
   };
 
   /* ── Step 1 → 2: pick lesson ── */
@@ -102,6 +133,7 @@ export function ExamPage() {
       if (data.quizExists) {
         setQuestions(data.questions);
         setAnswers(Array(data.questions.length).fill(''));
+        setTimeLeft(data.examDurationMinutes > 0 ? data.examDurationMinutes * 60 : null);
         setStep('exam');
       } else {
         setStep('access');
@@ -324,9 +356,21 @@ export function ExamPage() {
             <p className="font-bold text-slate-800 text-sm truncate">{selectedLesson?.title}</p>
             <p className="text-xs text-slate-400">امتحان الحصة</p>
           </div>
-          <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-3 py-1 rounded-full shrink-0">
-            {questions.length} سؤال
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {timeLeft !== null && (
+              <span className={`flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full ${
+                timeLeft <= 60 ? 'bg-red-100 text-red-600 animate-pulse' :
+                timeLeft <= 180 ? 'bg-amber-100 text-amber-700' :
+                'bg-slate-100 text-slate-600'
+              }`}>
+                <Clock className="w-3.5 h-3.5" />
+                {formatTime(timeLeft)}
+              </span>
+            )}
+            <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+              {questions.length} سؤال
+            </span>
+          </div>
         </div>
       </header>
 

@@ -34,6 +34,7 @@ export function Quizzes() {
   const [lessons, setLessons] = useState<any[]>([]);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [selectedLesson, setSelectedLesson] = useState('');
+  const [examDurationMinutes, setExamDurationMinutes] = useState(0);
   const [questions, setQuestions] = useState(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
   const [expandedQuiz, setExpandedQuiz] = useState<string | null>(null);
 
@@ -67,11 +68,12 @@ export function Quizzes() {
       const res = await fetch('/api/youchem/quizzes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lessonId: selectedLesson, questions }),
+        body: JSON.stringify({ lessonId: selectedLesson, questions, examDurationMinutes }),
       });
       if (res.ok) {
         alert('اتحفظ الامتحان بنجاح');
         setQuestions(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
+        setExamDurationMinutes(0);
         fetchData();
       } else {
         const data = await res.json();
@@ -133,7 +135,10 @@ export function Quizzes() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-slate-900 text-sm truncate">{title}</p>
-                      <p className="text-xs text-slate-400">{quiz.questions?.length || 0} سؤال</p>
+                      <p className="text-xs text-slate-400">
+                        {quiz.questions?.length || 0} سؤال
+                        {quiz.examDurationMinutes > 0 && ` · ${quiz.examDurationMinutes} دقيقة`}
+                      </p>
                     </div>
                     <button
                       onClick={() => setExpandedQuiz(isExpanded ? null : quiz.id)}
@@ -193,6 +198,20 @@ export function Quizzes() {
                 ⚠️ الحصة دي عندها امتحان بالفعل — امسحه الأول من القائمة فوق علشان تعمل امتحان جديد
               </p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">وقت الامتحان (بالدقيقة)</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number" min="0" max="180"
+                value={examDurationMinutes}
+                onChange={e => setExamDurationMinutes(Number(e.target.value))}
+                className="neon-input w-32 px-4 py-2.5 rounded-xl text-sm text-center"
+                placeholder="0"
+              />
+              <span className="text-sm text-slate-500">{examDurationMinutes > 0 ? `${examDurationMinutes} دقيقة` : 'بدون وقت محدد'}</span>
+            </div>
           </div>
 
           <div className="space-y-8">

@@ -43,6 +43,7 @@ export interface DbQuiz {
   id: string;
   lessonId: string;
   questions: any[];
+  examDurationMinutes?: number; // 0 or undefined = no time limit
   createdAt: string;
 }
 
