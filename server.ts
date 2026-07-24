@@ -1392,18 +1392,25 @@ function buildStudentPdfHtml(
     padding-top: 16px;
     border-top: 1px dashed #cbd5e1;
     gap: 16px;
+    min-height: 240px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .verify-stamp-box {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    flex-shrink: 0;
+    width: 230px;
+    flex: 0 0 230px;
   }
   .verify-stamp {
-    width: 180px;
-    height: 180px;
+    display: block;
+    width: 220px;
+    height: 220px;
     object-fit: contain;
+    object-position: center;
+    mix-blend-mode: multiply;
   }
   .verify-stamp-label {
     font-size: 11px;
@@ -1412,17 +1419,33 @@ function buildStudentPdfHtml(
     text-align: center;
   }
   .verify-sig {
-    flex: 1;
+    width: 300px;
+    flex: 0 0 300px;
     text-align: center;
     padding-bottom: 8px;
   }
   .verify-sig .sig-img {
-    height: 70px;
-    object-fit: contain;
-    margin: 0 auto 4px;
     display: block;
+    width: 290px;
+    height: 145px;
+    object-fit: contain;
+    object-position: center;
+    mix-blend-mode: multiply;
+    margin: 0 auto 4px;
   }
   .verify-sig .sig-label { font-size: 10px; color: #64748b; }
+
+  @media print {
+    .verify-row {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .verify-stamp,
+    .verify-sig .sig-img {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
 
   /* ── Footer — NORMAL FLOW, always below all content ── */
   .doc-footer {
@@ -1501,11 +1524,11 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
   <div class="verify-row">
     ${STAMP_B64 ? `
     <div class="verify-stamp-box">
-      <img src="${STAMP_B64}" class="verify-stamp" alt="YouChem Stamp">
+      <img src="${STAMP_B64}" class="verify-stamp" width="220" height="220" loading="eager" decoding="sync" alt="ختم YouChem">
       <div class="verify-stamp-label">موثق من Mr.Ahmed</div>
     </div>` : ''}
     <div class="verify-sig">
-      ${SIGN_B64 ? `<img src="${SIGN_B64}" class="sig-img" alt="توقيع">` : '<div style="height:70px"></div>'}
+      ${SIGN_B64 ? `<img src="${SIGN_B64}" class="sig-img" width="290" height="145" loading="eager" decoding="sync" alt="توقيع Mr.Ahmed">` : '<div style="height:145px"></div>'}
       <div class="sig-label">توقيع المعلم / المراجع</div>
     </div>
   </div>
