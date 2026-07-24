@@ -9,7 +9,9 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 - **Auth:**
   - Teachers: password login → JWT cookie (`server.ts`).
   - Students: Google sign-in. Frontend uses the Firebase client SDK (`src/lib/firebase.ts`, config in `firebase-applet-config.json` — public client config, not secret) to run `signInWithPopup`, then sends the Google ID token to `POST /api/student/google-login`, which verifies it server-side with `google-auth-library`'s `OAuth2Client.verifyIdToken` (audience = the Firebase project's OAuth web client ID) and issues a JWT cookie. Students with any missing or invalid profile field are prompted to complete it via `POST /api/student/complete-profile` every time they reopen the app. Names must be longer than 8 characters, both phone numbers must be exactly 11 digits beginning with `01`, and grade is required.
-- **Other integrations referenced but not yet wired up:** Google Gemini (`@google/genai`), Vimeo TUS uploads — no server code currently calls these, they're leftover from the AI Studio scaffold
+  - **Registration validation:** the server requires a name with at least 8 letters, two phone numbers with exactly 11 digits beginning with `01`, a school, and a grade. The form warns that invalid data closes the account and blocks the device. Arabic-Indic phone digits are normalized before saving.
+  - **Blocking:** teachers block both the student account and its registered browser/device identifier. A blocked account is rejected immediately, and blocked device identifiers remain rejected even if the account is deleted. Browser storage can be cleared or a different browser/device can be used, so device blocking is an additional layer rather than a cryptographic hardware ban.
+  - **Other integrations referenced but not yet wired up:** Google Gemini (`@google/genai`), Vimeo TUS uploads — no server code currently calls these, they're leftover from the AI Studio scaffold
 
 ## Running the app
 - Workflow **"Start application"** runs `pnpm run dev` (tsx server.ts), serving on port 5000. Deployment build/run also use `pnpm` (`pnpm run build` / `pnpm run start`).

@@ -20,6 +20,8 @@ export interface DbUser {
   gradeLevel?: '2nd_sec' | '3rd_sec' | null;
   createdAt: string;
   blocked?: boolean;
+  /** Stable browser/device identifier used for the extra device-ban layer. */
+  deviceId?: string | null;
   /** Token that must match the one in the student's JWT cookie.
    *  Cleared on logout so the student can log in again from any device. */
   activeSessionToken?: string | null;
@@ -108,6 +110,8 @@ export interface DbSettings {
   /** Random token embedded in the teacher JWT and stored here.
    *  Cleared on logout so stolen cookies are invalidated server-side. */
   activeTeacherToken?: string | null;
+  /** Device identifiers that may not authenticate, even if their old account is deleted. */
+  blockedDeviceIds?: string[];
 }
 
 interface DBShape {

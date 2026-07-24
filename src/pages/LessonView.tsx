@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowRight, Lock, Key, CheckCircle, XCircle, RefreshCw, X } from 'lucide-react';
 
@@ -93,7 +93,7 @@ export function LessonView() {
     setLoading(false);
   };
 
-  const handleValidateCode = async (e: React.FormEvent) => {
+  const handleValidateCode = async (e: FormEvent) => {
     e.preventDefault();
     setValidatingCode(true);
     setCodeError('');

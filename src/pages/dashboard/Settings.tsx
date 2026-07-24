@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Settings as SettingsIcon, Users, BookOpen, FileText, FileQuestion, ShieldAlert, KeyRound, BarChart3, Trash2 } from 'lucide-react';
 
 export function Settings() {
@@ -23,7 +23,7 @@ export function Settings() {
       .catch(() => setStatsLoading(false));
   }, []);
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setPwMsg(null);
     if (newPw.length < 4) return setPwMsg({ type: 'err', text: 'كلمة السر الجديدة لازم تكون 4 حروف على الأقل' });

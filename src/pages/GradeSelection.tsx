@@ -8,6 +8,20 @@ const CONTACT_TEACHER_MSG =
 
 const PHONE_PATTERN = /^01\d{9}$/;
 
+const getDeviceId = (): string => {
+  const key = 'youchem_device_id';
+  const existing = window.localStorage.getItem(key);
+  if (existing && /^[A-Za-z0-9_-]{16,128}$/.test(existing)) return existing;
+  const generated = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, '');
+  window.localStorage.setItem(key, generated);
+  return generated;
+};
+
+const normalizeArabicDigits = (value: string): string =>
+  value
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+
 export function GradeSelection() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
@@ -74,7 +88,7 @@ export function GradeSelection() {
       const res = await fetch('/api/student/google-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken, deviceId: getDeviceId() }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -87,7 +101,12 @@ export function GradeSelection() {
           navigate('/student-dashboard');
         }
       } else {
-        if (data.error === 'DEVICE_LOCKED' || data.error === 'SESSION_CONFLICT') {
+        if (
+          data.error === 'DEVICE_LOCKED' ||
+          data.error === 'DEVICE_BLOCKED' ||
+          data.error === 'DEVICE_MISMATCH' ||
+          data.error === 'SESSION_CONFLICT'
+        ) {
           setError(CONTACT_TEACHER_MSG);
         } else {
           setError(data.error || 'فشل تسجيل الدخول بجوجل');
@@ -109,12 +128,13 @@ export function GradeSelection() {
     e.preventDefault();
     setError('');
     const trimmedName = name.trim();
-    const trimmedPhone = phone.trim();
-    const trimmedGuardianPhone = guardianPhone.trim();
+    const trimmedPhone = normalizeArabicDigits(phone.trim());
+    const trimmedGuardianPhone = normalizeArabicDigits(guardianPhone.trim());
     const trimmedSchool = school.trim();
 
-    if (Array.from(trimmedName).length <= 8) {
-      setError('الاسم لازم يكون أكتر من 8 حروف');
+    const letterCount = Array.from(trimmedName).filter((character) => /\p{L}/u.test(String(character))).length;
+    if (letterCount < 8 || trimmedName === 'طالب') {
+      setError('الاسم لازم يكون 8 حروف على الأقل');
       return;
     }
     if (!PHONE_PATTERN.test(trimmedPhone)) {
@@ -224,7 +244,7 @@ export function GradeSelection() {
               className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-bold text-center leading-relaxed"
               role="alert"
             >
-              أي بيانات خاطئة تؤدي إلى غلق الحساب فورًا
+              تنبيه مهم: لازم تكتب بياناتك الحقيقية والصحيحة. أي بيانات غير صالحة تؤدي إلى غلق الحساب وحظر الجهاز.
             </div>
 
             {/* Google account info banner */}

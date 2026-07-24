@@ -119,7 +119,13 @@ app.get('/uploads/homeworks/:filename', (req, res, next) => {
       const decoded = jwt.verify(studentToken, JWT_SECRET) as any;
       if (decoded.role === 'student') {
         const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
-        if (user && !user.blocked && user.activeSessionToken && decoded.sessionToken === user.activeSessionToken) {
+        if (
+          user &&
+          !user.blocked &&
+          user.activeSessionToken &&
+          decoded.sessionToken === user.activeSessionToken &&
+          (!user.deviceId || decoded.deviceId === user.deviceId)
+        ) {
           authorized = true;
         }
       }
@@ -198,6 +204,15 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
       res.clearCookie('student_token', COOKIE_OPTS);
       return res.status(403).json({ error: 'تم حظر هذا الحساب من الدخول إلى المنصة.' });
     }
+    const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    if (decoded.deviceId && settings?.blockedDeviceIds?.includes(decoded.deviceId)) {
+      res.clearCookie('student_token', COOKIE_OPTS);
+      return res.status(403).json({ error: 'تم حظر هذا الجهاز من الدخول إلى المنصة.' });
+    }
+    if (user.deviceId && decoded.deviceId !== user.deviceId) {
+      res.clearCookie('student_token', COOKIE_OPTS);
+      return res.status(401).json({ error: 'DEVICE_MISMATCH' });
+    }
     // ── Single-device enforcement ──────────────────────────────────────────
     // The JWT must carry a sessionToken that exactly matches what is stored
     // in the DB. A missing activeSessionToken (after logout) or a mismatch
@@ -224,12 +239,13 @@ const getStudentProfileErrors = (profile: {
 }): Record<string, string> => {
   const errors: Record<string, string> = {};
   const name = typeof profile.name === 'string' ? profile.name.trim() : '';
-  const phone = typeof profile.phone === 'string' ? profile.phone.trim() : '';
-  const guardianPhone = typeof profile.guardianPhone === 'string' ? profile.guardianPhone.trim() : '';
+  const phone = normalizeArabicDigits(typeof profile.phone === 'string' ? profile.phone.trim() : '');
+  const guardianPhone = normalizeArabicDigits(typeof profile.guardianPhone === 'string' ? profile.guardianPhone.trim() : '');
   const school = typeof profile.school === 'string' ? profile.school.trim() : '';
+  const letterCount = Array.from(name).filter((character) => /\p{L}/u.test(character)).length;
 
-  if (Array.from(name).length <= 8 || name === 'طالب') {
-    errors.name = 'الاسم لازم يكون أكتر من 8 حروف';
+  if (letterCount < 8 || name === 'طالب') {
+    errors.name = 'الاسم لازم يكون 8 حروف على الأقل';
   }
   if (!/^01\d{9}$/.test(phone)) {
     errors.phone = 'رقم الطالب لازم يبدأ بـ 01 ويكون 11 رقم';
@@ -246,6 +262,14 @@ const getStudentProfileErrors = (profile: {
 
   return errors;
 };
+
+const normalizeArabicDigits = (value: string): string =>
+  value
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+
+const isValidDeviceId = (value: unknown): value is string =>
+  typeof value === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(value);
 
 const getMissingStudentProfileFields = (user: DbUser): string[] => {
   return Object.keys(getStudentProfileErrors(user));
@@ -570,7 +594,30 @@ app.patch('/api/youchem/students/:userId/block', authenticateTeacher, async (req
     const { userId } = req.params;
     const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
     if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
-    const updated = jsonDb.update('users', (u: DbUser) => u.id === userId, { blocked: !user.blocked });
+    const shouldBlock = !user.blocked;
+    const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    const blockedDeviceIds = [...(settings?.blockedDeviceIds || [])];
+
+    if (shouldBlock && user.deviceId && !blockedDeviceIds.includes(user.deviceId)) {
+      blockedDeviceIds.push(user.deviceId);
+    }
+    if (!shouldBlock && user.deviceId) {
+      const remainingDeviceIds = blockedDeviceIds.filter((deviceId) => deviceId !== user.deviceId);
+      if (settings) {
+        jsonDb.update('settings', (s: DbSettings) => s.id === 'main', { blockedDeviceIds: remainingDeviceIds });
+      }
+    } else if (shouldBlock) {
+      if (settings) {
+        jsonDb.update('settings', (s: DbSettings) => s.id === 'main', { blockedDeviceIds });
+      } else {
+        jsonDb.insert('settings', { id: 'main', blockedDeviceIds });
+      }
+    }
+
+    const updated = jsonDb.update('users', (u: DbUser) => u.id === userId, {
+      blocked: shouldBlock,
+      ...(shouldBlock ? { activeSessionToken: null, sessionExpiresAt: null } : {}),
+    });
     res.json(updated);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -636,12 +683,21 @@ app.post('/api/student/google-login', async (req, res) => {
   try {
     const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ error: 'idToken مطلوب' });
+    const deviceId = typeof req.body.deviceId === 'string' ? req.body.deviceId.trim() : '';
+    if (!isValidDeviceId(deviceId)) {
+      return res.status(400).json({ error: 'تعذر التحقق من الجهاز. حدّث الصفحة وحاول مرة أخرى.' });
+    }
 
     const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
     const payload = ticket.getPayload();
     if (!payload || !payload.email) return res.status(401).json({ error: 'فشل التحقق من حساب جوجل' });
 
     const { sub: googleId, email, name, picture } = payload;
+
+    const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    if (settings?.blockedDeviceIds?.includes(deviceId)) {
+      return res.status(403).json({ error: 'DEVICE_BLOCKED' });
+    }
 
     let user = jsonDb.find('users', (u: DbUser) => u.googleId === googleId || u.email === email);
     if (user?.blocked) {
@@ -656,7 +712,7 @@ app.post('/api/student/google-login', async (req, res) => {
       user?.activeSessionToken &&
       user.sessionExpiresAt &&
       new Date(user.sessionExpiresAt) > new Date();
-    if (sessionIsLive) {
+    if (sessionIsLive && user?.deviceId !== deviceId) {
       return res.status(403).json({ error: 'DEVICE_LOCKED' });
     }
 
@@ -677,20 +733,21 @@ app.post('/api/student/google-login', async (req, res) => {
         role: 'student',
         gradeLevel: null,
         createdAt: new Date().toISOString(),
+        deviceId,
         activeSessionToken: sessionToken,
         sessionExpiresAt,
       } as DbUser;
       jsonDb.insert('users', user);
     } else {
       // Backfill googleId / update picture / set session token.
-      const updates: Partial<DbUser> = { activeSessionToken: sessionToken, sessionExpiresAt };
+      const updates: Partial<DbUser> = { activeSessionToken: sessionToken, sessionExpiresAt, deviceId };
       if (!user.googleId) updates.googleId = googleId;
       if (picture) updates.picture = picture;
       user = jsonDb.update('users', (u: DbUser) => u.id === user!.id, updates);
     }
 
     const token = jwt.sign(
-      { role: 'student', studentId: user.id, sessionToken },
+      { role: 'student', studentId: user.id, sessionToken, deviceId },
       JWT_SECRET,
       { expiresIn: '30d' },
     );
@@ -719,7 +776,9 @@ app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
 app.post('/api/student/complete-profile', authenticateStudent, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
-    const { name, phone, guardianPhone, school, gradeLevel } = req.body;
+    const { name, school, gradeLevel } = req.body;
+    const phone = normalizeArabicDigits(typeof req.body.phone === 'string' ? req.body.phone.trim() : '');
+    const guardianPhone = normalizeArabicDigits(typeof req.body.guardianPhone === 'string' ? req.body.guardianPhone.trim() : '');
     const profileErrors = getStudentProfileErrors({ name, phone, guardianPhone, school, gradeLevel });
     if (Object.keys(profileErrors).length > 0) {
       return res.status(400).json({
@@ -729,8 +788,8 @@ app.post('/api/student/complete-profile', authenticateStudent, async (req, res) 
     }
     const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, {
       name: name.trim(),
-      phone: phone.trim(),
-      guardianPhone: guardianPhone.trim(),
+      phone,
+      guardianPhone,
       school: school.trim(),
       gradeLevel,
     });
@@ -1560,7 +1619,7 @@ async function renderPdfBuffer(html: string): Promise<Buffer> {
   try {
     const page = await browser.newPage();
     // networkidle2 lets Google Fonts finish loading without timing out on slow DNS
-    await page.setContent(html, { waitUntil: 'networkidle2', timeout: 30_000 });
+    await page.setContent(html, { waitUntil: 'networkidle2' as any, timeout: 30_000 });
     return Buffer.from(await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -1727,7 +1786,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

@@ -53,7 +53,7 @@ export function Students() {
 
       <div>
         <h1 className="text-xl font-bold text-slate-900">الطلاب المسجلين</h1>
-        <p className="text-slate-500 text-sm mt-0.5">شوف الطلاب وعمل إعفاء أو حظر</p>
+        <p className="text-slate-500 text-sm mt-0.5">شوف الطلاب، واعمل إعفاء أو حظر للحساب والجهاز المرتبط به</p>
       </div>
 
       {/* Lesson selector */}
@@ -122,7 +122,7 @@ export function Students() {
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => handleToggleBlock(student.id)}
-                            title={isBlocked ? 'الغي الحظر' : 'احظر الطالب'}
+                            title={isBlocked ? 'الغي حظر الحساب والجهاز' : 'احظر الحساب والجهاز'}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors border ${
                               isBlocked
                                 ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
