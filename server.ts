@@ -104,6 +104,7 @@ const _logoPath  = path.join(process.cwd(), 'public', 'logo.png');
 const _stampPath = path.join(process.cwd(), 'attached_assets', 'image_1784762402890.png');
 const LOGO_B64  = fs.existsSync(_logoPath)  ? `data:image/png;base64,${fs.readFileSync(_logoPath).toString('base64')}`  : '';
 const STAMP_B64 = fs.existsSync(_stampPath) ? `data:image/png;base64,${fs.readFileSync(_stampPath).toString('base64')}` : '';
+console.log(`[server] Logo loaded: ${LOGO_B64 ? 'yes' : 'NO'}, Stamp loaded: ${STAMP_B64 ? 'yes' : 'NO (path: ' + _stampPath + ')'}`);
 // Homework PDFs require authentication — no unauthenticated static serving.
 // Both students and teachers can fetch them; the route checks either cookie.
 app.get('/uploads/homeworks/:filename', (req, res, next) => {
@@ -1177,6 +1178,8 @@ function buildStudentPdfHtml(
       ? '<span style="color:#92400e;font-weight:700">معفي</span>'
       : a.lessonLocked
       ? '<span style="color:#b91c1c;font-weight:700">🔒 مقفول</span>'
+      : a.quizTotal == null
+      ? '<span style="color:#64748b;font-weight:700">لا يوجد امتحان</span>'
       : '<span style="color:#b91c1c;font-weight:700">✗ لم يجتز</span>';
     const attemptsCell = a.quizAttempts != null
       ? `<span class="muted">${a.quizAttempts}</span>`
@@ -1328,7 +1331,6 @@ function buildStudentPdfHtml(
     width: 130px;
     height: 130px;
     object-fit: contain;
-    mix-blend-mode: multiply;
   }
   .verify-stamp-label {
     font-size: 11px;
