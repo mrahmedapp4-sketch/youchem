@@ -1465,7 +1465,6 @@ function buildStudentPdfHtml(
     padding: 20px 18px 10px;
     border-top: 1px dashed #cbd5e1;
     gap: 24px;
-    min-height: 300px;
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -1536,10 +1535,24 @@ function buildStudentPdfHtml(
   }
 
   @media print {
+    @page { size: A4 portrait; margin: 10mm 10mm 10mm 10mm; }
+    body { font-size: 10px; }
+    .page { padding: 0; }
     .verify-row {
       page-break-inside: avoid;
       break-inside: avoid;
+      margin-top: 12px;
+      min-height: 0 !important;
+      padding: 10px 12px 6px;
     }
+    .verify-stamp { width: 110px; height: 110px; transform: none; }
+    .verify-stamp-box { width: 120px; flex: 0 0 120px; }
+    .sig-frame { width: 200px; height: 80px; }
+    .verify-sig .sig-img { width: 260px; height: 130px; transform: none; }
+    .verify-sig { width: 220px; flex: 0 0 220px; }
+    .section-title { margin: 8px 0 5px; padding: 4px 10px; font-size: 11px; }
+    table { font-size: 9.5px; }
+    thead th, tbody td { padding: 4px 7px; }
     .verify-stamp,
     .verify-sig .sig-img {
       -webkit-print-color-adjust: exact;
