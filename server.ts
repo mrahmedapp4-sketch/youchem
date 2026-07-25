@@ -1455,109 +1455,85 @@ function buildStudentPdfHtml(
   .badge.red   { background: #fee2e2; color: #b91c1c; }
   .badge.amber { background: #fef3c7; color: #92400e; }
 
-  /* ── Verification row (stamp + signature) — NORMAL FLOW, not fixed ── */
+  /* ── Verification row (stamp + signature) ── */
   .verify-row {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     flex-wrap: wrap;
-    margin-top: 28px;
-    padding: 20px 18px 10px;
+    margin-top: 20px;
+    padding: 16px 16px 8px;
     border-top: 1px dashed #cbd5e1;
-    gap: 24px;
+    gap: 20px;
     page-break-inside: avoid;
     break-inside: avoid;
   }
+
+  /* Stamp — the seal fills the whole PNG so object-fit:contain is enough */
   .verify-stamp-box {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    width: 280px;
-    flex: 0 1 280px;
-    max-width: 100%;
-    overflow: hidden;
+    gap: 6px;
+    flex: 0 0 auto;
   }
   .verify-stamp {
     display: block;
-    width: 270px;
-    height: 270px;
-    max-width: none;
-    object-fit: contain;
-    object-position: center;
-    transform: scale(1.85);
-    transform-origin: center;
-    opacity: 1 !important;
-    visibility: visible !important;
-    filter: none !important;
+    width: 160px;
+    height: auto;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .verify-stamp-label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: #1e3a8a;
     text-align: center;
   }
+
+  /* Signature — PNG is 600×300 but the actual "Ahmed" mark is ~170×102
+     centered near x=306 y=145. We show a 280×130 viewport over the full
+     520px-wide image (rendered at 520×260) so the center crops to the mark. */
   .verify-sig {
-    width: 400px;
-    flex: 0 1 400px;
-    max-width: 100%;
+    flex: 0 0 auto;
     text-align: center;
-    padding-bottom: 10px;
   }
   .sig-frame {
-    width: 390px;
-    height: 190px;
-    max-width: 100%;
+    width: 280px;
+    height: 130px;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 8px;
+    margin: 0 auto 6px;
   }
   .verify-sig .sig-img {
     display: block;
-    width: 620px;
-    height: 310px;
-    max-width: none;
-    object-fit: contain;
-    object-position: center;
-    transform: scale(2.1);
-    transform-origin: center;
-    opacity: 1 !important;
-    visibility: visible !important;
-    filter: none !important;
-    margin: 0;
+    width: 520px;   /* wider than container → center crops to signature */
+    height: auto;
+    flex-shrink: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .verify-sig .sig-label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: #334155;
   }
 
   @media print {
-    @page { size: A4 portrait; margin: 10mm 10mm 10mm 10mm; }
-    body { font-size: 10px; }
-    .page { padding: 0; }
-    .verify-row {
-      page-break-inside: avoid;
-      break-inside: avoid;
-      margin-top: 12px;
-      min-height: 0 !important;
-      padding: 10px 12px 6px;
-    }
-    .verify-stamp { width: 110px; height: 110px; transform: none; }
-    .verify-stamp-box { width: 120px; flex: 0 0 120px; }
-    .sig-frame { width: 200px; height: 80px; }
-    .verify-sig .sig-img { width: 260px; height: 130px; transform: none; }
-    .verify-sig { width: 220px; flex: 0 0 220px; }
-    .section-title { margin: 8px 0 5px; padding: 4px 10px; font-size: 11px; }
-    table { font-size: 9.5px; }
-    thead th, tbody td { padding: 4px 7px; }
-    .verify-stamp,
-    .verify-sig .sig-img {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
+    @page { size: A4 portrait; margin: 12mm 10mm 10mm 10mm; }
+    body  { font-size: 10px; }
+    .page { padding: 16px 20px 16px; }
+    .section-title { margin: 8px 0 4px; padding: 4px 10px; font-size: 10.5px; }
+    table { font-size: 9px; }
+    thead th, tbody td { padding: 3px 6px; }
+    .verify-row { margin-top: 14px; padding: 12px 12px 6px; gap: 16px; }
+    /* Stamp: scale down for print */
+    .verify-stamp { width: 120px; }
+    /* Signature: smaller viewport, proportionally wider image */
+    .sig-frame { width: 210px; height: 98px; }
+    .verify-sig .sig-img { width: 390px; }
   }
 
   /* ── Footer — NORMAL FLOW, always below all content ── */
