@@ -1300,13 +1300,13 @@ function buildStudentPdfHtml(
   lessons: DbLesson[],
   homeworks: DbHomework[],
   autoPrint = false,
-  useReportAssetUrls = false,
 ): string {
   const gradeLabel   = user.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : user.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '—';
   const registeredDate = new Date(user.createdAt).toLocaleDateString('ar-EG');
   const generatedDate  = new Date().toLocaleDateString('ar-EG');
-  const stampSrc = useReportAssetUrls ? '/report-stamp.png' : STAMP_B64;
-  const signatureSrc = useReportAssetUrls ? '/report-signature.png' : SIGN_B64;
+  // Always embed as base64 — guaranteed to render with no external requests
+  const stampSrc     = STAMP_B64;
+  const signatureSrc = SIGN_B64;
 
   const escHtml = (v: any) => String(v ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
@@ -1469,7 +1469,7 @@ function buildStudentPdfHtml(
     break-inside: avoid;
   }
 
-  /* Stamp — the seal fills the whole PNG so object-fit:contain is enough */
+  /* Stamp — seal fills the whole PNG */
   .verify-stamp-box {
     display: flex;
     flex-direction: column;
@@ -1479,8 +1479,9 @@ function buildStudentPdfHtml(
   }
   .verify-stamp {
     display: block;
-    width: 160px;
-    height: auto;
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -1491,27 +1492,20 @@ function buildStudentPdfHtml(
     text-align: center;
   }
 
-  /* Signature — PNG is 600×300 but the actual "Ahmed" mark is ~170×102
-     centered near x=306 y=145. We show a 280×130 viewport over the full
-     520px-wide image (rendered at 520×260) so the center crops to the mark. */
+  /* Signature — PNG 600×300, actual mark ~170×102 centred at (306,145).
+     object-fit:none + explicit w/h crops the element to a window centred on
+     the full image — no overflow:hidden needed, works in print too. */
   .verify-sig {
     flex: 0 0 auto;
     text-align: center;
   }
-  .sig-frame {
-    width: 280px;
-    height: 130px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 6px;
-  }
+  .sig-frame { margin: 0 auto 6px; }
   .verify-sig .sig-img {
     display: block;
-    width: 520px;   /* wider than container → center crops to signature */
-    height: auto;
-    flex-shrink: 0;
+    width: 220px;
+    height: 120px;
+    object-fit: none;
+    object-position: center center;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -1529,11 +1523,8 @@ function buildStudentPdfHtml(
     table { font-size: 9px; }
     thead th, tbody td { padding: 3px 6px; }
     .verify-row { margin-top: 14px; padding: 12px 12px 6px; gap: 16px; }
-    /* Stamp: scale down for print */
-    .verify-stamp { width: 120px; }
-    /* Signature: smaller viewport, proportionally wider image */
-    .sig-frame { width: 210px; height: 98px; }
-    .verify-sig .sig-img { width: 390px; }
+    .verify-stamp { width: 120px; height: 120px; }
+    .verify-sig .sig-img { width: 200px; height: 115px; }
   }
 
   /* ── Footer — NORMAL FLOW, always below all content ── */
@@ -1613,11 +1604,11 @@ ${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(
   <div class="verify-row">
     ${stampSrc ? `
     <div class="verify-stamp-box">
-      <img src="${stampSrc}" class="verify-stamp" width="270" height="270" loading="eager" decoding="sync" style="display:block !important; visibility:visible !important; opacity:1 !important;" alt="ختم YouChem">
+      <img src="${stampSrc}" class="verify-stamp" alt="ختم YouChem">
       <div class="verify-stamp-label">موثق من Mr.Ahmed</div>
     </div>` : ''}
     <div class="verify-sig">
-      ${signatureSrc ? `<div class="sig-frame"><img src="${signatureSrc}" class="sig-img" width="620" height="310" loading="eager" decoding="sync" style="display:block !important; visibility:visible !important; opacity:1 !important;" alt="توقيع Mr.Ahmed"></div>` : '<div class="sig-frame"></div>'}
+      ${signatureSrc ? `<div class="sig-frame"><img src="${signatureSrc}" class="sig-img" alt="توقيع Mr.Ahmed"></div>` : ''}
       <div class="sig-label">توقيع المعلم / المراجع</div>
     </div>
   </div>
@@ -1701,7 +1692,7 @@ app.get('/api/youchem/student-file/:userId/view', authenticateTeacher, (req, res
     const lessons   = jsonDb.getAll('lessons')   as DbLesson[];
     const homeworks = jsonDb.getAll('homeworks')  as DbHomework[];
 
-    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks, false, true);
+    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err: any) {
