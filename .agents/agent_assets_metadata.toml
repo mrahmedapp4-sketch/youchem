@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "L4c7WZUnJdCgQWx_eJlN3"
+uri = "file://server.ts"
+type = "unspecified"
+title = "server.ts — الكود الكامل"
