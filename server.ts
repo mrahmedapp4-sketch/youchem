@@ -1289,10 +1289,27 @@ app.get('/api/youchem/student-file/:userId', authenticateTeacher, async (req, re
   }
 });
 
-// ── PDF helpers ───────────────────────────────────────────────────────────────
+// ── HTML report builder (no Puppeteer — browser prints/saves to PDF) ──────────
 
-/** Build the full HTML string for a student's PDF report.
- *  Pass autoPrint=true to inject a window.print() call on load (browser-print flow). */
+/**
+ * Build a self-contained HTML report for one student.
+ *
+ * All three brand images (logo, stamp, signature) are already pre-loaded as
+ * Base64 data-URIs at server startup (LOGO_B64 / STAMP_B64 / SIGN_B64) and
+ * are injected directly into the `src` attributes — zero external requests,
+ * works offline, always visible in the saved PDF.
+ *
+ * The page is designed to fit on a single A4 sheet when the user presses
+ * Ctrl+P / window.print():
+ *   • @page sets A4 with tight margins.
+ *   • Everything uses compressed font-sizes and padding inside @media print.
+ *   • Tables use font-size:8px and minimal cell padding in print.
+ *   • The verification row (stamp + signature) has break-inside:avoid so it
+ *     never splits across pages.
+ *
+ * Pass autoPrint=true to trigger window.print() automatically on page load
+ * (used from the "طباعة" button on the teacher dashboard).
+ */
 function buildStudentPdfHtml(
   user: DbUser,
   accesses: DbStudentLessonAccess[],
@@ -1301,325 +1318,488 @@ function buildStudentPdfHtml(
   homeworks: DbHomework[],
   autoPrint = false,
 ): string {
-  const gradeLabel   = user.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : user.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '—';
+  // ── helpers ────────────────────────────────────────────────────────────────
+  const esc = (v: any) =>
+    String(v ?? '—')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  const gradeLabel =
+    user.gradeLevel === '2nd_sec' ? 'تاني ثانوي'
+    : user.gradeLevel === '3rd_sec' ? 'تالت ثانوي'
+    : '—';
   const registeredDate = new Date(user.createdAt).toLocaleDateString('ar-EG');
   const generatedDate  = new Date().toLocaleDateString('ar-EG');
-  // Always embed as base64 — guaranteed to render with no external requests
-  const stampSrc     = STAMP_B64;
-  const signatureSrc = SIGN_B64;
 
-  const escHtml = (v: any) => String(v ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
+  // ── lesson rows ────────────────────────────────────────────────────────────
   const lessonRows = accesses.map((a: DbStudentLessonAccess) => {
     const lesson = lessons.find((l: DbLesson) => l.id === a.lessonId);
     const quizCell = a.quizExempt
       ? `<span class="badge amber">معفي</span>`
       : a.quizTotal != null
         ? `<span class="badge ${a.quizPassed ? 'green' : 'red'}">${a.quizScore}/${a.quizTotal}</span>`
-        : `<span class="muted">—</span>`;
-    const passedCell = a.quizPassed
-      ? '<span style="color:#15803d;font-weight:700">✓ اجتاز</span>'
+        : `<span class="dim">—</span>`;
+    const statusCell = a.quizPassed
+      ? '<span class="ok">✓ اجتاز</span>'
       : a.quizExempt
-      ? '<span style="color:#92400e;font-weight:700">معفي</span>'
+      ? '<span class="warn">معفي</span>'
       : a.lessonLocked
-      ? '<span style="color:#b91c1c;font-weight:700">🔒 مقفول</span>'
+      ? '<span class="err">🔒 مقفول</span>'
       : a.quizTotal == null
-      ? '<span style="color:#64748b;font-weight:700">لا يوجد امتحان</span>'
-      : '<span style="color:#b91c1c;font-weight:700">✗ لم يجتز</span>';
-    const attemptsCell = a.quizAttempts != null
-      ? `<span class="muted">${a.quizAttempts}</span>`
-      : `<span class="muted">—</span>`;
+      ? '<span class="dim">لا يوجد امتحان</span>'
+      : '<span class="err">✗ لم يجتز</span>';
     return `<tr>
-      <td>${escHtml(lesson?.title || a.lessonId)}</td>
-      <td class="center">${a.viewingMinutes || 0} د</td>
-      <td class="center">${quizCell}</td>
-      <td class="center">${passedCell}</td>
-      <td class="center">${attemptsCell}</td>
-      <td class="center muted">${new Date(a.unlockedAt).toLocaleDateString('ar-EG')}</td>
+      <td>${esc(lesson?.title || a.lessonId)}</td>
+      <td class="c">${a.viewingMinutes || 0} د</td>
+      <td class="c">${quizCell}</td>
+      <td class="c">${statusCell}</td>
+      <td class="c dim">${a.quizAttempts ?? '—'}</td>
+      <td class="c dim">${new Date(a.unlockedAt).toLocaleDateString('ar-EG')}</td>
     </tr>`;
   }).join('');
 
+  // ── homework rows ──────────────────────────────────────────────────────────
   const hwRows = homeworkSubmissions.map((s: DbHomeworkSubmission) => {
     const hw  = homeworks.find((h: DbHomework) => h.id === s.homeworkId);
     const pct = s.total > 0 ? Math.round((s.score / s.total) * 100) : 0;
     return `<tr>
-      <td>${escHtml(hw?.title || s.homeworkId)}</td>
-      <td class="center"><span class="badge ${pct >= 50 ? 'green' : 'red'}">${s.score}/${s.total}</span></td>
-      <td class="center">${pct}%</td>
-      <td class="center muted">${new Date(s.createdAt).toLocaleDateString('ar-EG')}</td>
+      <td>${esc(hw?.title || s.homeworkId)}</td>
+      <td class="c"><span class="badge ${pct >= 50 ? 'green' : 'red'}">${s.score}/${s.total}</span></td>
+      <td class="c">${pct}%</td>
+      <td class="c dim">${new Date(s.createdAt).toLocaleDateString('ar-EG')}</td>
     </tr>`;
   }).join('');
 
+  // ── HTML ───────────────────────────────────────────────────────────────────
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ملف الطالب — ${esc(user.name)}</title>
+
+<!--
+  Cairo font is loaded from Google Fonts.
+  In print: if the font isn't cached the browser will fall back to Tahoma/Arial,
+  which is fine — layout is stable regardless.
+-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    font-family: 'Cairo', 'Tahoma', 'Arial', sans-serif;
-    direction: rtl;
-    unicode-bidi: bidi-override;
-    color: #1e293b;
-    background: #ffffff;
-    font-size: 11.5px;
-    line-height: 1.65;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+<style>
+/* ═══════════════════════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue:   #1e3a8a;
+  --blue2:  #2563eb;
+  --slate:  #334155;
+  --muted:  #94a3b8;
+  --border: #e2e8f0;
+  --bg:     #f8fafc;
+}
+
+body {
+  font-family: 'Cairo', 'Tahoma', 'Arial', sans-serif;
+  direction: rtl;
+  color: var(--slate);
+  background: #fff;
+  font-size: 11px;
+  line-height: 1.55;
+  /* Force colour/background printing in all browsers */
+  -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PAGE WRAPPER  (screen: centred card, print: full width)
+   ═══════════════════════════════════════════════════════════ */
+.page {
+  max-width: 210mm;   /* A4 width */
+  margin: 0 auto;
+  padding: 22px 30px 26px;
+  background: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT BUTTON (hidden in print)
+   ═══════════════════════════════════════════════════════════ */
+.print-btn {
+  display: block;
+  margin: 0 auto 18px;
+  padding: 9px 28px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+}
+.print-btn:hover { background: var(--blue2); }
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════════════════ */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 3px solid var(--blue);
+}
+.header-logo {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.header-center { flex: 1; text-align: center; }
+.header-center h1 {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--blue);
+  letter-spacing: -0.3px;
+}
+.header-center p { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.header-meta {
+  font-size: 9px;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.header-meta strong { color: var(--slate); }
+
+/* ═══════════════════════════════════════════════════════════
+   SECTION BANNER
+   ═══════════════════════════════════════════════════════════ */
+.section {
+  background: linear-gradient(90deg, var(--blue) 0%, var(--blue2) 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 6px;
+  margin: 13px 0 7px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROFILE GRID
+   ═══════════════════════════════════════════════════════════ */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.info-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  overflow: hidden;
+}
+.info-box .lbl {
+  font-size: 7.5px;
+  color: var(--muted);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.info-box .val {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-top: 1px;
+  word-break: break-all;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABLES
+   ═══════════════════════════════════════════════════════════ */
+table { width: 100%; border-collapse: collapse; font-size: 10px; }
+thead tr { background: #eff6ff; }
+thead th {
+  padding: 6px 9px;
+  font-weight: 700;
+  color: #1e40af;
+  text-align: right;
+  border-bottom: 2px solid #bfdbfe;
+  white-space: nowrap;
+}
+tbody tr:nth-child(even) { background: var(--bg); }
+tbody td { padding: 5px 9px; border-bottom: 1px solid #f1f5f9; }
+.c   { text-align: center !important; }
+.dim { color: var(--muted); }
+
+/* status text colours */
+.ok   { color: #15803d; font-weight: 700; }
+.warn { color: #92400e; font-weight: 700; }
+.err  { color: #b91c1c; font-weight: 700; }
+
+/* ═══════════════════════════════════════════════════════════
+   BADGES
+   ═══════════════════════════════════════════════════════════ */
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge.green { background: #dcfce7; color: #15803d; }
+.badge.red   { background: #fee2e2; color: #b91c1c; }
+.badge.amber { background: #fef3c7; color: #92400e; }
+
+/* ═══════════════════════════════════════════════════════════
+   EMPTY NOTE
+   ═══════════════════════════════════════════════════════════ */
+.empty { color: var(--muted); font-style: italic; padding: 8px 0; text-align: center; font-size: 10px; }
+
+/* ═══════════════════════════════════════════════════════════
+   VERIFICATION ROW  (stamp + signature)
+
+   Key rules that make it work in print:
+   • break-inside: avoid  →  never splits across pages
+   • Images embedded as Base64 data-URIs → no external fetch,
+     always visible even offline or inside a PDF
+   • Signature PNG (600×300) has blank margins around the actual
+     mark → object-fit:none + explicit width/height crops to the
+     visible ink only, without needing overflow:hidden
+   ═══════════════════════════════════════════════════════════ */
+.verify-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 14px 14px 8px;
+  border-top: 1px dashed #cbd5e1;
+  /* Prevent page-break inside this block */
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Stamp */
+.stamp-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+.stamp-img {
+  display: block;
+  width: 130px;
+  height: 130px;
+  object-fit: contain;
+  -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+}
+.stamp-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--blue);
+  text-align: center;
+}
+
+/* Signature — PNG 600×300, actual ink ≈ 170×102 px centred around (306,145).
+   width:220px + height:110px creates a viewport that frames exactly the ink
+   region when object-position is centered. No overflow:hidden required — the
+   <img> itself is already clipped by its own width/height in all browsers. */
+.sig-box {
+  flex: 0 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.sig-img {
+  display: block;
+  width: 220px;
+  height: 110px;
+  object-fit: none;
+  object-position: center center;
+  -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+}
+.sig-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--slate);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════ */
+.doc-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+  font-size: 8.5px;
+  color: var(--muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT OVERRIDES
+   Target: single A4 page, no extras
+   ═══════════════════════════════════════════════════════════ */
+@media print {
+  /* ── Page geometry ── */
+  @page {
+    size: A4 portrait;
+    margin: 10mm 9mm 9mm 9mm;
   }
 
-  /* ── Page wrapper: all normal flow, nothing fixed ── */
+  /* ── Hide browser chrome & print button ── */
+  .print-btn { display: none !important; }
+
+  body {
+    font-size: 9.5px;
+    background: #fff;
+  }
+
   .page {
-    padding: 28px 36px 32px;
-    min-width: 0;
+    max-width: none;
+    padding: 0;
+    margin: 0;
   }
 
   /* ── Header ── */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 3px solid #1e3a8a;
-    padding-bottom: 14px;
-    margin-bottom: 18px;
-    gap: 12px;
-  }
-  .header-logos { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .header-logo  { height: 60px; width: auto; object-fit: contain; }
-  .header-stamp { height: 80px; width: auto; object-fit: contain; }
-  .header-center { text-align: center; flex: 1; }
-  .header-center h1 { font-size: 19px; font-weight: 900; color: #1e3a8a; letter-spacing: -0.3px; }
-  .header-center p  { font-size: 10px; color: #64748b; margin-top: 3px; }
-  .header-right { font-size: 9.5px; color: #94a3b8; text-align: right; white-space: nowrap; }
+  .header { padding-bottom: 8px; margin-bottom: 10px; }
+  .header-logo { height: 42px; }
+  .header-center h1 { font-size: 14px; }
 
-  /* ── Section banner ── */
-  .section-title {
-    background: linear-gradient(90deg, #1e3a8a 0%, #2563eb 100%);
-    color: #fff;
-    font-size: 12.5px;
-    font-weight: 700;
-    padding: 6px 14px;
-    border-radius: 7px;
-    margin: 16px 0 9px;
-    letter-spacing: 0.2px;
-  }
+  /* ── Sections ── */
+  .section { margin: 8px 0 5px; padding: 3px 10px; font-size: 9.5px; }
 
-  /* ── Profile 3-column grid ── */
-  .profile-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-  .info-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 7px;
-    padding: 7px 11px;
-    overflow: hidden;
-  }
-  .info-box .lbl { font-size: 8.5px; color: #94a3b8; letter-spacing: 0.4px; text-transform: uppercase; }
-  .info-box .val { font-size: 11.5px; font-weight: 700; color: #1e293b; margin-top: 1px; word-break: break-all; }
+  /* ── Profile grid ── */
+  .profile-grid { gap: 4px; }
+  .info-box { padding: 4px 7px; }
+  .info-box .lbl { font-size: 7px; }
+  .info-box .val { font-size: 9px; }
 
-  /* ── Tables ── */
-  table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  thead tr { background: #eff6ff; }
-  thead th {
-    padding: 7px 11px;
-    font-weight: 700;
-    color: #1e40af;
-    text-align: right;
-    border-bottom: 2px solid #bfdbfe;
-    white-space: nowrap;
-  }
-  tbody tr:nth-child(even) { background: #f8fafc; }
-  tbody tr:hover { background: #f0f9ff; }
-  tbody td { padding: 6px 11px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-  .center { text-align: center !important; }
-  .muted  { color: #94a3b8; }
-  .empty-note { color: #94a3b8; font-style: italic; padding: 10px 0; text-align: center; }
+  /* ── Tables — most aggressive compression ── */
+  table { font-size: 8px; }
+  thead th { padding: 3px 6px; font-size: 8px; }
+  tbody td { padding: 3px 6px; }
+  .badge { font-size: 7.5px; padding: 1px 5px; }
 
-  /* ── Badges ── */
-  .badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-weight: 700;
-    font-size: 10px;
-    white-space: nowrap;
-  }
-  .badge.green { background: #dcfce7; color: #15803d; }
-  .badge.red   { background: #fee2e2; color: #b91c1c; }
-  .badge.amber { background: #fef3c7; color: #92400e; }
+  /* ── Verification row ── */
+  .verify-row { margin-top: 10px; padding: 10px 10px 6px; gap: 12px; }
+  .stamp-img  { width: 100px; height: 100px; }
+  .sig-img    { width: 190px; height: 100px; }
+  .stamp-label, .sig-label { font-size: 8.5px; }
 
-  /* ── Verification row (stamp + signature) ── */
-  .verify-row {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    margin-top: 20px;
-    padding: 16px 16px 8px;
-    border-top: 1px dashed #cbd5e1;
-    gap: 20px;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
+  /* ── Footer ── */
+  .doc-footer { margin-top: 8px; padding-top: 5px; font-size: 7.5px; }
 
-  /* Stamp — seal fills the whole PNG */
-  .verify-stamp-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    flex: 0 0 auto;
-  }
-  .verify-stamp {
-    display: block;
-    width: 150px;
-    height: 150px;
-    object-fit: contain;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .verify-stamp-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #1e3a8a;
-    text-align: center;
-  }
-
-  /* Signature — PNG 600×300, actual mark ~170×102 centred at (306,145).
-     object-fit:none + explicit w/h crops the element to a window centred on
-     the full image — no overflow:hidden needed, works in print too. */
-  .verify-sig {
-    flex: 0 0 auto;
-    text-align: center;
-  }
-  .sig-frame { margin: 0 auto 6px; }
-  .verify-sig .sig-img {
-    display: block;
-    width: 220px;
-    height: 120px;
-    object-fit: none;
-    object-position: center center;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .verify-sig .sig-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #334155;
-  }
-
-  @media print {
-    @page { size: A4 portrait; margin: 12mm 10mm 10mm 10mm; }
-    body  { font-size: 10px; }
-    .page { padding: 16px 20px 16px; }
-    .section-title { margin: 8px 0 4px; padding: 4px 10px; font-size: 10.5px; }
-    table { font-size: 9px; }
-    thead th, tbody td { padding: 3px 6px; }
-    .verify-row { margin-top: 14px; padding: 12px 12px 6px; gap: 16px; }
-    .verify-stamp { width: 120px; height: 120px; }
-    .verify-sig .sig-img { width: 200px; height: 115px; }
-  }
-
-  /* ── Footer — NORMAL FLOW, always below all content ── */
-  .doc-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 14px;
-    padding-top: 8px;
-    border-top: 1px solid #e2e8f0;
-    font-size: 9px;
-    color: #94a3b8;
-  }
+  /* Prevent orphan rows from spilling to page 2 */
+  tr { break-inside: avoid; page-break-inside: avoid; }
+}
 </style>
-${autoPrint ? `<script>window.addEventListener('load', function(){ window.print(); });</script>` : ''}
+
+${autoPrint
+  ? `<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 400); });</script>`
+  : ''}
 </head>
 <body>
 <div class="page">
 
-  <!-- ── Header ── -->
+  <!-- Print button (hidden in print) -->
+  <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+
+  <!-- ══ HEADER ══ -->
   <div class="header">
-    <div class="header-logos">
-      ${LOGO_B64 ? `<img src="${LOGO_B64}" class="header-logo" alt="YouChem">` : ''}
-    </div>
+    ${LOGO_B64 ? `<img src="${LOGO_B64}" class="header-logo" alt="YouChem Logo">` : '<div></div>'}
     <div class="header-center">
       <h1>ملف الطالب</h1>
       <p>منصة يوتشيم التعليمية &mdash; YouChem Educational Platform</p>
     </div>
-    <div class="header-right">تاريخ الإصدار<br><strong>${escHtml(generatedDate)}</strong></div>
+    <div class="header-meta">
+      تاريخ الإصدار<br>
+      <strong>${esc(generatedDate)}</strong>
+    </div>
   </div>
 
-  <!-- ── Profile ── -->
-  <div class="section-title">&#x1F4CB; بيانات الطالب</div>
+  <!-- ══ STUDENT PROFILE ══ -->
+  <div class="section">📋 بيانات الطالب</div>
   <div class="profile-grid">
-    <div class="info-box"><div class="lbl">الاسم الكامل</div><div class="val">${escHtml(user.name)}</div></div>
-    <div class="info-box"><div class="lbl">البريد الإلكتروني</div><div class="val" style="font-size:9.5px">${escHtml(user.email)}</div></div>
-    <div class="info-box"><div class="lbl">الصف الدراسي</div><div class="val">${escHtml(gradeLabel)}</div></div>
-    <div class="info-box"><div class="lbl">رقم الهاتف</div><div class="val">${escHtml(user.phone || '—')}</div></div>
-    <div class="info-box"><div class="lbl">هاتف ولي الأمر</div><div class="val">${escHtml(user.guardianPhone || '—')}</div></div>
-    <div class="info-box"><div class="lbl">المدرسة</div><div class="val">${escHtml(user.school || '—')}</div></div>
-    <div class="info-box"><div class="lbl">تاريخ التسجيل</div><div class="val">${escHtml(registeredDate)}</div></div>
+    <div class="info-box"><div class="lbl">الاسم الكامل</div><div class="val">${esc(user.name)}</div></div>
+    <div class="info-box"><div class="lbl">البريد الإلكتروني</div><div class="val" style="font-size:8.5px">${esc(user.email)}</div></div>
+    <div class="info-box"><div class="lbl">الصف الدراسي</div><div class="val">${esc(gradeLabel)}</div></div>
+    <div class="info-box"><div class="lbl">رقم الهاتف</div><div class="val">${esc(user.phone || '—')}</div></div>
+    <div class="info-box"><div class="lbl">هاتف ولي الأمر</div><div class="val">${esc(user.guardianPhone || '—')}</div></div>
+    <div class="info-box"><div class="lbl">المدرسة</div><div class="val">${esc(user.school || '—')}</div></div>
+    <div class="info-box"><div class="lbl">تاريخ التسجيل</div><div class="val">${esc(registeredDate)}</div></div>
     <div class="info-box"><div class="lbl">الحصص المفتوحة</div><div class="val">${accesses.length}</div></div>
     <div class="info-box"><div class="lbl">الواجبات المسلّمة</div><div class="val">${homeworkSubmissions.length}</div></div>
   </div>
 
-  <!-- ── Lessons ── -->
-  <div class="section-title">&#x1F4DA; الحصص ووقت المشاهدة</div>
+  <!-- ══ LESSONS ══ -->
+  <div class="section">📚 الحصص ووقت المشاهدة</div>
   ${accesses.length === 0
-    ? '<p class="empty-note">لم يفتح الطالب أي حصة بعد</p>'
+    ? '<p class="empty">لم يفتح الطالب أي حصة بعد</p>'
     : `<table>
         <thead><tr>
           <th>اسم الحصة</th>
-          <th style="width:80px" class="center">وقت المشاهدة</th>
-          <th style="width:100px" class="center">درجة الامتحان</th>
-          <th style="width:90px" class="center">الحالة</th>
-          <th style="width:55px" class="center">المحاولات</th>
-          <th style="width:85px" class="center">تاريخ الفتح</th>
+          <th class="c" style="width:58px">المشاهدة</th>
+          <th class="c" style="width:80px">درجة الامتحان</th>
+          <th class="c" style="width:80px">الحالة</th>
+          <th class="c" style="width:48px">المحاولات</th>
+          <th class="c" style="width:72px">تاريخ الفتح</th>
         </tr></thead>
         <tbody>${lessonRows}</tbody>
       </table>`}
 
-  <!-- ── Homework ── -->
-  <div class="section-title">&#x1F4DD; الواجبات</div>
+  <!-- ══ HOMEWORK ══ -->
+  <div class="section">📝 الواجبات</div>
   ${homeworkSubmissions.length === 0
-    ? '<p class="empty-note">لم يسلّم الطالب أي واجب بعد</p>'
+    ? '<p class="empty">لم يسلّم الطالب أي واجب بعد</p>'
     : `<table>
         <thead><tr>
           <th>اسم الواجب</th>
-          <th style="width:100px" class="center">الدرجة</th>
-          <th style="width:70px" class="center">النسبة</th>
-          <th style="width:100px" class="center">تاريخ التسليم</th>
+          <th class="c" style="width:80px">الدرجة</th>
+          <th class="c" style="width:58px">النسبة</th>
+          <th class="c" style="width:80px">تاريخ التسليم</th>
         </tr></thead>
         <tbody>${hwRows}</tbody>
       </table>`}
 
-  <!-- ── Verification row (stamp + signature) ── -->
+  <!-- ══ VERIFICATION (stamp + signature) ══
+       Both images are Base64 data-URIs — no external request, always visible. -->
   <div class="verify-row">
-    ${stampSrc ? `
-    <div class="verify-stamp-box">
-      <img src="${stampSrc}" class="verify-stamp" alt="ختم YouChem">
-      <div class="verify-stamp-label">موثق من Mr.Ahmed</div>
+    ${STAMP_B64 ? `
+    <div class="stamp-box">
+      <img src="${STAMP_B64}" class="stamp-img" alt="ختم YouChem">
+      <div class="stamp-label">موثق من Mr.Ahmed</div>
     </div>` : ''}
-    <div class="verify-sig">
-      ${signatureSrc ? `<div class="sig-frame"><img src="${signatureSrc}" class="sig-img" alt="توقيع Mr.Ahmed"></div>` : ''}
+    <div class="sig-box">
+      ${SIGN_B64 ? `<img src="${SIGN_B64}" class="sig-img" alt="توقيع Mr.Ahmed">` : ''}
       <div class="sig-label">توقيع المعلم / المراجع</div>
     </div>
   </div>
 
-  <!-- ── Footer ── -->
+  <!-- ══ FOOTER ══ -->
   <div class="doc-footer">
     <span>YouChem Educational Platform &mdash; منصة يوتشيم التعليمية</span>
-    <span>صدر بتاريخ ${escHtml(generatedDate)}</span>
+    <span>صدر بتاريخ ${esc(generatedDate)}</span>
   </div>
 
-</div>
+</div><!-- /.page -->
 </body>
 </html>`;
 }
