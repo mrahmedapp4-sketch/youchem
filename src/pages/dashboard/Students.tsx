@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldAlert, Ban, ShieldOff, Trash2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Ban, ShieldOff, Trash2, UserRoundX } from 'lucide-react';
 
 export function Students() {
   const [students, setStudents] = useState<any[]>([]);
@@ -48,6 +48,15 @@ export function Students() {
     } catch { alert('في مشكلة'); }
   };
 
+  const handleUnlinkDevice = async (userId: string, name: string) => {
+    if (!confirm(`تمسح ربط جهاز الطالب "${name}"؟ يقدر بعدها يدخل من أي جهاز.`)) return;
+    try {
+      const res = await fetch(`/api/youchem/students/${userId}/unlink-device`, { method: 'PATCH' });
+      if (res.ok) fetchData();
+      else alert('في مشكلة');
+    } catch { alert('في مشكلة'); }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
 
@@ -89,7 +98,7 @@ export function Students() {
                   <tr><td colSpan={5} className="p-10 text-center text-slate-400 text-sm">مفيش طلاب مسجلين لحد دلوقتي.</td></tr>
                 )}
                 {students.map((student: any) => {
-                  const accessForLesson = student.lessonAccesses?.find((a: any) => a.lessonId === selectedLessonId);
+                  const accessForLesson = student.accesses?.find((a: any) => a.lessonId === selectedLessonId);
                   const isExempt = accessForLesson?.quizExempt || false;
                   const isBlocked = student.blocked || false;
                   return (
@@ -132,11 +141,20 @@ export function Students() {
                             {isBlocked ? <ShieldOff className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
                           </button>
                           <button
-                            onClick={() => handleDeleteStudent(student.id, student.name)}
-                            title="امسح الحساب"
-                            className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors"
+                            onClick={() => handleUnlinkDevice(student.id, student.name)}
+                            title="امسح ربط الجهاز واسمح بالدخول من جهاز آخر"
+                            aria-label="امسح ربط الجهاز"
+                            className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStudent(student.id, student.name)}
+                            title="امسح الحساب"
+                            aria-label="امسح الحساب"
+                            className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors"
+                          >
+                            <UserRoundX className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

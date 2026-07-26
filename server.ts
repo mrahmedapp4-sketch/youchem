@@ -650,6 +650,25 @@ app.delete('/api/youchem/students/:userId', authenticateTeacher, async (req, res
   }
 });
 
+app.patch('/api/youchem/students/:userId/unlink-device', authenticateTeacher, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === userId && u.role === 'student');
+    if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
+
+    // Clear both the device binding and the active session. This lets the
+    // student sign in again from any device and invalidates the old cookie.
+    const updated = jsonDb.update('users', (u: DbUser) => u.id === userId, {
+      deviceId: null,
+      activeSessionToken: null,
+      sessionExpiresAt: null,
+    });
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.patch('/api/youchem/students/:userId/lessons/:lessonId/exempt', authenticateTeacher, async (req, res) => {
   try {
     const { userId, lessonId } = req.params;
@@ -1010,7 +1029,7 @@ app.post('/api/student/exam/unlock', authenticateStudent, requireCompleteStudent
 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
-    if (key.isUsed && key.usedBy !== studentId) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
+    if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم أو محروق من قبل' });
     // Enforce lesson-specific codes
     if (key.lessonId && key.lessonId !== lessonId) {
       return res.status(400).json({ error: 'هذا الكود خاص بحصة مختلفة' });
@@ -1061,7 +1080,7 @@ app.post('/api/student/exam/start', authenticateStudent, requireCompleteStudentP
 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
-    if (key.isUsed && key.usedBy !== studentId) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
+    if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم أو محروق من قبل' });
     if (!key.lessonId) return res.status(400).json({ error: 'هذا الكود غير مرتبط بامتحان — تواصل مع مستر أحمد' });
 
     const lessonId = key.lessonId;

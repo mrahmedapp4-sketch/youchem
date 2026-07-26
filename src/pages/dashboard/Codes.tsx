@@ -90,7 +90,12 @@ export function Codes() {
   };
 
   const handleExportTxt = () => {
-    const ws = XLSX.utils.aoa_to_sheet(codesList.map(c => [c.codeString]));
+    const usedCodes = codesList.filter(c => c.isUsed);
+    if (usedCodes.length === 0) {
+      alert('مفيش أكواد مستخدمة لتصديرها');
+      return;
+    }
+    const ws = XLSX.utils.aoa_to_sheet(usedCodes.map(c => [c.codeString]));
     ws['!cols'] = [{ wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Codes');
@@ -105,13 +110,13 @@ export function Codes() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">أكواد الوصول</h1>
           <p className="text-slate-500 text-sm mt-0.5">توليد وإدارة الأكواد للطلاب</p>
-          {codesList.length > 0 && (
+          {codesList.some(c => c.isUsed) && (
             <button
               onClick={handleExportTxt}
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors border border-indigo-200"
             >
               <FileDown className="w-3.5 h-3.5" />
-              تصدير كل الأكواد (.xlsx)
+              تصدير الأكواد المستخدمة (.xlsx)
             </button>
           )}
         </div>
