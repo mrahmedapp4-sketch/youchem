@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GraduationCap, ChevronLeft } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
@@ -22,12 +22,37 @@ const normalizeArabicDigits = (value: string): string =>
     .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
     .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
 
+type ProfileDraft = {
+  name: string;
+  phone: string;
+  guardianPhone: string;
+  school: string;
+  gradeLevel: string;
+};
+
+const getProfileDraftKey = (email: string) =>
+  `youchem_profile_draft_${encodeURIComponent(email.trim().toLowerCase())}`;
+
+const readProfileDraft = (email: string): Partial<ProfileDraft> => {
+  if (!email) return {};
+  try {
+    const saved = window.localStorage.getItem(getProfileDraftKey(email));
+    if (!saved) return {};
+    const parsed = JSON.parse(saved);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
 export function GradeSelection() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [needsProfile, setNeedsProfile] = useState(false);
   const [error, setError] = useState('');
+  const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Google profile info shown in the profile-completion form
   const [googleName, setGoogleName] = useState('');
@@ -44,14 +69,15 @@ export function GradeSelection() {
 
   const fillProfileFromUser = (user: any, googleFallbackName = '') => {
     const savedName = user?.name && user.name !== 'طالب' ? user.name : googleFallbackName;
+    const draft = readProfileDraft(user?.email || '');
     setGoogleName(savedName);
     setGoogleEmail(user?.email || '');
     setGooglePicture(user?.picture || '');
-    setName(savedName);
-    setPhone(user?.phone || '');
-    setGuardianPhone(user?.guardianPhone || '');
-    setSchool(user?.school || '');
-    setGradeLevel(user?.gradeLevel || '');
+    setName(draft.name ?? savedName);
+    setPhone(draft.phone ?? user?.phone ?? '');
+    setGuardianPhone(draft.guardianPhone ?? user?.guardianPhone ?? '');
+    setSchool(draft.school ?? user?.school ?? '');
+    setGradeLevel(draft.gradeLevel ?? user?.gradeLevel ?? '');
   };
 
   useEffect(() => {
@@ -79,6 +105,83 @@ export function GradeSelection() {
     };
     checkAuth();
   }, [navigate]);
+
+  const currentDraft = (): ProfileDraft => ({
+    name,
+    phone,
+    guardianPhone,
+    school,
+    gradeLevel,
+  });
+
+  const saveDraft = (draft: ProfileDraft, keepalive = false) => {
+    if (!googleEmail) return;
+    try {
+      window.localStorage.setItem(
+        getProfileDraftKey(googleEmail),
+        JSON.stringify(draft),
+      );
+    } catch {
+      // The server copy is still attempted if local storage is unavailable.
+    }
+
+    fetch('/api/student/profile-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(draft),
+      keepalive,
+    }).catch(() => {
+      // The local copy allows the student to resume if the request is cut off.
+    });
+  };
+
+  // Persist as the student types, so closing the tab never discards the form.
+  useEffect(() => {
+    if (!needsProfile || !googleEmail) return;
+    const draft = currentDraft();
+    try {
+      window.localStorage.setItem(
+        getProfileDraftKey(googleEmail),
+        JSON.stringify(draft),
+      );
+    } catch {
+      // Continue with the server save.
+    }
+
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    setSavingDraft(true);
+    draftSaveTimer.current = setTimeout(() => {
+      fetch('/api/student/profile-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      })
+        .then((res) => {
+          if (res.ok) setSavingDraft(false);
+        })
+        .catch(() => setSavingDraft(false));
+  }, 700);
+
+    return () => {
+      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    };
+  }, [needsProfile, googleEmail, name, phone, guardianPhone, school, gradeLevel]);
+
+  // A final keepalive request covers the short window between the last keystroke
+  // and the debounced save when the browser hides or closes the tab.
+  useEffect(() => {
+    if (!needsProfile || !googleEmail) return;
+    const saveBeforeLeaving = () => saveDraft(currentDraft(), true);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') saveBeforeLeaving();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', saveBeforeLeaving);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', saveBeforeLeaving);
+    };
+  }, [needsProfile, googleEmail, name, phone, guardianPhone, school, gradeLevel]);
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -167,6 +270,9 @@ export function GradeSelection() {
         }),
       });
       if (res.ok) {
+        try {
+          window.localStorage.removeItem(getProfileDraftKey(googleEmail));
+        } catch {}
         navigate('/student-dashboard');
       } else {
         const data = await res.json();
@@ -328,6 +434,9 @@ export function GradeSelection() {
             >
               {savingProfile ? 'بيتحفظ في ملفك...' : 'احفظ البيانات وادخل'}
             </button>
+            <p className="text-center text-xs text-slate-400" aria-live="polite">
+              {savingDraft ? 'بيحفظ البيانات تلقائيًا...' : 'بياناتك محفوظة تلقائيًا أثناء الكتابة'}
+            </p>
           </form>
         )}
       </div>

@@ -53,3 +53,7 @@ An Arabic-language education platform ("منصة يوتشيم") for secondary-sc
 
 ## User preferences
 - Communicate in Arabic when the user writes in Arabic.
+
+## Notes on profile draft saving (July 26, 2026)
+- Student profile fields are saved automatically while the completion form is being filled. The browser keeps a local draft and the server stores incomplete values through `POST /api/student/profile-draft`, so closing a tab no longer discards entered data.
+- The form also sends a final `keepalive` request when the document becomes hidden or the tab is closed, then removes the local draft after the profile is completed successfully.

@@ -783,6 +783,45 @@ app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
   res.json({ success: true, user, needsProfile, missingFields, profileErrors });
 });
 
+// Save incomplete profile fields as the student types. This intentionally
+// does not run full profile validation: the student may close the tab before
+// all required fields are complete and should be able to resume later.
+app.post('/api/student/profile-draft', authenticateStudent, async (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const updates: Partial<DbUser> = {};
+
+    if (typeof body.name === 'string') updates.name = body.name.trim();
+    if (typeof body.phone === 'string') {
+      updates.phone = normalizeArabicDigits(body.phone.trim());
+    }
+    if (typeof body.guardianPhone === 'string') {
+      updates.guardianPhone = normalizeArabicDigits(body.guardianPhone.trim());
+    }
+    if (typeof body.school === 'string') updates.school = body.school.trim();
+    if (body.gradeLevel === '2nd_sec' || body.gradeLevel === '3rd_sec') {
+      updates.gradeLevel = body.gradeLevel;
+    } else if (body.gradeLevel === '' || body.gradeLevel === null) {
+      updates.gradeLevel = null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'لا توجد بيانات للحفظ' });
+    }
+
+    const updated = jsonDb.update(
+      'users',
+      (u: DbUser) => u.id === studentId,
+      updates,
+    );
+    if (!updated) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    res.json({ success: true, user: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/student/complete-profile', authenticateStudent, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
