@@ -301,7 +301,7 @@ export function GradeSelection() {
           <div className="w-full mx-auto mb-4">
             <img
               src="/logo.png"
-              alt="YouChem Logo"
+              alt="يوكيم"
               className="w-full object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
@@ -314,7 +314,7 @@ export function GradeSelection() {
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1">
             أهلاً بيك في{' '}
-            <span className="neon-text">YouChem</span>{' '}
+            <span className="neon-text">يوكيم</span>{' '}
             Platform
           </h1>
           <p className="text-xs font-semibold text-slate-400 mb-1">by Mr.ahmed</p>

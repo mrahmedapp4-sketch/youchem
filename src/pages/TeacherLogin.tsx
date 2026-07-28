@@ -34,7 +34,7 @@ export function TeacherLogin() {
         <div className="mx-auto mb-6 flex items-center justify-center">
           <img
             src="/logo.png"
-            alt="YouChem Logo"
+            alt="يوكيم"
             className="h-20 w-auto object-contain"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -45,7 +45,7 @@ export function TeacherLogin() {
         </div>
 
         <h1 className="text-xl font-bold text-center mb-1 text-slate-900">لوحة تحكم مستر أحمد 🔐</h1>
-        <p className="text-sm text-center text-slate-500 mb-6">YouChem Platform</p>
+        <p className="text-sm text-center text-slate-500 mb-6">منصة يوكيم</p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-sm text-center">

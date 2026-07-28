@@ -215,7 +215,7 @@ export function ExamPage() {
           <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
-                src="/logo.png" alt="YouChem"
+                src="/logo.png" alt="يوكيم"
                 className="h-7 object-contain"
                 onError={e => (e.target as HTMLImageElement).style.display = 'none'}
               />
@@ -284,7 +284,7 @@ export function ExamPage() {
         {/* Logo */}
         <div className="text-center mb-6">
           <img
-            src="/logo.png" alt="YouChem"
+            src="/logo.png" alt="يوكيم"
             className="h-14 object-contain mx-auto mb-4"
             onError={e => {
               (e.target as HTMLImageElement).style.display = 'none';

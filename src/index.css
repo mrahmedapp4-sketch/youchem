@@ -22,14 +22,72 @@
 }
 
 :root {
-  --primary:    #4f46e5;   /* Indigo 600 */
-  --primary-hover: #4338ca; /* Indigo 700 */
-  --bg-main:   #f8fafc;   /* Slate 50 */
-  --bg-card:   #ffffff;
-  --text-main: #0f172a;   /* Slate 900 */
-  --text-muted:#64748b;   /* Slate 500 */
-  --border:    #e2e8f0;   /* Slate 200 */
+  --primary:        #4f46e5;
+  --primary-hover:  #4338ca;
+  --bg-main:        #f8fafc;
+  --bg-card:        #ffffff;
+  --text-main:      #0f172a;
+  --text-muted:     #64748b;
+  --border:         #e2e8f0;
 }
+
+/* ── Dark mode ── */
+.dark {
+  --primary:        #818cf8;
+  --primary-hover:  #6366f1;
+  --bg-main:        #0f172a;
+  --bg-card:        #1e293b;
+  --text-main:      #f1f5f9;
+  --text-muted:     #94a3b8;
+  --border:         #334155;
+}
+.dark body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+}
+/* Text overrides */
+.dark .text-slate-900 { color: #f1f5f9 !important; }
+.dark .text-slate-800 { color: #e2e8f0 !important; }
+.dark .text-slate-700 { color: #cbd5e1 !important; }
+.dark .text-slate-600 { color: #94a3b8 !important; }
+.dark .text-slate-500 { color: #94a3b8 !important; }
+.dark .text-slate-400 { color: #64748b !important; }
+/* Background overrides */
+.dark .bg-white        { background-color: #1e293b !important; }
+.dark .bg-slate-50     { background-color: #0f172a !important; }
+.dark .bg-slate-100    { background-color: #1e293b !important; }
+.dark .bg-slate-200    { background-color: #334155 !important; }
+/* Border overrides */
+.dark .border-slate-100 { border-color: #334155 !important; }
+.dark .border-slate-200 { border-color: #334155 !important; }
+.dark .border-slate-300 { border-color: #475569 !important; }
+/* Divide */
+.dark .divide-slate-100 > * + * { border-color: #334155 !important; }
+/* Hover overrides */
+.dark .hover\:bg-slate-50:hover  { background-color: #1e293b !important; }
+.dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
+/* Video thumbnail bg */
+.dark .aspect-video.bg-slate-100 { background-color: #0f172a !important; }
+/* Indigo tones */
+.dark .bg-indigo-50   { background-color: #1e1b4b !important; }
+.dark .border-indigo-100 { border-color: #312e81 !important; }
+.dark .text-indigo-700 { color: #a5b4fc !important; }
+/* Emerald tones */
+.dark .bg-emerald-50  { background-color: #022c22 !important; }
+.dark .text-emerald-600 { color: #34d399 !important; }
+.dark .text-emerald-700 { color: #34d399 !important; }
+/* Red tones */
+.dark .bg-red-50    { background-color: #450a0a !important; }
+.dark .text-red-600 { color: #fca5a5 !important; }
+/* Amber */
+.dark .bg-amber-50  { background-color: #451a03 !important; }
+.dark .text-amber-700 { color: #fcd34d !important; }
+/* Input dark */
+.dark .neon-input { background: #0f172a; color: #f1f5f9; border-color: #334155; }
+.dark .neon-input::placeholder { color: #475569; }
+.dark .neon-input option { background: #1e293b; color: #f1f5f9; }
+/* Thead */
+.dark thead.bg-slate-50 { background-color: #0f172a !important; }
 
 body {
   font-family: var(--font-sans);

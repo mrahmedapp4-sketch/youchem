@@ -2027,6 +2027,42 @@ app.get('/api/youchem/grades/homework', authenticateTeacher, async (req, res) =>
   }
 });
 
+// ── Student: public leaderboard (quiz scores only, no PII) ───────────────────
+app.get('/api/student/leaderboard', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
+  try {
+    // Only non-blocked students. Deleted students are already gone from the DB.
+    const students = jsonDb.filter('users', (u: DbUser) => u.role === 'student' && !u.blocked);
+    const allAccesses = jsonDb.getAll('studentLessonAccess') as DbStudentLessonAccess[];
+
+    const ranked = students
+      .map((s: DbUser) => {
+        const accesses = allAccesses.filter(
+          (a: DbStudentLessonAccess) => a.userId === s.id && typeof a.quizScore === 'number' && typeof a.quizTotal === 'number' && (a.quizTotal ?? 0) > 0,
+        );
+        const totalScore    = accesses.reduce((sum: number, a: DbStudentLessonAccess) => sum + (a.quizScore ?? 0), 0);
+        const totalPossible = accesses.reduce((sum: number, a: DbStudentLessonAccess) => sum + (a.quizTotal ?? 0), 0);
+        const percentage    = totalPossible > 0 ? Math.round((totalScore / totalPossible) * 100) : 0;
+        return {
+          id: s.id,
+          name: s.name,
+          picture: s.picture || null,
+          gradeLevel: s.gradeLevel,
+          totalScore,
+          totalPossible,
+          percentage,
+          quizzesCount: accesses.length,
+        };
+      })
+      // Only show students who have attempted at least one quiz
+      .filter((s: any) => s.quizzesCount > 0)
+      .sort((a: any, b: any) => b.percentage - a.percentage || b.totalScore - a.totalScore);
+
+    res.json(ranked);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Teacher: quiz grades matrix ───────────────────────────────────────────────
 app.get('/api/youchem/grades/quiz', authenticateTeacher, async (req, res) => {
   try {

@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Key, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut, FolderOpen, Settings } from 'lucide-react';
+import { Key, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut, FolderOpen, Settings, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 const navItems = [
   { path: '/youchem/upload', label: 'إدارة الفيديوهات', icon: Upload },
@@ -17,6 +18,7 @@ export function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     setIsSidebarOpen(false);
@@ -51,7 +53,7 @@ export function DashboardLayout() {
               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
             }}
           />
-          <span className="text-lg font-bold text-slate-900 tracking-tight hidden">YouChem</span>
+          <span className="text-lg font-bold text-slate-900 tracking-tight hidden">يوكيم</span>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg shrink-0">
             <X className="w-5 h-5" />
           </button>
@@ -102,6 +104,13 @@ export function DashboardLayout() {
           <div className="flex-1" />
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-700 font-bold text-sm border border-indigo-100">
               م
             </div>

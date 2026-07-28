@@ -1,9 +1,10 @@
 import { useState, useEffect, FormEvent } from 'react';
 import {
   Video, CheckCircle, Lock, PlayCircle, FileText, ClipboardList,
-  Key, X, XCircle, Maximize2,
+  Key, X, XCircle, Maximize2, Sun, Moon, Trophy, Medal, Award,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 const ANSWER_LABELS: Record<string, string> = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
@@ -15,10 +16,11 @@ interface Result {
 }
 
 type ModalStep = 'code' | 'exam' | 'results' | 'access';
-type Section = 'lessons' | 'homework';
+type Section = 'lessons' | 'homework' | 'leaderboard';
 
 export function StudentDashboard() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [section, setSection] = useState<Section>('lessons');
   const [lessons, setLessons] = useState<any[]>([]);
   const [accesses, setAccesses] = useState<any[]>([]);
@@ -26,6 +28,9 @@ export function StudentDashboard() {
 
   const [homeworks, setHomeworks] = useState<any[]>([]);
   const [homeworksLoading, setHomeworksLoading] = useState(true);
+
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
   /* ── Modal / flow state ── */
   const [modalLesson, setModalLesson] = useState<any>(null);
@@ -90,6 +95,19 @@ export function StudentDashboard() {
       if (r.ok) { const d = await r.json(); setAccesses(d.accesses); }
     } catch { /* ignore */ }
   };
+
+  const fetchLeaderboard = async () => {
+    setLeaderboardLoading(true);
+    try {
+      const r = await fetch('/api/student/leaderboard');
+      if (r.ok) setLeaderboard(await r.json());
+    } catch { /* ignore */ }
+    setLeaderboardLoading(false);
+  };
+
+  useEffect(() => {
+    if (section === 'leaderboard' && leaderboard.length === 0) fetchLeaderboard();
+  }, [section]);
 
   /* ── Modal helpers ── */
   const openModal = (lesson: any) => {
@@ -171,17 +189,24 @@ export function StudentDashboard() {
 
       {/* ── Top bar ── */}
       <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
             <img
-              src="/logo.png" alt="YouChem"
+              src="/logo.png" alt="يوكيم"
               className="h-9 sm:h-12 w-auto object-contain"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
             <span className="font-bold text-slate-900">
-              <span className="neon-text">YouChem</span> Platform
+              <span className="neon-text">يوكيم</span>
             </span>
           </div>
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
         </div>
       </header>
 
@@ -194,13 +219,14 @@ export function StudentDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 sm:mb-8 border-b border-slate-200 pb-px">
+        <div className="flex gap-1 mb-6 sm:mb-8 border-b border-slate-200 pb-px overflow-x-auto">
           {([
-            { id: 'lessons',  label: 'الحصص',    Icon: Video },
-            { id: 'homework', label: 'واجباتي',  Icon: ClipboardList },
+            { id: 'lessons',     label: 'الحصص',       Icon: Video },
+            { id: 'homework',    label: 'واجباتي',     Icon: ClipboardList },
+            { id: 'leaderboard', label: 'المتفوقون',   Icon: Trophy },
           ] as const).map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setSection(id)}
-              className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-colors border-b-2 -mb-px ${
+              className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-colors border-b-2 -mb-px whitespace-nowrap ${
                 section === id
                   ? 'text-indigo-700 border-indigo-600'
                   : 'text-slate-500 border-transparent hover:text-slate-800'
@@ -306,6 +332,62 @@ export function StudentDashboard() {
             )}
           </div>
         ))}
+
+        {/* ── Leaderboard ── */}
+        {section === 'leaderboard' && (leaderboardLoading ? (
+          <div className="text-center p-12 text-slate-400">بيتحمل الترتيب...</div>
+        ) : (
+          <div className="max-w-2xl mx-auto">
+            <div className="neon-card rounded-2xl overflow-hidden">
+              {leaderboard.length === 0 ? (
+                <div className="p-12 text-center text-slate-400">مفيش نتائج لحد دلوقتي.</div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {leaderboard.map((entry: any, i: number) => {
+                    const rank = i + 1;
+                    const medals = [
+                      <Trophy key="1" className="w-5 h-5 text-yellow-400" />,
+                      <Medal  key="2" className="w-5 h-5 text-slate-400" />,
+                      <Award  key="3" className="w-5 h-5 text-amber-600" />,
+                    ];
+                    const bgClass = rank === 1
+                      ? 'bg-yellow-50'
+                      : rank === 2
+                        ? 'bg-slate-50'
+                        : rank === 3
+                          ? 'bg-amber-50'
+                          : '';
+                    return (
+                      <div key={entry.id} className={`flex items-center gap-4 px-5 py-4 ${bgClass}`}>
+                        <div className="w-8 shrink-0 flex items-center justify-center">
+                          {rank <= 3
+                            ? medals[rank - 1]
+                            : <span className="text-sm font-bold text-slate-400">{rank}</span>}
+                        </div>
+                        <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                          {entry.picture
+                            ? <img src={entry.picture} referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover" />
+                            : <span className="text-sm font-bold text-indigo-700">{(entry.name || '؟')[0]}</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-900 truncate text-sm">{entry.name}</p>
+                          <p className="text-xs text-slate-400">
+                            {entry.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : entry.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : ''}
+                          </p>
+                        </div>
+                        <div className="text-left shrink-0">
+                          <p className="font-bold text-indigo-700 text-sm">{entry.percentage}%</p>
+                          <p className="text-xs text-slate-400">{entry.totalScore}/{entry.totalPossible} درجة</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
       </main>
 
       {/* ════════════════════════════════════════════════════
