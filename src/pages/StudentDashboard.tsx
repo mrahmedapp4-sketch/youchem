@@ -190,23 +190,39 @@ export function StudentDashboard() {
       {/* ── Top bar ── */}
       <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Logo + quick-action buttons */}
+          <div className="flex items-center gap-2">
             <img
               src="/logo.png" alt="يوكيم"
-              className="h-9 sm:h-12 w-auto object-contain"
+              className="h-9 sm:h-10 w-auto object-contain"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
-            <span className="font-bold text-slate-900">
+            <span className="font-bold text-slate-900 hidden sm:inline">
               <span className="neon-text">يوكيم</span>
             </span>
+            {/* Dark-mode toggle — right next to logo */}
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            {/* Leaderboard shortcut — next to dark-mode toggle */}
+            <button
+              onClick={() => setSection('leaderboard')}
+              title="المتفوقون"
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors border ${
+                section === 'leaderboard'
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                  : 'text-slate-500 hover:bg-slate-100 border-slate-200'
+              }`}
+            >
+              <Trophy className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          {/* Spacer — right side intentionally empty */}
+          <div />
         </div>
       </header>
 
