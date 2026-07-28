@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ChevronLeft } from 'lucide-react';
+import { GraduationCap, ChevronLeft, Languages } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
-
-const CONTACT_TEACHER_MSG =
-  'يبدو في مشكلة، كلم مستر أحمد علشان نحلها';
+import { useLang } from '../context/LanguageContext';
+import { tr } from '../lib/translations';
 
 const PHONE_PATTERN = /^01\d{9}$/;
 
@@ -46,6 +45,7 @@ const readProfileDraft = (email: string): Partial<ProfileDraft> => {
 };
 
 export function GradeSelection() {
+  const { lang, toggleLang } = useLang();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -210,9 +210,9 @@ export function GradeSelection() {
           data.error === 'DEVICE_MISMATCH' ||
           data.error === 'SESSION_CONFLICT'
         ) {
-          setError(CONTACT_TEACHER_MSG);
+          setError(tr('contactTeacher', lang));
         } else {
-          setError(data.error || 'فشل تسجيل الدخول بجوجل');
+          setError(data.error || tr('errGoogleFail', lang));
         }
       }
     } catch (err) {
@@ -220,8 +220,8 @@ export function GradeSelection() {
       const code = (err as { code?: string })?.code;
       setError(
         code
-          ? `في مشكلة في تسجيل الدخول بجوجل (${code})`
-          : 'في مشكلة في تسجيل الدخول بجوجل',
+          ? `${tr('errGoogleGeneric', lang)} (${code})`
+          : tr('errGoogleGeneric', lang),
       );
     }
     setSigningIn(false);
@@ -237,23 +237,23 @@ export function GradeSelection() {
 
     const letterCount = Array.from(trimmedName).filter((character) => /\p{L}/u.test(String(character))).length;
     if (letterCount < 8 || trimmedName === 'طالب') {
-      setError('الاسم لازم يكون 8 حروف على الأقل');
+      setError(tr('errNameShort', lang));
       return;
     }
     if (!PHONE_PATTERN.test(trimmedPhone)) {
-      setError('رقم الطالب لازم يبدأ بـ 01 ويكون 11 رقم');
+      setError(tr('errPhone', lang));
       return;
     }
     if (!PHONE_PATTERN.test(trimmedGuardianPhone)) {
-      setError('رقم ولي الأمر لازم يبدأ بـ 01 ويكون 11 رقم');
+      setError(tr('errGuardian', lang));
       return;
     }
     if (!trimmedSchool) {
-      setError('اكتب اسم المدرسة');
+      setError(tr('errSchool', lang));
       return;
     }
     if (gradeLevel !== '2nd_sec' && gradeLevel !== '3rd_sec') {
-      setError('اختار الصف الدراسي');
+      setError(tr('errGrade', lang));
       return;
     }
     setSavingProfile(true);
@@ -276,10 +276,10 @@ export function GradeSelection() {
         navigate('/student-dashboard');
       } else {
         const data = await res.json();
-        setError(data.error || 'في مشكلة');
+        setError(data.error || tr('errGeneric', lang));
       }
     } catch (err) {
-      setError('في مشكلة');
+      setError(tr('errGeneric', lang));
     }
     setSavingProfile(false);
   };
@@ -287,14 +287,25 @@ export function GradeSelection() {
   if (checkingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center text-slate-500">
-        بيتحقق...
+        {tr('checkingAuth', lang)}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center p-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="neon-card p-8 rounded-2xl max-w-md w-full">
+
+        {/* Lang toggle */}
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={toggleLang}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors border border-slate-200 rounded-lg px-2.5 py-1.5"
+          >
+            <Languages className="w-3.5 h-3.5" />
+            {lang === 'ar' ? 'EN' : 'عربي'}
+          </button>
+        </div>
 
         {/* Logo + heading */}
         <div className="text-center mb-8">
@@ -313,12 +324,12 @@ export function GradeSelection() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1">
-            أهلاً بيك في{' '}
+            {tr('welcomeTo', lang)}{' '}
             <span className="neon-text">youchem platform</span>
           </h1>
-          <p className="text-xs font-semibold text-slate-400 mb-1">by Mr.ahmed</p>
+          <p className="text-xs font-semibold text-slate-400 mb-1">{tr('byMrAhmed', lang)}</p>
           <p className="text-sm text-slate-500">
-            {needsProfile ? 'صفحة استكمال بيانات الطالب' : 'سجّل دخولك بجوجل علشان تبدأ'}
+            {needsProfile ? tr('completeProfile', lang) : tr('loginSubtitle', lang)}
           </p>
         </div>
 
@@ -340,7 +351,7 @@ export function GradeSelection() {
               <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
               <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.084 5.571l6.19 5.238C41.396 35.606 44 30.24 44 24c0-1.341-.138-2.65-.389-3.917z" />
             </svg>
-            {signingIn ? 'بيسجل دخولك...' : 'ادخل بحساب جوجل'}
+            {signingIn ? tr('signingIn', lang) : tr('signInWithGoogle', lang)}
           </button>
         ) : (
           <form onSubmit={handleCompleteProfile} className="space-y-4">
@@ -349,11 +360,11 @@ export function GradeSelection() {
               className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-bold text-center leading-relaxed"
               role="alert"
             >
-              تنبيه مهم: لازم تكتب بياناتك الحقيقية والصحيحة. أي بيانات غير صالحة تؤدي إلى غلق الحساب وحظر الجهاز.
+              {tr('warningReal', lang)}
             </div>
 
             <div className="bg-indigo-50 border border-indigo-100 text-indigo-800 rounded-xl p-3 text-sm text-center leading-relaxed">
-              املأ كل البيانات المطلوبة؛ بعد الحفظ هتتسجل مباشرةً في ملف الطالب، ومش هتقدر تدخل المنصة قبل اكتمالها.
+              {tr('fillAll', lang)}
             </div>
 
             {/* Google account info banner */}
@@ -362,7 +373,7 @@ export function GradeSelection() {
                 {googlePicture && (
                   <img
                     src={googlePicture}
-                    alt="صورة حساب جوجل"
+                    alt={tr('googleProfilePic', lang)}
                     referrerPolicy="no-referrer"
                     className="w-10 h-10 rounded-full border-2 border-indigo-200 shrink-0"
                   />
@@ -379,10 +390,10 @@ export function GradeSelection() {
             )}
 
             {[
-              { label: 'اسمك بالكامل (8 حروف على الأقل)', state: name, setter: setName, type: 'text', placeholder: 'اكتب اسمك بالكامل', dir: 'rtl', minLength: 8 },
-              { label: 'رقم الطالب (11 رقم ويبدأ بـ 01)', state: phone, setter: setPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr', inputMode: 'numeric', pattern: '01[0-9]{9}', maxLength: 11 },
-              { label: 'رقم ولي الأمر (11 رقم ويبدأ بـ 01)', state: guardianPhone, setter: setGuardianPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr', inputMode: 'numeric', pattern: '01[0-9]{9}', maxLength: 11 },
-              { label: 'مدرستك', state: school, setter: setSchool, type: 'text', placeholder: '', dir: 'rtl' },
+              { label: tr('labelName', lang), state: name, setter: setName, type: 'text', placeholder: tr('placeholderName', lang), dir: 'rtl', minLength: 8 },
+              { label: tr('labelPhone', lang), state: phone, setter: setPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr', inputMode: 'numeric', pattern: '01[0-9]{9}', maxLength: 11 },
+              { label: tr('labelGuardian', lang), state: guardianPhone, setter: setGuardianPhone, type: 'tel', placeholder: '01xxxxxxxxx', dir: 'ltr', inputMode: 'numeric', pattern: '01[0-9]{9}', maxLength: 11 },
+              { label: tr('labelSchool', lang), state: school, setter: setSchool, type: 'text', placeholder: tr('placeholderSchool', lang), dir: 'rtl' },
             ].map(({ label, state, setter, type, placeholder, dir, minLength, inputMode, pattern, maxLength }) => (
               <div key={label}>
                 <label className="block text-sm font-semibold mb-1.5 text-slate-700">{label}</label>
@@ -403,11 +414,11 @@ export function GradeSelection() {
             ))}
 
             <div>
-              <label className="block text-sm font-semibold mb-1.5 text-slate-700">انت في أنهي صف؟</label>
+              <label className="block text-sm font-semibold mb-1.5 text-slate-700">{tr('labelGrade', lang)}</label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { value: '2nd_sec', label: 'تاني ثانوي' },
-                  { value: '3rd_sec', label: 'تالت ثانوي' },
+                  { value: '2nd_sec', label: tr('grade2', lang) },
+                  { value: '3rd_sec', label: tr('grade3', lang) },
                 ].map(({ value, label }) => (
                   <button
                     key={value}
@@ -431,10 +442,10 @@ export function GradeSelection() {
               disabled={savingProfile}
               className="neon-btn w-full font-bold py-3 rounded-xl disabled:opacity-50 mt-2"
             >
-              {savingProfile ? 'بيتحفظ في ملفك...' : 'احفظ البيانات وادخل'}
+              {savingProfile ? tr('savingProfile', lang) : tr('saveProfile', lang)}
             </button>
             <p className="text-center text-xs text-slate-400" aria-live="polite">
-              {savingDraft ? 'بيحفظ البيانات تلقائيًا...' : 'بياناتك محفوظة تلقائيًا أثناء الكتابة'}
+              {savingDraft ? tr('savingDraft', lang) : tr('draftSaved', lang)}
             </p>
           </form>
         )}

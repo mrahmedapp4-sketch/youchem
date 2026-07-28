@@ -1,10 +1,12 @@
 import { useState, useEffect, FormEvent } from 'react';
 import {
   Video, CheckCircle, Lock, PlayCircle, FileText, ClipboardList,
-  Key, X, XCircle, Maximize2, Sun, Moon, Trophy, Medal, Award,
+  Key, X, XCircle, Maximize2, Sun, Moon, Trophy, Medal, Award, Languages,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useLang } from '../context/LanguageContext';
+import { tr } from '../lib/translations';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 const ANSWER_LABELS: Record<string, string> = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
@@ -21,6 +23,7 @@ type Section = 'lessons' | 'homework' | 'leaderboard';
 export function StudentDashboard() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { lang, toggleLang } = useLang();
   const [section, setSection] = useState<Section>('lessons');
   const [lessons, setLessons] = useState<any[]>([]);
   const [accesses, setAccesses] = useState<any[]>([]);
@@ -132,7 +135,7 @@ export function StudentDashboard() {
         body: JSON.stringify({ code: code.trim().toUpperCase(), lessonId: modalLesson.id }),
       });
       const data = await res.json();
-      if (!res.ok) { setCodeError(data.error || 'في مشكلة'); setUnlocking(false); return; }
+      if (!res.ok) { setCodeError(data.error || tr('errGeneric', lang)); setUnlocking(false); return; }
 
       if (data.quizExists) {
         setQuestions(data.questions);
@@ -143,7 +146,7 @@ export function StudentDashboard() {
         setModalStep('access');
       }
     } catch {
-      setCodeError('في مشكلة، اتأكد من النت');
+      setCodeError(tr('errGenericNet', lang));
     }
     setUnlocking(false);
   };
@@ -171,10 +174,10 @@ export function StudentDashboard() {
         setModalStep('results');
         if (data.score >= Math.ceil(data.total / 2)) await refreshAccesses();
       } else {
-        alert(data.error || 'في مشكلة');
+        alert(data.error || tr('errGeneric', lang));
       }
     } catch {
-      alert('في مشكلة، اتأكد من النت');
+      alert(tr('errGenericNet', lang));
     }
     setSubmitting(false);
   };
@@ -185,7 +188,7 @@ export function StudentDashboard() {
   /* ════════════════════════════════════════════════════ */
 
   return (
-    <div className="min-h-screen" dir="rtl">
+    <div className="min-h-screen" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
 
       {/* ── Top bar ── */}
       <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
@@ -193,25 +196,25 @@ export function StudentDashboard() {
           {/* Logo + quick-action buttons */}
           <div className="flex items-center gap-2">
             <img
-              src="/logo.png" alt="يوكيم"
+              src="/logo.png" alt={tr('logoAlt', lang)}
               className="h-9 sm:h-10 w-auto object-contain"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
             <span className="font-bold text-slate-900 hidden sm:inline">
-              <span className="neon-text">يوكيم</span>
+              <span className="neon-text">youchem platform</span>
             </span>
-            {/* Dark-mode toggle — right next to logo */}
+            {/* Dark-mode toggle */}
             <button
               onClick={toggleTheme}
-              title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+              title={theme === 'dark' ? tr('dayMode', lang) : tr('nightMode', lang)}
               className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            {/* Leaderboard shortcut — next to dark-mode toggle */}
+            {/* Leaderboard shortcut */}
             <button
               onClick={() => setSection('leaderboard')}
-              title="student leaderboard"
+              title={tr('leaderboardTitle', lang)}
               className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors border ${
                 section === 'leaderboard'
                   ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
@@ -219,6 +222,15 @@ export function StudentDashboard() {
               }`}
             >
               <Trophy className="w-4 h-4" />
+            </button>
+            {/* Language toggle */}
+            <button
+              onClick={toggleLang}
+              title={lang === 'ar' ? 'Switch to English' : 'التبديل للعربية'}
+              className="flex items-center gap-1 w-auto px-2 h-8 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
+            >
+              <Languages className="w-3.5 h-3.5" />
+              {lang === 'ar' ? 'EN' : 'عربي'}
             </button>
           </div>
           {/* Spacer — right side intentionally empty */}
@@ -230,16 +242,16 @@ export function StudentDashboard() {
 
         {/* Welcome */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">أهلاً بيك 👋</h2>
-          <p className="text-slate-500 mt-1 text-sm sm:text-base">كمّل رحلتك في التعليم.</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{tr('welcomeHeading', lang)}</h2>
+          <p className="text-slate-500 mt-1 text-sm sm:text-base">{tr('welcomeSub', lang)}</p>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 sm:mb-8 border-b border-slate-200 pb-px overflow-x-auto">
           {([
-            { id: 'lessons',     label: 'الحصص',       Icon: Video },
-            { id: 'homework',    label: 'واجباتي',     Icon: ClipboardList },
-            { id: 'leaderboard', label: 'student leaderboard',   Icon: Trophy },
+            { id: 'lessons',     label: tr('tabLessons', lang),     Icon: Video },
+            { id: 'homework',    label: tr('tabHomework', lang),    Icon: ClipboardList },
+            { id: 'leaderboard', label: tr('tabLeaderboard', lang), Icon: Trophy },
           ] as const).map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setSection(id)}
               className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-colors border-b-2 -mb-px whitespace-nowrap ${
@@ -255,7 +267,7 @@ export function StudentDashboard() {
 
         {/* ── Lessons Grid ── */}
         {section === 'lessons' && (loading ? (
-          <div className="text-center p-12 text-slate-400">بيتحمل...</div>
+          <div className="text-center p-12 text-slate-400">{tr('loading', lang)}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {lessons.map((lesson) => {
@@ -283,7 +295,7 @@ export function StudentDashboard() {
                     </h3>
                     <div className="mt-auto flex items-center justify-between pt-3 border-t border-slate-100">
                       <span className={`text-xs font-semibold ${isUnlocked ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        {isUnlocked ? '✓ الحصة متاحة' : 'مقفول — محتاج كود'}
+                        {isUnlocked ? tr('lessonUnlocked', lang) : tr('lessonLocked', lang)}
                       </span>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isUnlocked ? 'bg-indigo-50' : 'bg-slate-100'}`}>
                         {isUnlocked
@@ -308,7 +320,7 @@ export function StudentDashboard() {
 
             {lessons.length === 0 && (
               <div className="col-span-full p-12 text-center text-slate-400 neon-card rounded-2xl">
-                مفيش حصص متاحة في صفك دلوقتي.
+                {tr('noLessons', lang)}
               </div>
             )}
           </div>
@@ -316,7 +328,7 @@ export function StudentDashboard() {
 
         {/* ── Homework Grid ── */}
         {section === 'homework' && (homeworksLoading ? (
-          <div className="text-center p-12 text-slate-400">بيتحمل...</div>
+          <div className="text-center p-12 text-slate-400">{tr('loading', lang)}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {homeworks.map((hw) => (
@@ -330,20 +342,20 @@ export function StudentDashboard() {
                 <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100">
                   {hw.submission ? (
                     <span className="text-sm font-bold text-emerald-600">
-                      ✓ درجتك: {hw.submission.score} / {hw.submission.total}
+                      {tr('yourScore', lang)} {hw.submission.score} / {hw.submission.total}
                     </span>
                   ) : (
-                    <span className="text-sm text-slate-400">ما جاوبتش لسه</span>
+                    <span className="text-sm text-slate-400">{tr('notAnswered', lang)}</span>
                   )}
                   <Link to={`/homework/${hw.id}`} className="neon-btn px-4 py-2 rounded-lg text-sm font-bold">
-                    {hw.submission ? 'شوف' : 'حل الواجب'}
+                    {hw.submission ? tr('viewHw', lang) : tr('solveHw', lang)}
                   </Link>
                 </div>
               </div>
             ))}
             {homeworks.length === 0 && (
               <div className="col-span-full p-12 text-center text-slate-400 neon-card rounded-2xl">
-                مفيش واجبات متاحة دلوقتي.
+                {tr('noHomework', lang)}
               </div>
             )}
           </div>
@@ -351,12 +363,12 @@ export function StudentDashboard() {
 
         {/* ── Leaderboard ── */}
         {section === 'leaderboard' && (leaderboardLoading ? (
-          <div className="text-center p-12 text-slate-400">بيتحمل الترتيب...</div>
+          <div className="text-center p-12 text-slate-400">{tr('loadingLeaderboard', lang)}</div>
         ) : (
           <div className="max-w-2xl mx-auto">
             <div className="neon-card rounded-2xl overflow-hidden">
               {leaderboard.length === 0 ? (
-                <div className="p-12 text-center text-slate-400">مفيش نتائج لحد دلوقتي.</div>
+                <div className="p-12 text-center text-slate-400">{tr('noResults', lang)}</div>
               ) : (
                 <div className="divide-y divide-slate-100">
                   {leaderboard.map((entry: any, i: number) => {
@@ -388,12 +400,12 @@ export function StudentDashboard() {
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-slate-900 truncate text-sm">{entry.name}</p>
                           <p className="text-xs text-slate-400">
-                            {entry.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : entry.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : ''}
+                            {entry.gradeLevel === '2nd_sec' ? tr('gradeLabel2', lang) : entry.gradeLevel === '3rd_sec' ? tr('gradeLabel3', lang) : ''}
                           </p>
                         </div>
                         <div className="text-left shrink-0">
                           <p className="font-bold text-indigo-700 text-sm">{entry.percentage}%</p>
-                          <p className="text-xs text-slate-400">{entry.totalScore}/{entry.totalPossible} درجة</p>
+                          <p className="text-xs text-slate-400">{entry.totalScore}/{entry.totalPossible} {tr('scoreUnit', lang)}</p>
                         </div>
                       </div>
                     );
@@ -412,7 +424,7 @@ export function StudentDashboard() {
       {modalLesson && (
         <div
           className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
-          dir="rtl"
+          dir={lang === 'ar' ? 'rtl' : 'ltr'}
           onClick={e => { if (e.target === e.currentTarget) closeModal(); }}
         >
           {/* Fullscreen image overlay */}
@@ -428,7 +440,7 @@ export function StudentDashboard() {
                 <X className="w-6 h-6" />
               </button>
               <img
-                src={fullscreenImg} alt="صورة السؤال"
+                src={fullscreenImg} alt={tr('questionImg', lang)}
                 className="max-w-full max-h-full object-contain rounded-xl"
                 onClick={e => e.stopPropagation()}
               />
@@ -442,10 +454,10 @@ export function StudentDashboard() {
               <div>
                 <p className="font-bold text-slate-900 text-sm leading-snug">{modalLesson.title}</p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {modalStep === 'code'    ? 'حط كود الوصول'
-                  : modalStep === 'exam'   ? 'امتحان القبول'
-                  : modalStep === 'results'? 'نتيجة الامتحان'
-                  :                          'الحصة اتفتحت'}
+                  {modalStep === 'code'    ? tr('modalCodeStep', lang)
+                  : modalStep === 'exam'   ? tr('modalExamStep', lang)
+                  : modalStep === 'results'? tr('modalResultsStep', lang)
+                  :                          tr('modalAccessStep', lang)}
                 </p>
               </div>
               <button
@@ -467,8 +479,8 @@ export function StudentDashboard() {
                     </div>
                   </div>
                   <div className="text-center">
-                    <h2 className="text-xl font-bold text-slate-900 mb-1">كود الوصول</h2>
-                    <p className="text-sm text-slate-500">حط الكود اللي أداهولك مستر أحمد</p>
+                    <h2 className="text-xl font-bold text-slate-900 mb-1">{tr('accessCodeTitle', lang)}</h2>
+                    <p className="text-sm text-slate-500">{tr('accessCodeSub', lang)}</p>
                   </div>
                   <form onSubmit={handleCodeSubmit} className="space-y-4">
                     <input
@@ -487,9 +499,9 @@ export function StudentDashboard() {
                       {unlocking
                         ? <span className="flex items-center justify-center gap-2">
                             <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                            بيتحقق...
+                            {tr('verifying', lang)}
                           </span>
-                        : 'فعّل الكود'}
+                        : tr('activateCode', lang)}
                     </button>
                   </form>
                 </div>
@@ -499,9 +511,9 @@ export function StudentDashboard() {
               {modalStep === 'exam' && (
                 <div className="space-y-5">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-slate-500">جاوب على كل الأسئلة وبعدين اضغط تصحيح</p>
+                    <p className="text-sm text-slate-500">{tr('examInstructions', lang)}</p>
                     <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-3 py-1 rounded-full shrink-0">
-                      {questions.length} سؤال
+                      {questions.length} {tr('questionWord', lang)}
                     </span>
                   </div>
 
@@ -523,7 +535,7 @@ export function StudentDashboard() {
                         {q.image && (
                           <div className="relative group cursor-pointer" onClick={() => setFullscreenImg(q.image)}>
                             <img
-                              src={q.image} alt={`صورة السؤال ${idx + 1}`}
+                              src={q.image} alt={`${tr('questionImg', lang)} ${idx + 1}`}
                               className="w-full max-h-72 object-contain rounded-xl border border-slate-200 bg-white"
                             />
                             <button className="absolute top-2 left-2 bg-black/40 hover:bg-black/60 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity">
@@ -550,7 +562,7 @@ export function StudentDashboard() {
                         </div>
 
                         {isMissing && (
-                          <p className="text-red-500 text-xs font-semibold">⚠ لازم تجاوب على السؤال ده</p>
+                          <p className="text-red-500 text-xs font-semibold">{tr('answerRequired', lang)}</p>
                         )}
                       </div>
                     );
@@ -560,7 +572,7 @@ export function StudentDashboard() {
                     onClick={handleSubmitExam} disabled={submitting}
                     className="neon-btn w-full py-4 rounded-xl font-bold text-base disabled:opacity-50 mt-2"
                   >
-                    {submitting ? 'بيتبعت...' : 'صحّح الامتحان ✓'}
+                    {submitting ? tr('submitting', lang) : tr('submitExam', lang)}
                   </button>
                 </div>
               )}
@@ -575,16 +587,14 @@ export function StudentDashboard() {
                     </p>
                     <p className="text-slate-500 text-sm mb-3">{pct}%</p>
                     <p className={`font-bold text-base ${passed ? 'text-emerald-700' : 'text-red-600'}`}>
-                      {passed
-                        ? '🎉 برافو! عدّيت الامتحان'
-                        : '❌ ما عدّيتيش الامتحان — كلم مستر أحمد علشان يعفيك'}
+                      {passed ? tr('passed', lang) : tr('failed', lang)}
                     </p>
                     {passed && (
                       <Link
                         to={`/lessons/${modalLesson.id}`}
                         className="neon-btn inline-block mt-4 px-8 py-3 rounded-xl font-bold text-base"
                       >
-                        ادخل الحصة →
+                        {tr('enterLesson', lang)}
                       </Link>
                     )}
                   </div>
@@ -610,7 +620,7 @@ export function StudentDashboard() {
                       {r.image && (
                         <div className="relative group cursor-pointer" onClick={() => setFullscreenImg(r.image)}>
                           <img
-                            src={r.image} alt={`صورة السؤال ${idx + 1}`}
+                            src={r.image} alt={`${tr('questionImg', lang)} ${idx + 1}`}
                             className="w-full max-h-80 object-contain rounded-xl border border-slate-200 bg-white"
                           />
                           <button className="absolute top-2 left-2 bg-black/40 hover:bg-black/60 text-white rounded-lg p-1.5 sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -621,13 +631,13 @@ export function StudentDashboard() {
 
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div className={`flex items-center gap-2 rounded-xl px-4 py-3 font-bold ${r.isCorrect ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
-                          <span className="text-xs text-slate-400 font-normal shrink-0">إجابتك:</span>
+                          <span className="text-xs text-slate-400 font-normal shrink-0">{tr('yourAnswer', lang)}</span>
                           <span>{r.studentAnswer ?? '—'}</span>
                           {r.studentAnswer && <span className="text-xs opacity-60">({ANSWER_LABELS[r.studentAnswer] ?? ''})</span>}
                         </div>
                         <div className="flex items-center gap-2 rounded-xl px-4 py-3 font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <CheckCircle className="w-4 h-4 shrink-0" />
-                          <span className="text-xs text-slate-400 font-normal shrink-0">الصح:</span>
+                          <span className="text-xs text-slate-400 font-normal shrink-0">{tr('correctAnswer', lang)}</span>
                           <span>{r.correctAnswer}</span>
                           <span className="text-xs opacity-60">({ANSWER_LABELS[r.correctAnswer] ?? ''})</span>
                         </div>
@@ -639,7 +649,7 @@ export function StudentDashboard() {
                     onClick={closeModal}
                     className="w-full py-3 rounded-xl font-bold text-sm text-slate-500 border border-slate-200 hover:bg-slate-50 transition-colors"
                   >
-                    ارجع للداشبورد
+                    {tr('backToDash', lang)}
                   </button>
                 </div>
               )}
@@ -651,17 +661,17 @@ export function StudentDashboard() {
                     <CheckCircle className="w-8 h-8 text-emerald-500" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900">✅ الحصة اتفتحت</h2>
+                    <h2 className="text-xl font-bold text-slate-900">{tr('lessonOpenedTitle', lang)}</h2>
                     <p className="text-slate-500 text-sm mt-1">{modalLesson.title}</p>
                   </div>
                   <Link
                     to={`/lessons/${modalLesson.id}`}
                     className="neon-btn w-full py-4 rounded-xl font-bold text-base block"
                   >
-                    ادخل الحصة →
+                    {tr('enterLesson', lang)}
                   </Link>
                   <button onClick={closeModal} className="w-full text-slate-400 hover:text-indigo-600 text-sm transition-colors">
-                    ارجع للداشبورد
+                    {tr('backToDash', lang)}
                   </button>
                 </div>
               )}
