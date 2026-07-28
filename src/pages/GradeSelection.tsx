@@ -314,7 +314,7 @@ export function GradeSelection() {
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1">
             أهلاً بيك في{' '}
-            <span className="neon-text">يوكيم</span>
+            <span className="neon-text">youchem platform</span>
           </h1>
           <p className="text-xs font-semibold text-slate-400 mb-1">by Mr.ahmed</p>
           <p className="text-sm text-slate-500">

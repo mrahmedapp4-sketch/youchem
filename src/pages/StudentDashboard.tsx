@@ -211,7 +211,7 @@ export function StudentDashboard() {
             {/* Leaderboard shortcut — next to dark-mode toggle */}
             <button
               onClick={() => setSection('leaderboard')}
-              title="المتفوقون"
+              title="student leaderboard"
               className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors border ${
                 section === 'leaderboard'
                   ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
@@ -239,7 +239,7 @@ export function StudentDashboard() {
           {([
             { id: 'lessons',     label: 'الحصص',       Icon: Video },
             { id: 'homework',    label: 'واجباتي',     Icon: ClipboardList },
-            { id: 'leaderboard', label: 'المتفوقون',   Icon: Trophy },
+            { id: 'leaderboard', label: 'student leaderboard',   Icon: Trophy },
           ] as const).map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setSection(id)}
               className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-colors border-b-2 -mb-px whitespace-nowrap ${

@@ -53,7 +53,7 @@ export function DashboardLayout() {
               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
             }}
           />
-          <span className="text-lg font-bold text-slate-900 tracking-tight hidden">يوكيم</span>
+          <span className="text-lg font-bold text-slate-900 tracking-tight hidden">youchem platform</span>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg shrink-0">
             <X className="w-5 h-5" />
           </button>
