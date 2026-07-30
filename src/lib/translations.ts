@@ -85,6 +85,7 @@ const t: Record<string, Record<Lang, string>> = {
   submitExam:       { ar: 'صحّح الامتحان ✓', en: 'Submit Exam ✓' },
   passed:           { ar: '🎉 برافو! عدّيت الامتحان', en: '🎉 Great job! You passed!' },
   failed:           { ar: '❌ ما عدّيتيش الامتحان — كلم مستر أحمد علشان يعفيك', en: '❌ You did not pass — contact Mr. Ahmed for a waiver' },
+  failedLow:        { ar: 'اطلب من مستر أحمد يخليك تعدي علشان تفتح الحصة', en: 'Ask Mr. Ahmed to let you pass so you can unlock the lesson' },
   enterLesson:      { ar: 'ادخل الحصة →', en: 'Enter Lesson →' },
   yourAnswer:       { ar: 'إجابتك:', en: 'Your answer:' },
   correctAnswer:    { ar: 'الصح:', en: 'Correct:' },

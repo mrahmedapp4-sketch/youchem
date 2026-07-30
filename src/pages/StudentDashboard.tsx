@@ -587,7 +587,7 @@ export function StudentDashboard() {
                     </p>
                     <p className="text-slate-500 text-sm mb-3">{pct}%</p>
                     <p className={`font-bold text-base ${passed ? 'text-emerald-700' : 'text-red-600'}`}>
-                      {passed ? tr('passed', lang) : tr('failed', lang)}
+                      {passed ? tr('passed', lang) : score < 5 ? tr('failedLow', lang) : tr('failed', lang)}
                     </p>
                     {passed && (
                       <Link

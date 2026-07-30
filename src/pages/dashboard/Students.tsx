@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldAlert, Ban, ShieldOff, Trash2, UserRoundX } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ShieldCheck, ShieldAlert, Ban, ShieldOff, Trash2, UserRoundX, RefreshCw, Search } from 'lucide-react';
 
 export function Students() {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lessons, setLessons] = useState<any[]>([]);
   const [selectedLessonId, setSelectedLessonId] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => { fetchData(); }, []);
 
@@ -28,6 +29,19 @@ export function Students() {
     try {
       const res = await fetch(`/api/youchem/students/${userId}/lessons/${selectedLessonId}/exempt`, { method: 'PATCH' });
       if (res.ok) fetchData();
+    } catch { alert('في مشكلة'); }
+  };
+
+  const handleResetExam = async (userId: string) => {
+    if (!selectedLessonId) return alert('لازم تختار حصة الأول');
+    if (!confirm('هتخلي الطالب يعيد الامتحان من الأول. متأكد؟')) return;
+    try {
+      const res = await fetch(`/api/youchem/students/${userId}/lessons/${selectedLessonId}/reset-exam`, { method: 'PATCH' });
+      if (res.ok) fetchData();
+      else {
+        const d = await res.json();
+        alert(d.error || 'في مشكلة');
+      }
     } catch { alert('في مشكلة'); }
   };
 
@@ -57,6 +71,15 @@ export function Students() {
     } catch { alert('في مشكلة'); }
   };
 
+  const filteredStudents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return students;
+    return students.filter((s: any) =>
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q)
+    );
+  }, [students, search]);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
 
@@ -65,16 +88,30 @@ export function Students() {
         <p className="text-slate-500 text-sm mt-0.5">شوف الطلاب، واعمل إعفاء أو حظر للحساب والجهاز المرتبط به</p>
       </div>
 
-      {/* Lesson selector */}
+      {/* Controls row */}
       <div className="neon-card p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <label className="font-semibold text-slate-700 text-sm shrink-0">اختار الحصة للإعفاء:</label>
-        <select
-          value={selectedLessonId} onChange={e => setSelectedLessonId(e.target.value)}
-          className="neon-input flex-1 max-w-xs px-4 py-2 rounded-xl text-sm"
-        >
-          {lessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
-          {lessons.length === 0 && <option value="">مفيش حصص</option>}
-        </select>
+        {/* Search */}
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="ابحث بالاسم أو الإيميل..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="neon-input w-full pr-9 pl-4 py-2 rounded-xl text-sm"
+          />
+        </div>
+        {/* Lesson selector */}
+        <div className="flex items-center gap-2 shrink-0">
+          <label className="font-semibold text-slate-700 text-sm whitespace-nowrap">الحصة للإعفاء / الإعادة:</label>
+          <select
+            value={selectedLessonId} onChange={e => setSelectedLessonId(e.target.value)}
+            className="neon-input px-4 py-2 rounded-xl text-sm"
+          >
+            {lessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+            {lessons.length === 0 && <option value="">مفيش حصص</option>}
+          </select>
+        </div>
       </div>
 
       {/* Table */}
@@ -89,18 +126,21 @@ export function Students() {
                   <th className="px-5 py-3">الاسم</th>
                   <th className="px-5 py-3">الإيميل</th>
                   <th className="px-5 py-3">الصف</th>
-                  <th className="px-5 py-3 text-center">إعفاء من الامتحان</th>
+                  <th className="px-5 py-3 text-center">الامتحان</th>
                   <th className="px-5 py-3 text-center">إدارة الحساب</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {students.length === 0 && (
-                  <tr><td colSpan={5} className="p-10 text-center text-slate-400 text-sm">مفيش طلاب مسجلين لحد دلوقتي.</td></tr>
+                {filteredStudents.length === 0 && (
+                  <tr><td colSpan={5} className="p-10 text-center text-slate-400 text-sm">
+                    {students.length === 0 ? 'مفيش طلاب مسجلين لحد دلوقتي.' : 'مفيش نتائج للبحث ده.'}
+                  </td></tr>
                 )}
-                {students.map((student: any) => {
+                {filteredStudents.map((student: any) => {
                   const accessForLesson = student.accesses?.find((a: any) => a.lessonId === selectedLessonId);
                   const isExempt = accessForLesson?.quizExempt || false;
                   const isBlocked = student.blocked || false;
+                  const hasAccess = !!accessForLesson;
                   return (
                     <tr key={student.id} className={`hover:bg-slate-50 transition-colors ${isBlocked ? 'opacity-60' : ''}`}>
                       <td className="px-5 py-4 font-bold text-slate-900 text-sm">
@@ -115,17 +155,32 @@ export function Students() {
                       <td className="px-5 py-4 text-slate-500 text-sm">
                         {student.gradeLevel === '2nd_sec' ? 'تاني ثانوي' : student.gradeLevel === '3rd_sec' ? 'تالت ثانوي' : '—'}
                       </td>
-                      <td className="px-5 py-4 text-center">
-                        <button
-                          onClick={() => handleToggleExempt(student.id)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors border ${
-                            isExempt
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {isExempt ? <><ShieldCheck className="w-3.5 h-3.5" /> معفي</> : <><ShieldAlert className="w-3.5 h-3.5" /> اعمله معفي</>}
-                        </button>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          {/* خليه يعدي (exempt) */}
+                          <button
+                            onClick={() => handleToggleExempt(student.id)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors border ${
+                              isExempt
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {isExempt
+                              ? <><ShieldCheck className="w-3.5 h-3.5" /> خلّاه يعدي</>
+                              : <><ShieldAlert className="w-3.5 h-3.5" /> خليه يعدي</>}
+                          </button>
+                          {/* يعيد المحاولة (retry exam) */}
+                          {hasAccess && (
+                            <button
+                              onClick={() => handleResetExam(student.id)}
+                              title="خلّي الطالب يعيد الامتحان من الأول"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors border bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" /> يعيد المحاولة
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">

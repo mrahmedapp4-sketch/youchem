@@ -706,6 +706,35 @@ app.patch('/api/youchem/students/:userId/lessons/:lessonId/exempt', authenticate
   }
 });
 
+// Reset exam so student can retake (keeps their access/code, clears quiz state)
+app.patch('/api/youchem/students/:userId/lessons/:lessonId/reset-exam', authenticateTeacher, async (req, res) => {
+  try {
+    const { userId, lessonId } = req.params;
+    const access = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === userId && a.lessonId === lessonId
+    );
+    if (!access) {
+      return res.status(404).json({ error: 'لا يوجد سجل وصول لهذا الطالب على هذه الحصة' });
+    }
+    const updated = jsonDb.update(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === userId && a.lessonId === lessonId,
+      {
+        quizPassed: false,
+        quizExempt: false,
+        lessonLocked: true,   // keep locked — student must pass the retake to unlock
+        quizScore: undefined,
+        quizTotal: undefined,
+        quizResults: undefined,
+      }
+    );
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- STUDENT API (Google Sign-In) ---
 
 app.post('/api/student/google-login', async (req, res) => {
