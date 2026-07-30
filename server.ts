@@ -205,6 +205,21 @@ const authenticateStudent = (req: express.Request, res: express.Response, next: 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     if (decoded.role !== 'student') throw new Error('bad role');
+
+    // ── Pending (pre-registration) token ──────────────────────────────────
+    // Issued for new students who have verified with Google but have not yet
+    // submitted their profile form. No DB record exists for them yet.
+    if (decoded.pending === true) {
+      (req as any).pendingGoogle = {
+        googleId: decoded.googleId,
+        email:    decoded.email,
+        name:     decoded.name || '',
+        picture:  decoded.picture || '',
+        deviceId: decoded.deviceId || '',
+      };
+      return next();
+    }
+
     const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
     if (!user) {
       res.clearCookie('student_token', COOKIE_OPTS);
@@ -779,23 +794,24 @@ app.post('/api/student/google-login', async (req, res) => {
     const sessionExpiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
 
     if (!user) {
-      user = {
-        id: newId(),
-        googleId,
-        name: name || 'طالب',
-        email,
-        picture: picture || '',
-        phone: '',
-        guardianPhone: '',
-        school: '',
-        role: 'student',
-        gradeLevel: null,
-        createdAt: new Date().toISOString(),
-        deviceId,
-        activeSessionToken: sessionToken,
-        sessionExpiresAt,
-      } as DbUser;
-      jsonDb.insert('users', user);
+      // ── New student — do NOT save to DB yet ───────────────────────────────
+      // We only create the DB record once they successfully submit the full
+      // profile form (complete-profile endpoint). Closing the tab before that
+      // point leaves zero trace in the database.
+      const pendingToken = jwt.sign(
+        { role: 'student', pending: true, googleId, email, name: name || '', picture: picture || '', deviceId },
+        JWT_SECRET,
+        { expiresIn: '2h' },
+      );
+      res.cookie('student_token', pendingToken, { ...COOKIE_OPTS, maxAge: 2 * 60 * 60 * 1000 });
+      return res.json({
+        success: true,
+        user: { name: name || '', email, picture: picture || '' },
+        needsProfile: true,
+        missingFields: ['name', 'phone', 'guardianPhone', 'school', 'gradeLevel'],
+        profileErrors: {},
+        picture,
+      });
     } else {
       // Backfill googleId / update picture / set session token.
       const updates: Partial<DbUser> = { activeSessionToken: sessionToken, sessionExpiresAt, deviceId };
@@ -822,6 +838,18 @@ app.post('/api/student/google-login', async (req, res) => {
 });
 
 app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
+  const pendingGoogle = (req as any).pendingGoogle;
+  if (pendingGoogle) {
+    // Pending user — no DB record yet; tell frontend to show profile form.
+    return res.json({
+      success: true,
+      user: { name: pendingGoogle.name, email: pendingGoogle.email, picture: pendingGoogle.picture },
+      needsProfile: true,
+      missingFields: ['name', 'phone', 'guardianPhone', 'school', 'gradeLevel'],
+      profileErrors: {},
+      pending: true,
+    });
+  }
   const studentId = (req as any).studentId;
   const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
@@ -836,6 +864,10 @@ app.get('/api/student/check-auth', authenticateStudent, (req, res) => {
 // all required fields are complete and should be able to resume later.
 app.post('/api/student/profile-draft', authenticateStudent, async (req, res) => {
   try {
+    // Pending users have no DB record yet — the draft lives only in
+    // localStorage on the client side. Just acknowledge the request.
+    if ((req as any).pendingGoogle) return res.json({ success: true });
+
     const studentId = (req as any).studentId;
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const updates: Partial<DbUser> = {};
@@ -872,17 +904,54 @@ app.post('/api/student/profile-draft', authenticateStudent, async (req, res) => 
 
 app.post('/api/student/complete-profile', authenticateStudent, async (req, res) => {
   try {
-    const studentId = (req as any).studentId;
+    const studentId   = (req as any).studentId;
+    const pendingGoogle = (req as any).pendingGoogle;
+
     const { name, school, gradeLevel } = req.body;
-    const phone = normalizeArabicDigits(typeof req.body.phone === 'string' ? req.body.phone.trim() : '');
+    const phone         = normalizeArabicDigits(typeof req.body.phone         === 'string' ? req.body.phone.trim()         : '');
     const guardianPhone = normalizeArabicDigits(typeof req.body.guardianPhone === 'string' ? req.body.guardianPhone.trim() : '');
+
     const profileErrors = getStudentProfileErrors({ name, phone, guardianPhone, school, gradeLevel });
     if (Object.keys(profileErrors).length > 0) {
-      return res.status(400).json({
-        error: Object.values(profileErrors)[0],
-        profileErrors,
-      });
+      return res.status(400).json({ error: Object.values(profileErrors)[0], profileErrors });
     }
+
+    // ── Brand-new student: create DB record for the first time ────────────
+    if (pendingGoogle) {
+      const { googleId, email, picture, deviceId } = pendingGoogle;
+      const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+      const sessionToken   = randomBytes(32).toString('hex');
+      const sessionExpiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
+
+      const newUser: DbUser = {
+        id: newId(),
+        googleId,
+        name: name.trim(),
+        email,
+        picture: picture || '',
+        phone,
+        guardianPhone,
+        school: school.trim(),
+        role: 'student',
+        gradeLevel,
+        createdAt: new Date().toISOString(),
+        deviceId,
+        activeSessionToken: sessionToken,
+        sessionExpiresAt,
+        blocked: false,
+      } as DbUser;
+      jsonDb.insert('users', newUser);
+
+      const fullToken = jwt.sign(
+        { role: 'student', studentId: newUser.id, sessionToken, deviceId },
+        JWT_SECRET,
+        { expiresIn: '30d' },
+      );
+      res.cookie('student_token', fullToken, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
+      return res.json({ success: true, user: newUser });
+    }
+
+    // ── Existing student: just update their profile ───────────────────────
     const updated = jsonDb.update('users', (u: DbUser) => u.id === studentId, {
       name: name.trim(),
       phone,
