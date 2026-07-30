@@ -1,0 +1,27 @@
+> react-example@0.0.0 build /app
+> vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs
+vite v6.4.3 building for production...
+✓ 0 modules transformed.
+✗ Build failed in 27ms
+error during build:
+[vite:build-html] Unable to parse HTML; parse5 error code missing-whitespace-between-attributes
+ at /app/index.html:34:17
+32 |      <title>youchem©-By Mr.Ahmed Abdel-Wahab</title>
+33 |      <meta name="title"       content="youchem©-By Mr.Ahmed Abdel-Wahab/>
+34 |      <meta name="description" content="منصة يوكيم — حصص كيمياء فيديو واختبارات وواجبات لطلاب تاني وتالت ثانوي مع مستر أحمد. سجّل بجوجل وابدأ رحلتك في الكيمياء." />
+   |                  ^
+35 |      <meta name="author"      content="مستر أحمد" />
+36 |      <meta name="robots"      content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+file: /app/index.html
+    at handleParseError (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:36308:9)
+    at Parser.onParseError (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:36221:7)
+    at Tokenizer._err (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-CvfTChi5.js:1513:89)
+    at Tokenizer._stateAfterAttributeValueQuoted (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-CvfTChi5.js:3034:22)
+    at Tokenizer._callState (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-CvfTChi5.js:1969:22)
+    at Tokenizer._runParsingLoop (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-CvfTChi5.js:1537:22)
+    at Tokenizer.write (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-CvfTChi5.js:1562:14)
+    at Parser.parse (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-CvfTChi5.js:5086:26)
+    at parse (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-CvfTChi5.js:8215:19)
+    at traverseHtml (file:///app/node_modules/.pnpm/vite@6.4.3_@types+node@22.20.1_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:36216:15)
+ ELIFECYCLE  Command failed with exit code 1.
+Build Failed: build daemon returned an error < failed to solve: process "pnpm run build" did not complete successfully: exit code: 1 >
