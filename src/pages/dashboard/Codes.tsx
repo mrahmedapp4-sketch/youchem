@@ -12,6 +12,7 @@ export function Codes() {
   const [loading, setLoading] = useState(true);
   // Track which code was just copied (to show ✓ feedback)
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [exportDate, setExportDate] = useState('');
 
   useEffect(() => {
     Promise.all([fetchCodes(), fetchLessons()]);
@@ -102,6 +103,24 @@ export function Codes() {
     XLSX.writeFile(wb, `youchem-codes-${new Date().toLocaleDateString('en-CA')}.xlsx`);
   };
 
+  const handleExportByDate = () => {
+    if (!exportDate) { alert('اختار تاريخ الأول'); return; }
+    const filtered = codesList.filter(c => {
+      if (c.isUsed) return false;
+      const created = new Date(c.createdAt).toLocaleDateString('en-CA'); // YYYY-MM-DD
+      return created === exportDate;
+    });
+    if (filtered.length === 0) {
+      alert(`مفيش أكواد غير مستخدمة اتولدت في ${new Date(exportDate + 'T00:00:00').toLocaleDateString('ar-EG')}`);
+      return;
+    }
+    const ws = XLSX.utils.aoa_to_sheet(filtered.map(c => [c.codeString]));
+    ws['!cols'] = [{ wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Codes');
+    XLSX.writeFile(wb, `youchem-codes-${exportDate}.xlsx`);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
 
@@ -116,9 +135,26 @@ export function Codes() {
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors border border-indigo-200"
             >
               <FileDown className="w-3.5 h-3.5" />
-              تصدير الأكواد الغير مستخدمة (.xlsx)
+              تصدير كل الأكواد الغير مستخدمة (.xlsx)
             </button>
           )}
+          {/* Export by date */}
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <input
+              type="date"
+              value={exportDate}
+              onChange={e => setExportDate(e.target.value)}
+              className="neon-input px-3 py-1.5 rounded-xl text-sm"
+            />
+            <button
+              onClick={handleExportByDate}
+              disabled={!exportDate}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors border border-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              تصدير أكواد التاريخ ده (.xlsx)
+            </button>
+          </div>
         </div>
 
         {/* Generate controls */}
