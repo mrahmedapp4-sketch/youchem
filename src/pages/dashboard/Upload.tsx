@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Video, Trash2, Eye, EyeOff, Plus, Pencil, X } from 'lucide-react';
+import { Video, Trash2, Eye, EyeOff, Plus, Pencil, X, Play } from 'lucide-react';
 
 export function UploadVideo() {
   const [lessons, setLessons] = useState<any[]>([]);
@@ -11,6 +11,7 @@ export function UploadVideo() {
   const [lessonPlatform, setLessonPlatform] = useState('youtube');
   const [lessonUrl, setLessonUrl] = useState('');
 
+  const [previewLesson, setPreviewLesson] = useState<any>(null);
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editGrade, setEditGrade] = useState('2nd_sec');
@@ -73,6 +74,18 @@ export function UploadVideo() {
       const res = await fetch(`/api/youchem/lessons/${id}/toggle-visibility`, { method: 'PATCH' });
       if (res.ok) fetchLessons();
     } catch { alert('فشل في التعديل'); }
+  };
+
+  const extractYoutubeId = (url: string) => {
+    const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
+    return m ? m[1] : url;
+  };
+
+  const getEmbedUrl = (platform: string, videoUrl: string) => {
+    if (platform === 'youtube') return `https://www.youtube.com/embed/${extractYoutubeId(videoUrl)}?autoplay=1`;
+    if (platform === 'vimeo')   return `https://player.vimeo.com/video/${videoUrl}?autoplay=1`;
+    if (platform === 'bunny')   return videoUrl; // Bunny embed URL used as-is
+    return videoUrl;
   };
 
   const SELECT_CLS = 'neon-input w-full px-3 py-2 rounded-xl text-sm';
@@ -152,6 +165,9 @@ export function UploadVideo() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => setPreviewLesson(lesson)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="مشاهدة الفيديو">
+                    <Play className="w-4 h-4" />
+                  </button>
                   <button onClick={() => openEditLesson(lesson)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="تعديل">
                     <Pencil className="w-4 h-4" />
                   </button>
