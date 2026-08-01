@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { Settings as SettingsIcon, Users, BookOpen, FileText, FileQuestion, ShieldAlert, KeyRound, BarChart3, Trash2, HardDrive } from 'lucide-react';
+import { Settings as SettingsIcon, Users, BookOpen, FileText, FileQuestion, ShieldAlert, KeyRound, BarChart3, Trash2, HardDrive, Terminal, Copy, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 export function Settings() {
   const [stats, setStats] = useState<any>(null);
@@ -11,6 +11,12 @@ export function Settings() {
   const [confirmPw, setConfirmPw] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  // API key state
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const [apiKeyGenerating, setApiKeyGenerating] = useState(false);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
   // Files storage limit state
   const [filesUsage, setFilesUsage] = useState<{ usedMB: number; limitMB: number; remainingMB: number } | null>(null);
@@ -31,7 +37,30 @@ export function Settings() {
       .then(r => r.json())
       .then(d => { setFilesUsage(d); setLimitInput(String(d.limitMB)); })
       .catch(() => {});
+
+    fetch('/api/youchem/settings/api-key')
+      .then(r => r.json())
+      .then(d => setApiKey(d.apiKey ?? null))
+      .catch(() => {});
   }, []);
+
+  const handleGenerateApiKey = async () => {
+    setApiKeyGenerating(true);
+    try {
+      const res = await fetch('/api/youchem/settings/api-key/generate', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) setApiKey(data.apiKey);
+    } catch {}
+    setApiKeyGenerating(false);
+  };
+
+  const handleCopyApiKey = () => {
+    if (!apiKey) return;
+    navigator.clipboard.writeText(apiKey).then(() => {
+      setApiKeyCopied(true);
+      setTimeout(() => setApiKeyCopied(false), 2000);
+    });
+  };
 
   const handleSaveLimit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,6 +181,64 @@ export function Settings() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* ── API Key ── */}
+      <section className="space-y-3">
+        <h2 className="font-bold text-slate-700 text-sm flex items-center gap-2">
+          <Terminal className="w-4 h-4 text-slate-400" />
+          API Key (Python Dashboard)
+        </h2>
+        <div className="neon-card p-5 rounded-2xl space-y-4">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Use this key to authenticate the <code className="bg-slate-100 px-1 rounded text-indigo-600">students_gui.py</code> script from your machine.
+            <br />
+            Run: <code className="bg-slate-100 px-1 rounded text-indigo-600">python3 students_gui.py --url https://youchem.up.railway.app --key YOUR_KEY</code>
+          </p>
+
+          {apiKey ? (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 font-mono text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 overflow-hidden text-ellipsis whitespace-nowrap">
+                {apiKeyVisible ? apiKey : '•'.repeat(24)}
+              </div>
+              <button
+                onClick={() => setApiKeyVisible(v => !v)}
+                className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 transition-colors shrink-0"
+                title={apiKeyVisible ? 'Hide' : 'Show'}
+              >
+                {apiKeyVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={handleCopyApiKey}
+                className={`p-2.5 rounded-xl border transition-colors shrink-0 ${apiKeyCopied ? 'border-emerald-300 bg-emerald-50 text-emerald-600' : 'border-slate-200 hover:bg-slate-50 text-slate-500'}`}
+                title="Copy"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleGenerateApiKey}
+                disabled={apiKeyGenerating}
+                className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 transition-colors shrink-0 disabled:opacity-50"
+                title="Regenerate"
+              >
+                <RefreshCw className={`w-4 h-4 ${apiKeyGenerating ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleGenerateApiKey}
+              disabled={apiKeyGenerating}
+              className="neon-btn w-full py-2.5 rounded-xl font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Terminal className="w-4 h-4" />
+              {apiKeyGenerating ? 'Generating...' : 'Generate API Key'}
+            </button>
+          )}
+
+          {apiKeyCopied && (
+            <p className="text-xs text-emerald-600 font-semibold">Copied to clipboard ✓</p>
+          )}
+        </div>
       </section>
 
       {/* ── Storage Limit ── */}

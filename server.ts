@@ -2260,6 +2260,70 @@ app.get('/api/youchem/settings/stats', authenticateTeacher, async (req, res) => 
   }
 });
 
+// ── Teacher: generate / fetch API key ─────────────────────────────────────────
+app.post('/api/youchem/settings/api-key/generate', authenticateTeacher, (_req, res) => {
+  try {
+    const apiKey = randomBytes(24).toString('hex'); // 48-char hex string
+    const existing = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    if (existing) {
+      jsonDb.update('settings', (s: DbSettings) => s.id === 'main', { apiKey });
+    } else {
+      jsonDb.insert('settings', { id: 'main', apiKey });
+    }
+    res.json({ apiKey });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/youchem/settings/api-key', authenticateTeacher, (_req, res) => {
+  try {
+    const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    res.json({ apiKey: settings?.apiKey ?? null });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Public students API (protected by apiKey query-param / Bearer header) ──────
+app.get('/api/public/students', (req, res) => {
+  try {
+    const token =
+      (req.query.apiKey as string | undefined) ||
+      (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.slice(7)
+        : undefined);
+
+    const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    if (!token || !settings?.apiKey || token !== settings.apiKey) {
+      return res.status(401).json({ error: 'Invalid or missing API key' });
+    }
+
+    const students = jsonDb.filter('users', (u: DbUser) => u.role === 'student');
+    const codes    = jsonDb.getAll('codes') as DbCode[];
+
+    res.json({
+      total:      students.length,
+      grade2:     students.filter((s: DbUser) => s.gradeLevel === '2nd_sec').length,
+      grade3:     students.filter((s: DbUser) => s.gradeLevel === '3rd_sec').length,
+      codesTotal: codes.length,
+      codesFree:  codes.filter((c: DbCode) => !c.isUsed).length,
+      codesUsed:  codes.filter((c: DbCode) => c.isUsed).length,
+      students:   students.map((s: DbUser) => ({
+        name:          s.name,
+        email:         s.email,
+        gradeLevel:    s.gradeLevel,
+        phone:         s.phone,
+        guardianPhone: s.guardianPhone,
+        school:        s.school,
+        createdAt:     s.createdAt,
+      })),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Teacher: reset platform ────────────────────────────────────────────────────
 app.post('/api/youchem/reset-platform', authenticateTeacher, async (req, res) => {
   try {

@@ -114,6 +114,8 @@ export interface DbSettings {
   blockedDeviceIds?: string[];
   /** Maximum total size in MB allowed for teacher-uploaded files. Default: 500. */
   filesStorageLimitMB?: number;
+  /** Secret token used to authenticate the public /api/public/students endpoint. */
+  apiKey?: string;
 }
 
 // A file the teacher uploads for students to download.
