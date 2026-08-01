@@ -49,6 +49,12 @@ export function ExamPage() {
   /* ── Active step ── */
   const [step, setStep] = useState<Step>('lesson');
 
+  /* ── Keyboard navigation ── */
+  const [focusedLessonIdx, setFocusedLessonIdx] = useState(0);
+  const [focusedQIdx, setFocusedQIdx]           = useState(0);
+  const lessonBtnRefs  = useRef<(HTMLButtonElement | null)[]>([]);
+  const questionDivRefs = useRef<(HTMLDivElement | null)[]>([]);
+
   /* ── Auth check + load lessons ── */
   useEffect(() => {
     fetch('/api/student/check-auth')
@@ -88,6 +94,55 @@ export function ExamPage() {
       handleSubmitExam();
     }
   }, [timeLeft]);
+
+  /* ── Lesson picker: focus the highlighted button ── */
+  useEffect(() => {
+    if (step === 'lesson') lessonBtnRefs.current[focusedLessonIdx]?.focus();
+  }, [focusedLessonIdx, step]);
+
+  /* ── Exam: arrow keys navigate questions/answers, Enter advances ── */
+  useEffect(() => {
+    if (step !== 'exam') return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // Left/Right → cycle A B C D for the focused question
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        setAnswers(prev => {
+          const cur = ANSWER_LETTERS.indexOf(prev[focusedQIdx] ?? '');
+          const dir = e.key === 'ArrowRight' ? 1 : -1;
+          const next = cur === -1 ? 0 : Math.max(0, Math.min(ANSWER_LETTERS.length - 1, cur + dir));
+          const a = [...prev]; a[focusedQIdx] = ANSWER_LETTERS[next]; return a;
+        });
+        setUnanswered(false);
+      }
+      // Up/Down → move between questions
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedQIdx(prev => {
+          const next = Math.max(0, Math.min(questions.length - 1, prev + (e.key === 'ArrowDown' ? 1 : -1)));
+          questionDivRefs.current[next]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return next;
+        });
+      }
+      // Enter → jump to next unanswered, or submit if all answered
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setAnswers(prev => {
+          const nextBlank = prev.findIndex((a, i) => i > focusedQIdx && a === '');
+          if (nextBlank !== -1) {
+            setFocusedQIdx(nextBlank);
+            questionDivRefs.current[nextBlank]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else if (!prev.includes('')) {
+            handleSubmitExam();
+          }
+          return prev;
+        });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [step, questions.length, focusedQIdx]);
 
   /* ── Helpers ── */
   const goNewExam = () => {
@@ -242,13 +297,21 @@ export function ExamPage() {
             <div className="text-center p-12 text-slate-400">لا توجد حصص متاحة.</div>
           ) : (
             <div className="space-y-3">
-              {lessons.map((lesson: any) => {
+              {lessons.map((lesson: any, idx: number) => {
                 const hasAccess = accessedIds.has(lesson.id);
+                const isFocused = focusedLessonIdx === idx;
                 return (
                   <button
                     key={lesson.id}
+                    ref={el => { lessonBtnRefs.current[idx] = el; }}
+                    tabIndex={isFocused ? 0 : -1}
                     onClick={() => handleLessonPick(lesson)}
-                    className="w-full neon-card rounded-2xl p-5 flex items-center gap-4 text-right transition-all hover:ring-2 hover:ring-indigo-200 active:scale-[0.99]"
+                    onMouseEnter={() => setFocusedLessonIdx(idx)}
+                    onKeyDown={e => {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setFocusedLessonIdx(i => Math.min(i + 1, lessons.length - 1)); }
+                      if (e.key === 'ArrowUp')   { e.preventDefault(); setFocusedLessonIdx(i => Math.max(i - 1, 0)); }
+                    }}
+                    className={`w-full neon-card rounded-2xl p-5 flex items-center gap-4 text-right transition-all hover:ring-2 hover:ring-indigo-200 active:scale-[0.99] ${isFocused ? 'ring-2 ring-indigo-400' : ''}`}
                   >
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
                       hasAccess ? 'bg-emerald-50 border border-emerald-200' : 'bg-indigo-50 border border-indigo-100'
@@ -378,10 +441,16 @@ export function ExamPage() {
         {questions.map((q, idx) => {
           const isAnswered = answers[idx] !== '';
           const isMissing  = unanswered && !isAnswered;
+          const isFocusedQ = focusedQIdx === idx;
           return (
             <div
               id={`q-${idx}`} key={idx}
-              className={`neon-card rounded-2xl p-5 space-y-4 transition-all ${isMissing ? 'ring-2 ring-red-400' : ''}`}
+              ref={el => { questionDivRefs.current[idx] = el; }}
+              onClick={() => setFocusedQIdx(idx)}
+              className={`neon-card rounded-2xl p-5 space-y-4 transition-all cursor-default ${
+                isMissing    ? 'ring-2 ring-red-400' :
+                isFocusedQ   ? 'ring-2 ring-indigo-400' : ''
+              }`}
             >
               <div className="flex items-start gap-3">
                 <span className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm flex items-center justify-center shrink-0 mt-0.5">

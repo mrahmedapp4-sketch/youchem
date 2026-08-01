@@ -26,6 +26,9 @@ export function LessonView() {
   // When true, student dismissed the quiz with X — video stays accessible (unless locked)
   const [quizDismissed, setQuizDismissed] = useState(false);
 
+  /* ── Keyboard navigation ── */
+  const [focusedQIdx, setFocusedQIdx] = useState(0);
+
   // ── Viewing-time heartbeat ────────────────────────────────────────────────
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const accessRef = useRef<any>(null);
@@ -127,6 +130,31 @@ export function LessonView() {
   const handleDismissQuiz = () => {
     setQuizDismissed(true);
   };
+
+  /* ── Quiz keyboard navigation ── */
+  useEffect(() => {
+    // Use only state vars defined before any early return (avoids TDZ with showQuizSection)
+    if (quizQuestions.length === 0 || quizResult || quizDismissed) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const LETTERS = ['A', 'B', 'C', 'D'];
+        setAnswers(prev => {
+          const cur = LETTERS.indexOf(prev[focusedQIdx] ?? '');
+          const dir = e.key === 'ArrowRight' ? 1 : -1;
+          const next = cur === -1 ? 0 : Math.max(0, Math.min(LETTERS.length - 1, cur + dir));
+          const a = [...prev]; a[focusedQIdx] = LETTERS[next]; return a;
+        });
+      }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedQIdx(prev => Math.max(0, Math.min(quizQuestions.length - 1, prev + (e.key === 'ArrowDown' ? 1 : -1))));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showQuizSection, quizResult, quizQuestions.length, focusedQIdx]);
 
   if (loading || !lesson) return (
     <div className="min-h-screen flex items-center justify-center text-slate-400">بيتحمل...</div>
@@ -313,7 +341,11 @@ export function LessonView() {
               <>
                 <div className="space-y-6">
                   {quizQuestions.map((q, idx) => (
-                    <div key={idx} className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                    <div
+                      key={idx}
+                      onClick={() => setFocusedQIdx(idx)}
+                      className={`p-5 bg-slate-50 rounded-xl border-2 space-y-4 cursor-default transition-all ${focusedQIdx === idx ? 'border-indigo-400' : 'border-slate-200'}`}
+                    >
                       <div className="flex items-start gap-3">
                         <span className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
                         <p className="text-slate-800 font-semibold">{q.question}</p>

@@ -64,6 +64,9 @@ export function StudentDashboard() {
   /* fullscreen image (inside modal) */
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
 
+  /* ── Keyboard nav refs ── */
+  const navBtnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
 
   /* ── Data fetching ── */
   useEffect(() => {
@@ -238,15 +241,24 @@ export function StudentDashboard() {
         </div>
 
         {/* Nav items */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        <nav
+          className="flex-1 p-3 space-y-0.5 overflow-y-auto"
+          onKeyDown={e => {
+            const sections: Section[] = ['lessons', 'homework', 'files', 'leaderboard'];
+            const cur = sections.indexOf(section);
+            if (e.key === 'ArrowDown') { e.preventDefault(); const next = sections[Math.min(cur + 1, sections.length - 1)]; setSection(next); navBtnRefs.current[Math.min(cur + 1, sections.length - 1)]?.focus(); }
+            if (e.key === 'ArrowUp')   { e.preventDefault(); const next = sections[Math.max(cur - 1, 0)]; setSection(next); navBtnRefs.current[Math.max(cur - 1, 0)]?.focus(); }
+          }}
+        >
           {([
             { id: 'lessons',     label: tr('tabLessons', lang),     Icon: Video },
             { id: 'homework',    label: tr('tabHomework', lang),    Icon: ClipboardList },
             { id: 'files',       label: tr('tabFiles', lang),       Icon: Folder },
             { id: 'leaderboard', label: tr('tabLeaderboard', lang), Icon: Trophy },
-          ] as const).map(({ id, label, Icon }) => (
+          ] as const).map(({ id, label, Icon }, idx) => (
             <button
               key={id}
+              ref={el => { navBtnRefs.current[idx] = el; }}
               onClick={() => { setSection(id); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors ${
                 section === id

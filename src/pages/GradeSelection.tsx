@@ -433,7 +433,21 @@ export function GradeSelection() {
 
             <div>
               <label className="block text-sm font-semibold mb-1.5 text-slate-700">{tr('labelGrade', lang)}</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div
+                className="grid grid-cols-2 gap-3"
+                onKeyDown={(e) => {
+                  const grades = ['2nd_sec', '3rd_sec'];
+                  const cur = grades.indexOf(gradeLevel);
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setGradeLevel(grades[Math.min(grades.length - 1, cur + 1)] ?? grades[0]);
+                  }
+                  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setGradeLevel(grades[Math.max(0, cur - 1)] ?? grades[0]);
+                  }
+                }}
+              >
                 {[
                   { value: '2nd_sec', label: tr('grade2', lang) },
                   { value: '3rd_sec', label: tr('grade3', lang) },
