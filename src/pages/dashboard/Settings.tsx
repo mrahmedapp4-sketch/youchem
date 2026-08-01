@@ -154,6 +154,76 @@ export function Settings() {
         )}
       </section>
 
+      {/* ── Storage Limit ── */}
+      <section className="space-y-3">
+        <h2 className="font-bold text-slate-700 text-sm flex items-center gap-2">
+          <HardDrive className="w-4 h-4 text-slate-400" />
+          مساحة التخزين (الملفات)
+        </h2>
+        <div className="neon-card p-5 rounded-2xl space-y-4">
+
+          {/* Usage bar */}
+          {filesUsage ? (() => {
+            const pct = Math.min(100, Math.round((filesUsage.usedMB / filesUsage.limitMB) * 100));
+            const barColor = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-indigo-500';
+            return (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                  <span>مستخدم: <span className="text-slate-900">{filesUsage.usedMB} MB</span></span>
+                  <span>الحد: <span className="text-slate-900">{filesUsage.limitMB} MB</span></span>
+                </div>
+                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${barColor}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>{pct}% مستخدم</span>
+                  <span className={filesUsage.remainingMB < filesUsage.limitMB * 0.1 ? 'text-red-500 font-bold' : 'text-emerald-600 font-semibold'}>
+                    فاضل {filesUsage.remainingMB} MB
+                  </span>
+                </div>
+              </div>
+            );
+          })() : (
+            <div className="text-slate-400 text-sm">بيتحمل...</div>
+          )}
+
+          {/* Limit input */}
+          <form onSubmit={handleSaveLimit} className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                الحد الأقصى للتخزين (MB)
+              </label>
+              <input
+                type="number"
+                min={1}
+                required
+                value={limitInput}
+                onChange={e => setLimitInput(e.target.value)}
+                className="neon-input w-full px-4 py-2.5 rounded-xl text-sm"
+                placeholder="مثال: 500"
+                dir="ltr"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={limitSaving}
+              className="neon-btn px-5 py-2.5 rounded-xl font-bold text-sm disabled:opacity-50 shrink-0"
+            >
+              {limitSaving ? 'بيتحفظ...' : 'حفظ'}
+            </button>
+          </form>
+
+          {limitMsg && (
+            <p className={`text-sm font-semibold ${limitMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-500'}`}>
+              {limitMsg.text}
+            </p>
+          )}
+        </div>
+      </section>
+
       {/* ── Change Password ── */}
       <section className="space-y-3">
         <h2 className="font-bold text-slate-700 text-sm flex items-center gap-2">
