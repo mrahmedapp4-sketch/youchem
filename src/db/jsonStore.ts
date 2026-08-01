@@ -114,6 +114,17 @@ export interface DbSettings {
   blockedDeviceIds?: string[];
 }
 
+// A file the teacher uploads for students to download.
+export interface DbFile {
+  id: string;
+  title: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize?: number;
+  gradeLevel: '2nd_sec' | '3rd_sec' | 'all';
+  uploadedAt: string;
+}
+
 interface DBShape {
   users: DbUser[];
   lessons: DbLesson[];
@@ -123,6 +134,7 @@ interface DBShape {
   homeworks: DbHomework[];
   homeworkSubmissions: DbHomeworkSubmission[];
   settings: DbSettings[];
+  files: DbFile[];
 }
 
 // Allow overriding the data directory via env var so it can be pointed at a
@@ -146,6 +158,7 @@ const emptyData = (): DBShape => ({
   homeworks: [],
   homeworkSubmissions: [],
   settings: [],
+  files: [],
 });
 
 let cache: DBShape | null = null;

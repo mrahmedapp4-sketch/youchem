@@ -2,6 +2,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import {
   Video, CheckCircle, Lock, PlayCircle, FileText, ClipboardList,
   Key, X, XCircle, Maximize2, Sun, Moon, Trophy, Medal, Award, Languages,
+  Menu, Folder, Download, LogOut,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -18,7 +19,7 @@ interface Result {
 }
 
 type ModalStep = 'code' | 'exam' | 'results' | 'access';
-type Section = 'lessons' | 'homework' | 'leaderboard';
+type Section = 'lessons' | 'homework' | 'files' | 'leaderboard';
 
 export function StudentDashboard() {
   const navigate = useNavigate();
@@ -34,6 +35,11 @@ export function StudentDashboard() {
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+
+  const [studentFiles, setStudentFiles] = useState<any[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   /* ── Modal / flow state ── */
   const [modalLesson, setModalLesson] = useState<any>(null);
@@ -112,6 +118,17 @@ export function StudentDashboard() {
     if (section === 'leaderboard' && leaderboard.length === 0) fetchLeaderboard();
   }, [section]);
 
+  useEffect(() => {
+    if (section === 'files' && studentFiles.length === 0) {
+      setFilesLoading(true);
+      fetch('/api/student/files')
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setStudentFiles(data))
+        .catch(() => {})
+        .finally(() => setFilesLoading(false));
+    }
+  }, [section]);
+
   /* ── Modal helpers ── */
   const openModal = (lesson: any) => {
     setModalLesson(lesson);
@@ -188,81 +205,116 @@ export function StudentDashboard() {
   /* ════════════════════════════════════════════════════ */
 
   return (
-    <div className="min-h-screen" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen flex" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
 
-      {/* ── Top bar ── */}
-      <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
-          {/* Logo + quick-action buttons */}
+      {/* Mobile sidebar overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 w-64 neon-panel border-l border-slate-200 flex flex-col transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {/* Brand */}
+        <div className="h-20 flex items-center justify-between px-4 border-b border-slate-200 shrink-0">
+          <img
+            src="/logo.png"
+            alt={tr('logoAlt', lang)}
+            className="h-14 w-auto object-contain"
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="lg:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg shrink-0"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Nav items */}
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+          {([
+            { id: 'lessons',     label: tr('tabLessons', lang),     Icon: Video },
+            { id: 'homework',    label: tr('tabHomework', lang),    Icon: ClipboardList },
+            { id: 'files',       label: tr('tabFiles', lang),       Icon: Folder },
+            { id: 'leaderboard', label: tr('tabLeaderboard', lang), Icon: Trophy },
+          ] as const).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => { setSection(id); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+                section === id
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Bottom: theme + lang toggles */}
+        <div className="p-3 border-t border-slate-200 shrink-0 space-y-0.5">
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-colors font-medium text-sm"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {theme === 'dark' ? tr('dayMode', lang) : tr('nightMode', lang)}
+          </button>
+          <button
+            onClick={toggleLang}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-colors font-medium text-sm"
+          >
+            <Languages className="w-4 h-4 shrink-0" />
+            {lang === 'ar' ? 'English' : 'العربية'}
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main content ── */}
+      <main className="flex-1 flex flex-col min-w-0">
+
+        {/* Top header */}
+        <header className="h-16 neon-panel border-b border-slate-200 flex items-center px-4 lg:px-8 shrink-0">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="lg:hidden text-slate-400 hover:text-slate-700 ml-4 p-2 rounded-xl hover:bg-slate-100"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex-1" />
           <div className="flex items-center gap-2">
-            <img
-              src="/logo.png" alt={tr('logoAlt', lang)}
-              className="h-9 sm:h-10 w-auto object-contain"
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-            <span className="font-bold text-slate-900 hidden sm:inline">
-              <span className="neon-text">youchem platform</span>
-            </span>
-            {/* Dark-mode toggle */}
             <button
               onClick={toggleTheme}
               title={theme === 'dark' ? tr('dayMode', lang) : tr('nightMode', lang)}
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
+              className="hidden lg:flex w-8 h-8 rounded-xl items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            {/* Leaderboard shortcut */}
-            <button
-              onClick={() => setSection('leaderboard')}
-              title={tr('leaderboardTitle', lang)}
-              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors border ${
-                section === 'leaderboard'
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
-                  : 'text-slate-500 hover:bg-slate-100 border-slate-200'
-              }`}
-            >
-              <Trophy className="w-4 h-4" />
-            </button>
-            {/* Language toggle */}
             <button
               onClick={toggleLang}
-              title={lang === 'ar' ? 'Switch to English' : 'التبديل للعربية'}
-              className="flex items-center gap-1 w-auto px-2 h-8 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
+              className="hidden lg:flex items-center gap-1 px-2 h-8 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
             >
               <Languages className="w-3.5 h-3.5" />
               {lang === 'ar' ? 'EN' : 'عربي'}
             </button>
           </div>
-          {/* Spacer — right side intentionally empty */}
-          <div />
-        </div>
-      </header>
+        </header>
 
-      <main className="max-w-6xl mx-auto px-3 sm:px-4 py-5 sm:py-8">
+        <div className="flex-1 p-4 lg:p-8 overflow-auto">
 
         {/* Welcome */}
         <div className="mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{tr('welcomeHeading', lang)}</h2>
           <p className="text-slate-500 mt-1 text-sm sm:text-base">{tr('welcomeSub', lang)}</p>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 sm:mb-8 border-b border-slate-200 pb-px overflow-x-auto">
-          {([
-            { id: 'lessons',     label: tr('tabLessons', lang),     Icon: Video },
-            { id: 'homework',    label: tr('tabHomework', lang),    Icon: ClipboardList },
-            { id: 'leaderboard', label: tr('tabLeaderboard', lang), Icon: Trophy },
-          ] as const).map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => setSection(id)}
-              className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-colors border-b-2 -mb-px whitespace-nowrap ${
-                section === id
-                  ? 'text-indigo-700 border-indigo-600'
-                  : 'text-slate-500 border-transparent hover:text-slate-800'
-              }`}
-            >
-              <Icon className="w-4 h-4" />{label}
-            </button>
-          ))}
         </div>
 
         {/* ── Lessons Grid ── */}
@@ -416,6 +468,51 @@ export function StudentDashboard() {
           </div>
         ))}
 
+        {/* ── Files ── */}
+        {section === 'files' && (filesLoading ? (
+          <div className="text-center p-12 text-slate-400">{tr('loading', lang)}</div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-slate-500 text-sm mb-5">{tr('filesSubtitle', lang)}</p>
+            {studentFiles.map((f: any) => (
+              <div key={f.id} className="neon-card rounded-2xl p-4 flex items-center gap-4">
+                <img
+                  src="/folder-icon.png"
+                  alt="ملف"
+                  className="w-10 h-10 object-contain shrink-0"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-slate-900 truncate">{f.title}</p>
+                  <p className="text-xs text-slate-400 mt-0.5 truncate">{f.fileName}</p>
+                </div>
+                <a
+                  href={f.fileUrl}
+                  download={f.fileName}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl neon-btn text-sm font-bold shrink-0"
+                >
+                  <Download className="w-4 h-4" />
+                  {tr('downloadFile', lang)}
+                </a>
+              </div>
+            ))}
+            {studentFiles.length === 0 && (
+              <div className="p-12 text-center text-slate-400 neon-card rounded-2xl">
+                <img
+                  src="/folder-icon.png"
+                  alt="ملفات"
+                  className="w-14 h-14 mx-auto mb-3 opacity-40"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+                <p>{tr('noFiles', lang)}</p>
+              </div>
+            )}
+          </div>
+        ))}
+
+        </div>{/* end .flex-1.p-4 */}
       </main>
 
       {/* ════════════════════════════════════════════════════

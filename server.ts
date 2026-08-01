@@ -46,6 +46,7 @@ import {
   DbStudentLessonAccess,
   DbHomework,
   DbHomeworkSubmission,
+  DbFile,
 } from './src/db/jsonStore.ts';
 import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
 
@@ -94,6 +95,9 @@ const DATA_ROOT = process.env.RAILWAY_VOLUME_MOUNT_PATH
 const UPLOADS_DIR = path.join(DATA_ROOT, 'uploads', 'homeworks');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 console.log(`[server] Using uploads directory: ${UPLOADS_DIR}`);
+
+const FILES_DIR = path.join(DATA_ROOT, 'uploads', 'files');
+fs.mkdirSync(FILES_DIR, { recursive: true });
 
 // Student PDF files – saved on first registration, overwritten on each download
 const STUDENT_PDFS_DIR = path.join(DATA_ROOT, 'student-pdfs');
@@ -167,6 +171,69 @@ const homeworkUpload = multer({
     if (file.mimetype !== 'application/pdf') return cb(new Error('يجب أن يكون الملف بصيغة PDF'));
     cb(null, true);
   },
+});
+
+// Serve teacher-uploaded files (authenticated + grade-scoped for students)
+app.get('/uploads/files/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename); // prevent path traversal
+
+  // Resolve the DbFile record — required for grade authorization.
+  const fileRecord = jsonDb.find('files', (f: DbFile) => path.basename(f.fileUrl) === filename);
+  if (!fileRecord) return res.status(404).json({ error: 'Not found' });
+
+  const studentToken = req.cookies.student_token;
+  const teacherToken = req.cookies.teacher_token;
+
+  // Try teacher auth first — teachers can access any file.
+  if (teacherToken) {
+    try {
+      const decoded = jwt.verify(teacherToken, JWT_SECRET) as any;
+      if (decoded.role === 'teacher') {
+        const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+        if (settings?.activeTeacherToken && decoded.teacherSessionToken === settings.activeTeacherToken) {
+          return res.sendFile(path.join(FILES_DIR, filename));
+        }
+      }
+    } catch { /* invalid token */ }
+  }
+
+  // Try student auth — must be valid session AND grade must match.
+  if (studentToken) {
+    try {
+      const decoded = jwt.verify(studentToken, JWT_SECRET) as any;
+      if (decoded.role === 'student') {
+        const user = jsonDb.find('users', (u: DbUser) => u.id === decoded.studentId);
+        const validSession =
+          user &&
+          !user.blocked &&
+          user.activeSessionToken &&
+          decoded.sessionToken === user.activeSessionToken &&
+          (!user.deviceId || decoded.deviceId === user.deviceId);
+        if (validSession) {
+          // Enforce grade-level access: 'all' files are visible to everyone;
+          // grade-specific files are only served to students of that grade.
+          const gradeMatch =
+            fileRecord.gradeLevel === 'all' ||
+            fileRecord.gradeLevel === user.gradeLevel;
+          if (gradeMatch) return res.sendFile(path.join(FILES_DIR, filename));
+          return res.status(403).json({ error: 'Forbidden' });
+        }
+      }
+    } catch { /* invalid token */ }
+  }
+
+  return res.status(401).json({ error: 'Unauthorized' });
+});
+
+const fileUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, FILES_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname) || '';
+      cb(null, `${newId()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
 });
 
 // Shared cookie options ──────────────────────────────────────────────────────
@@ -540,6 +607,57 @@ app.delete('/api/youchem/quizzes/:id', authenticateTeacher, async (req, res) => 
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── Teacher: General Files API ───────────────────────────────────────────────
+app.get('/api/youchem/files', authenticateTeacher, async (req, res) => {
+  try {
+    res.json(jsonDb.getAll('files'));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/youchem/files', authenticateTeacher, fileUpload.single('file'), async (req, res) => {
+  try {
+    const { title, gradeLevel } = req.body;
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'الملف مطلوب' });
+    if (!title) { fs.unlinkSync(file.path); return res.status(400).json({ error: 'عنوان الملف مطلوب' }); }
+    if (!['2nd_sec', '3rd_sec', 'all'].includes(gradeLevel)) {
+      fs.unlinkSync(file.path);
+      return res.status(400).json({ error: 'الصف الدراسي مطلوب' });
+    }
+    const record: DbFile = {
+      id: newId(),
+      title,
+      fileName: file.originalname,
+      fileUrl: `/uploads/files/${file.filename}`,
+      fileSize: file.size,
+      gradeLevel: gradeLevel as DbFile['gradeLevel'],
+      uploadedAt: new Date().toISOString(),
+    };
+    jsonDb.insert('files', record);
+    res.json(record);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/youchem/files/:id', authenticateTeacher, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const record = jsonDb.find('files', (f: DbFile) => f.id === id);
+    if (!record) return res.status(404).json({ error: 'الملف مش موجود' });
+    const filePath = path.join(FILES_DIR, path.basename(record.fileUrl));
+    if (fs.existsSync(filePath)) { try { fs.unlinkSync(filePath); } catch { /* ignore */ } }
+    jsonDb.remove('files', (f: DbFile) => f.id === id);
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Student: Files download list ─────────────────────────────────────────────
 
 // Homework API (bubble-sheet PDF homework)
 app.get('/api/youchem/homeworks', authenticateTeacher, async (req, res) => {
@@ -1323,6 +1441,19 @@ app.get('/api/student/homework/:homeworkId', authenticateStudent, requireComplet
       },
       pastResult,
     });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Files available for the student's grade
+app.get('/api/student/files', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
+    if (!user || !user.gradeLevel) return res.status(400).json({ error: 'Grade not set' });
+    const files = jsonDb.filter('files', (f: DbFile) => f.gradeLevel === 'all' || f.gradeLevel === user.gradeLevel);
+    res.json(files);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

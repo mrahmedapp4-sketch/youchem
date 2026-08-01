@@ -68,6 +68,13 @@ const t: Record<string, Record<Lang, string>> = {
   gradeLabel3:      { ar: 'تالت ثانوي', en: 'Grade 12' },
   scoreUnit:        { ar: 'درجة', en: 'pts' },
 
+  // Files tab
+  tabFiles:         { ar: 'الملفات', en: 'Files' },
+  noFiles:          { ar: 'مفيش ملفات متاحة دلوقتي.', en: 'No files available yet.' },
+  downloadFile:     { ar: 'تحميل', en: 'Download' },
+  filesSubtitle:    { ar: 'ملفات من مستر أحمد، حملها على جهازك', en: 'Files from Mr. Ahmed, download them to your device' },
+  sidebarToggle:    { ar: 'القائمة', en: 'Menu' },
+
   // Modal
   modalCodeStep:    { ar: 'حط كود الوصول', en: 'Enter access code' },
   modalExamStep:    { ar: 'امتحان القبول', en: 'Entry exam' },
