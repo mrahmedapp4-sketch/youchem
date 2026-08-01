@@ -295,14 +295,16 @@ export function GradeSelection() {
   return (
     <div className="min-h-screen flex items-center justify-center gap-8 p-4 lg:px-16" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
 
-      {/* Teacher image — desktop only, points toward the card */}
-      <div className="hidden lg:flex flex-col items-center justify-end self-stretch pointer-events-none select-none" style={{ minWidth: 220 }}>
-        <img
-          src="/mr-ahmed.png"
-          alt="مستر أحمد"
-          className="h-[70vh] max-h-[560px] w-auto object-contain drop-shadow-xl"
-        />
-      </div>
+      {/* Teacher image — desktop only, shown on login screen only, points toward the card */}
+      {!needsProfile && (
+        <div className="hidden lg:flex flex-col items-center justify-end self-stretch pointer-events-none select-none" style={{ minWidth: 220 }}>
+          <img
+            src="/mr-ahmed.png"
+            alt="مستر أحمد"
+            className="h-[70vh] max-h-[560px] w-auto object-contain drop-shadow-xl"
+          />
+        </div>
+      )}
 
       <div className="neon-card p-8 rounded-2xl max-w-md w-full">
 
