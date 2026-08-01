@@ -3,14 +3,14 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 export type Lang = 'ar' | 'en';
 
 const LanguageContext = createContext<{ lang: Lang; toggleLang: () => void }>({
-  lang: 'ar',
+  lang: 'en',
   toggleLang: () => {},
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLang] = useState<Lang>(() => {
-    if (typeof window === 'undefined') return 'ar';
-    return (localStorage.getItem('youchem_lang') as Lang) || 'ar';
+    if (typeof window === 'undefined') return 'en';
+    return (localStorage.getItem('youchem_lang') as Lang) || 'en';
   });
 
   useEffect(() => {
