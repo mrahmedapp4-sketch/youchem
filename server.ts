@@ -2244,7 +2244,7 @@ app.get('/api/youchem/settings/stats', authenticateTeacher, async (req, res) => 
     const lessons = jsonDb.getAll('lessons');
     const homeworks = jsonDb.getAll('homeworks');
     const quizzes = jsonDb.getAll('quizzes');
-    const codes = jsonDb.getAll('codes') as Array<{ used?: boolean }>;
+    const codes = jsonDb.getAll('codes') as DbCode[];
     const homeworkSubmissions = jsonDb.getAll('homeworkSubmissions');
     res.json({
       students: students.length,
@@ -2252,7 +2252,7 @@ app.get('/api/youchem/settings/stats', authenticateTeacher, async (req, res) => 
       homeworks: homeworks.length,
       quizzes: quizzes.length,
       codesTotal: codes.length,
-      codesUsed: codes.filter(c => c.used).length,
+      codesUsed: codes.filter(c => c.isUsed).length,
       homeworkSubmissions: homeworkSubmissions.length,
     });
   } catch (err: any) {
