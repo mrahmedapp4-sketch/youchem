@@ -295,9 +295,15 @@ export function GradeSelection() {
   return (
     <div className="min-h-screen flex items-center justify-center gap-8 p-4 lg:px-16" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
 
-      {/* Teacher image — desktop only, shown on login screen only, points toward the card */}
+      {/* Teacher image — desktop only, shown on login screen only, points toward the card.
+          In RTL (Arabic) the flex container reverses order so this first-in-DOM div appears
+          on the right side. In LTR (English) we push it to the end with order-last so it
+          still appears on the right side — keeping the pointing finger aimed at the card. */}
       {!needsProfile && (
-        <div className="hidden lg:flex flex-col items-center justify-end self-stretch pointer-events-none select-none" style={{ minWidth: 220 }}>
+        <div
+          className={`hidden lg:flex flex-col items-center justify-end self-stretch pointer-events-none select-none${lang === 'en' ? ' order-last' : ''}`}
+          style={{ minWidth: 220 }}
+        >
           <img
             src="/mr-ahmed.png"
             alt="مستر أحمد"
