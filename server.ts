@@ -609,6 +609,42 @@ app.delete('/api/youchem/quizzes/:id', authenticateTeacher, async (req, res) => 
 });
 
 // ── Teacher: General Files API ───────────────────────────────────────────────
+
+/** Returns current disk usage of FILES_DIR and the configured limit. */
+function getFilesUsage() {
+  const settings = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+  const limitMB = settings?.filesStorageLimitMB ?? 500;
+  let usedBytes = 0;
+  if (fs.existsSync(FILES_DIR)) {
+    for (const f of fs.readdirSync(FILES_DIR)) {
+      try { usedBytes += fs.statSync(path.join(FILES_DIR, f)).size; } catch { /* ignore */ }
+    }
+  }
+  const usedMB = usedBytes / (1024 * 1024);
+  return { usedBytes, usedMB: Math.round(usedMB * 100) / 100, limitMB, remainingMB: Math.max(0, Math.round((limitMB - usedMB) * 100) / 100) };
+}
+
+app.get('/api/youchem/files/usage', authenticateTeacher, (_req, res) => {
+  try { res.json(getFilesUsage()); } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/youchem/settings/files-limit', authenticateTeacher, async (req, res) => {
+  try {
+    const { limitMB } = req.body;
+    const parsed = parseInt(limitMB, 10);
+    if (isNaN(parsed) || parsed < 1) return res.status(400).json({ error: 'الحد لازم يكون رقم أكبر من صفر' });
+    const existing = jsonDb.find('settings', (s: DbSettings) => s.id === 'main');
+    if (existing) {
+      jsonDb.update('settings', (s: DbSettings) => s.id === 'main', { filesStorageLimitMB: parsed });
+    } else {
+      jsonDb.insert('settings', { id: 'main', filesStorageLimitMB: parsed });
+    }
+    res.json({ ok: true, limitMB: parsed });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/youchem/files', authenticateTeacher, async (req, res) => {
   try {
     res.json(jsonDb.getAll('files'));
@@ -626,6 +662,12 @@ app.post('/api/youchem/files', authenticateTeacher, fileUpload.single('file'), a
     if (!['2nd_sec', '3rd_sec', 'all'].includes(gradeLevel)) {
       fs.unlinkSync(file.path);
       return res.status(400).json({ error: 'الصف الدراسي مطلوب' });
+    }
+    // Enforce storage limit
+    const usage = getFilesUsage();
+    if (usage.usedMB + file.size / (1024 * 1024) > usage.limitMB) {
+      fs.unlinkSync(file.path);
+      return res.status(400).json({ error: `تجاوزت الحد المسموح به (${usage.limitMB} MB). فاضل ${usage.remainingMB} MB فقط.` });
     }
     const record: DbFile = {
       id: newId(),

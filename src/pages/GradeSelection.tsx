@@ -301,7 +301,6 @@ export function GradeSelection() {
           src="/mr-ahmed.png"
           alt="مستر أحمد"
           className="h-[70vh] max-h-[560px] w-auto object-contain drop-shadow-xl"
-          style={{ transform: 'scaleX(-1)' }}
         />
       </div>
 

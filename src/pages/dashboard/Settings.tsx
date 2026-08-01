@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { Settings as SettingsIcon, Users, BookOpen, FileText, FileQuestion, ShieldAlert, KeyRound, BarChart3, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, Users, BookOpen, FileText, FileQuestion, ShieldAlert, KeyRound, BarChart3, Trash2, HardDrive } from 'lucide-react';
 
 export function Settings() {
   const [stats, setStats] = useState<any>(null);
@@ -12,6 +12,12 @@ export function Settings() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
+  // Files storage limit state
+  const [filesUsage, setFilesUsage] = useState<{ usedMB: number; limitMB: number; remainingMB: number } | null>(null);
+  const [limitInput, setLimitInput] = useState('');
+  const [limitSaving, setLimitSaving] = useState(false);
+  const [limitMsg, setLimitMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
   // Reset state
   const [resetInput, setResetInput] = useState('');
   const [resetting, setResetting] = useState(false);
@@ -21,7 +27,34 @@ export function Settings() {
       .then(r => r.json())
       .then(d => { setStats(d); setStatsLoading(false); })
       .catch(() => setStatsLoading(false));
+    fetch('/api/youchem/files/usage')
+      .then(r => r.json())
+      .then(d => { setFilesUsage(d); setLimitInput(String(d.limitMB)); })
+      .catch(() => {});
   }, []);
+
+  const handleSaveLimit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLimitMsg(null);
+    setLimitSaving(true);
+    try {
+      const res = await fetch('/api/youchem/settings/files-limit', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limitMB: limitInput }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLimitMsg({ type: 'ok', text: `تم تحديد الحد بـ ${data.limitMB} MB ✓` });
+        setFilesUsage(prev => prev ? { ...prev, limitMB: data.limitMB, remainingMB: Math.max(0, data.limitMB - prev.usedMB) } : prev);
+      } else {
+        setLimitMsg({ type: 'err', text: data.error || 'في مشكلة' });
+      }
+    } catch {
+      setLimitMsg({ type: 'err', text: 'في مشكلة في الاتصال' });
+    }
+    setLimitSaving(false);
+  };
 
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();

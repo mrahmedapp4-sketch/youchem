@@ -112,6 +112,8 @@ export interface DbSettings {
   activeTeacherToken?: string | null;
   /** Device identifiers that may not authenticate, even if their old account is deleted. */
   blockedDeviceIds?: string[];
+  /** Maximum total size in MB allowed for teacher-uploaded files. Default: 500. */
+  filesStorageLimitMB?: number;
 }
 
 // A file the teacher uploads for students to download.

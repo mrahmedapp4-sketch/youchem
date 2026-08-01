@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
-import { Trash2, Plus, X, Download, Upload } from 'lucide-react';
+import { Trash2, Plus, X, Download, Upload, HardDrive } from 'lucide-react';
 
 const GRADE_LABELS: Record<string, string> = {
   '2nd_sec': 'تاني ثانوي',
@@ -11,6 +11,7 @@ export function TeacherFiles() {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [usage, setUsage] = useState<{ usedMB: number; limitMB: number; remainingMB: number } | null>(null);
 
   const [title, setTitle] = useState('');
   const [gradeLevel, setGradeLevel] = useState('all');
@@ -19,7 +20,14 @@ export function TeacherFiles() {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { fetchFiles(); }, []);
+  useEffect(() => { fetchFiles(); fetchUsage(); }, []);
+
+  const fetchUsage = async () => {
+    try {
+      const res = await fetch('/api/youchem/files/usage');
+      if (res.ok) setUsage(await res.json());
+    } catch { /* ignore */ }
+  };
 
   const fetchFiles = async () => {
     setLoading(true);
@@ -54,6 +62,7 @@ export function TeacherFiles() {
         resetForm();
         setShowForm(false);
         fetchFiles();
+        fetchUsage();
       } else {
         const data = await res.json();
         setError(data.error || 'في مشكلة في الرفع');
@@ -68,7 +77,7 @@ export function TeacherFiles() {
     if (!confirm(`متأكد إنك تمسح "${name}"؟`)) return;
     try {
       const res = await fetch(`/api/youchem/files/${id}`, { method: 'DELETE' });
-      if (res.ok) fetchFiles();
+      if (res.ok) { fetchFiles(); fetchUsage(); }
       else alert('في مشكلة في المسح');
     } catch { alert('في مشكلة في الاتصال'); }
   };
@@ -96,6 +105,37 @@ export function TeacherFiles() {
           رفع ملف جديد
         </button>
       </div>
+
+      {/* Storage usage bar */}
+      {usage && (
+        <div className="neon-card rounded-2xl p-4 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-slate-600 font-semibold">
+              <HardDrive className="w-4 h-4 text-slate-400" />
+              مساحة الملفات
+            </div>
+            <span className="text-slate-500 text-xs">
+              {usage.usedMB.toFixed(1)} MB مستخدم من {usage.limitMB} MB
+              {' · '}
+              <span className={usage.remainingMB < usage.limitMB * 0.1 ? 'text-red-500 font-bold' : 'text-emerald-600 font-bold'}>
+                فاضل {usage.remainingMB.toFixed(1)} MB
+              </span>
+            </span>
+          </div>
+          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                usage.usedMB / usage.limitMB > 0.9
+                  ? 'bg-red-500'
+                  : usage.usedMB / usage.limitMB > 0.7
+                  ? 'bg-amber-400'
+                  : 'bg-indigo-500'
+              }`}
+              style={{ width: `${Math.min(100, (usage.usedMB / usage.limitMB) * 100).toFixed(1)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Upload form */}
       {showForm && (
