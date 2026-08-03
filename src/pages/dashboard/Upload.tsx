@@ -184,6 +184,38 @@ export function UploadVideo() {
         </div>
       )}
 
+      {/* Video preview modal */}
+      {previewLesson && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setPreviewLesson(null)}
+        >
+          <div
+            className="w-full max-w-4xl bg-black rounded-2xl overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-900">
+              <span className="text-white font-bold text-sm truncate">{previewLesson.title}</span>
+              <button
+                onClick={() => setPreviewLesson(null)}
+                className="text-slate-400 hover:text-white transition-colors p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="aspect-video w-full">
+              <iframe
+                src={getEmbedUrl(previewLesson.platform, previewLesson.videoUrl)}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={previewLesson.title}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit modal */}
       {editingLessonId && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setEditingLessonId(null)}>
