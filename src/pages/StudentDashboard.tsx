@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import {
   Video, CheckCircle, Lock, PlayCircle, FileText, ClipboardList,
   Key, X, XCircle, Maximize2, Sun, Moon, Trophy, Medal, Award, Languages,
@@ -38,6 +38,9 @@ export function StudentDashboard() {
 
   const [studentFiles, setStudentFiles] = useState<any[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
+  const [manualGrades, setManualGrades] = useState<any[]>([]);
+  const [showGradeNotice, setShowGradeNotice] = useState(false);
+  const [revealedGradeIds, setRevealedGradeIds] = useState<string[]>([]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -87,6 +90,21 @@ export function StudentDashboard() {
       }
     })();
   }, [navigate]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/student/grades');
+        if (res.ok) {
+          const data = await res.json();
+          setManualGrades(data);
+          if (data.length > 0) setShowGradeNotice(true);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -785,6 +803,56 @@ export function StudentDashboard() {
                 </div>
               )}
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Teacher-entered grades are intentionally hidden until the student
+          chooses to reveal them, and this notice opens automatically on entry. */}
+      {showGradeNotice && manualGrades.length > 0 && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/60 flex items-center justify-center p-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
+            <div className="bg-indigo-600 px-6 py-7 text-white text-center">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-white/15 flex items-center justify-center mb-4">
+                <Trophy className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold">نتيجة امتحانك</h2>
+              <p className="text-indigo-100 text-sm mt-1">مستر أحمد صحّح لك الامتحان</p>
+            </div>
+            <div className="p-6 space-y-3">
+              {manualGrades.map((grade: any) => {
+                const revealed = revealedGradeIds.includes(grade.id);
+                return (
+                  <div key={grade.id} className="rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <span className="font-bold text-slate-800">تم تصحيح امتحان «{grade.examName}»</span>
+                      {!revealed && (
+                        <button
+                          onClick={() => setRevealedGradeIds(current => [...current, grade.id])}
+                          className="neon-btn px-4 py-2 rounded-xl text-sm font-bold shrink-0"
+                        >
+                          إظهار النتيجة
+                        </button>
+                      )}
+                    </div>
+                    {revealed && (
+                      <div className="px-4 pb-5 pt-1 text-center border-t border-slate-100">
+                        <p className="text-5xl font-black text-indigo-600 mt-4">
+                          {grade.score}<span className="text-2xl text-slate-400">/60</span>
+                        </p>
+                        <p className="text-slate-500 mt-2 font-semibold">النسبة المئوية: {grade.percentage}%</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <button
+                onClick={() => setShowGradeNotice(false)}
+                className="w-full py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors mt-2"
+              >
+                الرجوع للمنصة
+              </button>
             </div>
           </div>
         </div>

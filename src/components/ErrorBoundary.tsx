@@ -10,6 +10,12 @@ interface State {
 
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
+  private readonly children: ReactNode;
+
+  constructor(props: Props) {
+    super(props);
+    this.children = props.children;
+  }
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
@@ -87,6 +93,6 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    return this.children;
   }
 }

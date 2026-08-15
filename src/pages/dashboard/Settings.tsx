@@ -62,7 +62,7 @@ export function Settings() {
     });
   };
 
-  const handleSaveLimit = async (e: React.FormEvent) => {
+  const handleSaveLimit = async (e: FormEvent) => {
     e.preventDefault();
     setLimitMsg(null);
     setLimitSaving(true);

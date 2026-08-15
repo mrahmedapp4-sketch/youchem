@@ -47,6 +47,7 @@ import {
   DbHomework,
   DbHomeworkSubmission,
   DbFile,
+  DbManualExamGrade,
 } from './src/db/jsonStore.ts';
 import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
 
@@ -910,6 +911,62 @@ app.patch('/api/youchem/students/:userId/lessons/:lessonId/reset-exam', authenti
   }
 });
 
+// ── Teacher: manually entered exam grades ────────────────────────────────────
+app.get('/api/youchem/manual-grades', authenticateTeacher, async (_req, res) => {
+  try {
+    const grades = jsonDb.getAll('manualExamGrades') as DbManualExamGrade[];
+    const students = jsonDb.filter('users', (u: DbUser) => u.role === 'student')
+      .map(({ activeSessionToken, sessionExpiresAt, deviceId, ...student }) => student);
+    res.json({ grades, students });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/youchem/manual-grades', authenticateTeacher, async (req, res) => {
+  try {
+    const studentId = typeof req.body?.studentId === 'string' ? req.body.studentId : '';
+    const examName = typeof req.body?.examName === 'string' ? req.body.examName.trim() : '';
+    const rawScore = typeof req.body?.score === 'number' ? req.body.score : Number(req.body?.score);
+    const score = Number.isFinite(rawScore) ? rawScore : NaN;
+    const student = jsonDb.find('users', (u: DbUser) => u.id === studentId && u.role === 'student');
+
+    if (!student) return res.status(404).json({ error: 'الطالب غير موجود' });
+    if (!examName) return res.status(400).json({ error: 'اكتب اسم الامتحان' });
+    if (examName.length > 120) return res.status(400).json({ error: 'اسم الامتحان طويل جدًا' });
+    if (!Number.isFinite(score) || score < 0 || score > 60) {
+      return res.status(400).json({ error: 'الدرجة لازم تكون من 0 إلى 60' });
+    }
+
+    const normalizedScore = Math.round(score * 100) / 100;
+    const percentage = Math.round((normalizedScore / 60) * 10000) / 100;
+    const existing = jsonDb.find(
+      'manualExamGrades',
+      (g: DbManualExamGrade) => g.studentId === studentId && g.examName.toLowerCase() === examName.toLowerCase(),
+    );
+    const updates = {
+      examName,
+      score: normalizedScore,
+      maxScore: 60 as const,
+      percentage,
+      confirmed: true,
+      confirmedAt: new Date().toISOString(),
+    };
+    const grade = existing
+      ? jsonDb.update('manualExamGrades', (g: DbManualExamGrade) => g.id === existing.id, updates)
+      : jsonDb.insert('manualExamGrades', {
+          id: newId(),
+          studentId,
+          ...updates,
+          createdAt: new Date().toISOString(),
+        } satisfies DbManualExamGrade);
+
+    res.json({ ...grade, student: { id: student.id, name: student.name, email: student.email, phone: student.phone } });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- STUDENT API (Google Sign-In) ---
 
 app.post('/api/student/google-login', async (req, res) => {
@@ -1147,6 +1204,21 @@ app.get('/api/student/lessons', authenticateStudent, requireCompleteStudentProfi
     const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === studentId);
 
     res.json({ lessons: availableLessons, accesses });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/student/grades', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const grades = jsonDb.filter(
+      'manualExamGrades',
+      (g: DbManualExamGrade) => g.studentId === studentId && g.confirmed,
+    ).sort((a: DbManualExamGrade, b: DbManualExamGrade) =>
+      new Date(b.confirmedAt || b.createdAt).getTime() - new Date(a.confirmedAt || a.createdAt).getTime(),
+    );
+    res.json(grades);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

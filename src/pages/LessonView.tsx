@@ -154,7 +154,7 @@ export function LessonView() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showQuizSection, quizResult, quizQuestions.length, focusedQIdx]);
+  }, [quizResult, quizQuestions.length, focusedQIdx]);
 
   if (loading || !lesson) return (
     <div className="min-h-screen flex items-center justify-center text-slate-400">بيتحمل...</div>

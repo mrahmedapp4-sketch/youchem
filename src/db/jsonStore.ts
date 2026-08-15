@@ -104,6 +104,20 @@ export interface DbHomeworkSubmission {
   createdAt: string;
 }
 
+// A manually graded exam entered by the teacher. Scores are always out of 60
+// and are kept separate from the automatic lesson quizzes.
+export interface DbManualExamGrade {
+  id: string;
+  studentId: string;
+  examName: string;
+  score: number;
+  maxScore: 60;
+  percentage: number;
+  confirmed: boolean;
+  createdAt: string;
+  confirmedAt?: string;
+}
+
 export interface DbSettings {
   id: string; // always 'main'
   teacherPasswordHash?: string;
@@ -137,6 +151,7 @@ interface DBShape {
   studentLessonAccess: DbStudentLessonAccess[];
   homeworks: DbHomework[];
   homeworkSubmissions: DbHomeworkSubmission[];
+  manualExamGrades: DbManualExamGrade[];
   settings: DbSettings[];
   files: DbFile[];
 }
@@ -161,6 +176,7 @@ const emptyData = (): DBShape => ({
   studentLessonAccess: [],
   homeworks: [],
   homeworkSubmissions: [],
+  manualExamGrades: [],
   settings: [],
   files: [],
 });

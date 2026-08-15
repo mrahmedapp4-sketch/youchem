@@ -17,6 +17,7 @@ import { StudentDashboard } from './pages/StudentDashboard';
 import { LessonView } from './pages/LessonView';
 import { GradeSelection } from './pages/GradeSelection';
 import { ExamPage } from './pages/ExamPage';
+import { ManualGrades } from './pages/dashboard/ManualGrades';
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="codes" element={<Codes />} />
             <Route path="upload" element={<UploadVideo />} />
             <Route path="quizzes" element={<Quizzes />} />
+            <Route path="grades" element={<ManualGrades />} />
             <Route path="homework" element={<Homework />} />
             <Route path="students" element={<Students />} />
             <Route path="emails" element={<Emails />} />
