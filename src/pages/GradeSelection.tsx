@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ChevronLeft, Languages } from 'lucide-react';
+import { GraduationCap, ChevronLeft, Languages, Moon, Sun } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 import { useLang } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { tr } from '../lib/translations';
 
 const PHONE_PATTERN = /^01\d{9}$/;
@@ -46,6 +47,7 @@ const readProfileDraft = (email: string): Partial<ProfileDraft> => {
 
 export function GradeSelection() {
   const { lang, toggleLang } = useLang();
+  const { theme, toggleTheme } = useTheme();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -218,11 +220,19 @@ export function GradeSelection() {
     } catch (err) {
       console.error('Google sign-in failed:', err);
       const code = (err as { code?: string })?.code;
-      setError(
-        code
-          ? `${tr('errGoogleGeneric', lang)} (${code})`
-          : tr('errGoogleGeneric', lang),
-      );
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setError('');
+      } else if (code === 'auth/popup-blocked') {
+        setError(lang === 'ar'
+          ? 'المتصفح منع نافذة جوجل. اسمح بالنوافذ المنبثقة للموقع وحاول مرة أخرى.'
+          : 'Your browser blocked the Google window. Allow pop-ups for this site and try again.');
+      } else if (code === 'auth/network-request-failed') {
+        setError(lang === 'ar'
+          ? 'الاتصال بجوجل انقطع. اتأكد من الإنترنت وحاول تاني.'
+          : 'The connection to Google was interrupted. Check your internet and try again.');
+      } else {
+        setError(code ? `${tr('errGoogleGeneric', lang)} (${code})` : tr('errGoogleGeneric', lang));
+      }
     }
     setSigningIn(false);
   };
@@ -316,13 +326,23 @@ export function GradeSelection() {
 
         {/* Lang toggle */}
         <div className="flex justify-end mb-2">
-          <button
-            onClick={toggleLang}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors border border-slate-200 rounded-lg px-2.5 py-1.5"
-          >
-            <Languages className="w-3.5 h-3.5" />
-            {lang === 'ar' ? 'EN' : 'عربي'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+              aria-label={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+              className="theme-toggle"
+            >
+              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={toggleLang}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors border border-slate-200 rounded-lg px-2.5 py-1.5"
+            >
+              <Languages className="w-3.5 h-3.5" />
+              {lang === 'ar' ? 'EN' : 'عربي'}
+            </button>
+          </div>
         </div>
 
         {/* Logo + heading */}

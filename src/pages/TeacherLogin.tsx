@@ -1,31 +1,44 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Languages } from 'lucide-react';
+import { Lock, Languages, LoaderCircle, Moon, Sun } from 'lucide-react';
 import { useLang } from '../context/LanguageContext';
 import { tr } from '../lib/translations';
+import { useTheme } from '../context/ThemeContext';
 
 export function TeacherLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
   const navigate = useNavigate();
   const { lang, toggleLang } = useLang();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
+    if (loggingIn) return;
     setError('');
+    setLoggingIn(true);
     try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 10000);
       const res = await fetch('/api/teacher/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
+        signal: controller.signal,
       });
+      window.clearTimeout(timeout);
       if (res.ok) {
         navigate('/youchem');
       } else {
         setError(tr('errWrongPass', lang));
       }
-    } catch {
-      setError(tr('errConnection', lang));
+    } catch (err) {
+      setError((err as DOMException)?.name === 'AbortError'
+        ? (lang === 'ar' ? 'الطلب أخد وقت طويل، حاول تاني.' : 'The request took too long. Please try again.')
+        : tr('errConnection', lang));
+    } finally {
+      setLoggingIn(false);
     }
   };
 
@@ -35,13 +48,23 @@ export function TeacherLogin() {
 
         {/* Lang toggle */}
         <div className="flex justify-end mb-2">
-          <button
-            onClick={toggleLang}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors border border-slate-200 rounded-lg px-2.5 py-1.5"
-          >
-            <Languages className="w-3.5 h-3.5" />
-            {lang === 'ar' ? 'EN' : 'عربي'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+              aria-label={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+              className="theme-toggle"
+            >
+              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={toggleLang}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors border border-slate-200 rounded-lg px-2.5 py-1.5"
+            >
+              <Languages className="w-3.5 h-3.5" />
+              {lang === 'ar' ? 'EN' : 'عربي'}
+            </button>
+          </div>
         </div>
 
         {/* Logo */}
@@ -82,8 +105,8 @@ export function TeacherLogin() {
               placeholder="••••••••"
             />
           </div>
-          <button type="submit" className="neon-btn w-full font-bold py-3 rounded-xl">
-            {tr('loginBtn', lang)}
+          <button type="submit" disabled={loggingIn} className="neon-btn w-full font-bold py-3 rounded-xl disabled:opacity-60">
+            {loggingIn ? <LoaderCircle className="w-4 h-4 animate-spin mx-auto" /> : tr('loginBtn', lang)}
           </button>
         </form>
       </div>
