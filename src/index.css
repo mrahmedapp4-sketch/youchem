@@ -105,6 +105,36 @@ body {
   min-height: 100vh;
 }
 
+.dark,
+.dark body,
+.dark #root {
+  background-color: #070b1a !important;
+}
+.dark body {
+  background-image:
+    radial-gradient(700px circle at 8% 8%, rgba(34, 211, 238, 0.14), transparent 58%),
+    radial-gradient(850px circle at 92% 92%, rgba(139, 92, 246, 0.16), transparent 60%),
+    linear-gradient(135deg, #070b1a 0%, #11102d 48%, #061923 100%) !important;
+  background-attachment: fixed;
+}
+.dark .neon-panel {
+  background: rgba(10, 16, 34, 0.88);
+  border-color: rgba(34, 211, 238, 0.25) !important;
+  box-shadow: 0 0 22px rgba(34, 211, 238, 0.05);
+}
+.dark .neon-input:focus {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.16), 0 0 18px rgba(34, 211, 238, 0.12);
+}
+.dark .text-slate-300 { color: #c4b5fd !important; }
+.dark .text-indigo-600 { color: #a78bfa !important; }
+.dark .text-red-500 { color: #fb7185 !important; }
+.dark .text-emerald-600 { color: #34d399 !important; }
+.dark .text-emerald-700 { color: #6ee7b7 !important; }
+.dark .hover\:text-slate-900:hover { color: #f8fafc !important; }
+.dark .hover\:text-slate-700:hover { color: #e2e8f0 !important; }
+.dark .hover\:text-indigo-600:hover { color: #67e8f9 !important; }
+
 /* ── Shared button motion ── */
 button:not(:disabled) {
   position: relative;
