@@ -47,7 +47,9 @@ function loadPlayerScript(): Promise<void> {
 }
 
 function toEmbedUrl(videoUrl: string): string {
-  return videoUrl.replace('player.mediadelivery.net/play/', 'iframe.mediadelivery.net/embed/');
+  const embedUrl = videoUrl.replace('player.mediadelivery.net/play/', 'iframe.mediadelivery.net/embed/');
+  const separator = embedUrl.includes('?') ? '&' : '?';
+  return `${embedUrl}${separator}playerjs=1`;
 }
 
 export function BunnyVideo({ videoUrl, title, className = '', skipFromSeconds, skipToSeconds }: {
@@ -58,7 +60,14 @@ export function BunnyVideo({ videoUrl, title, className = '', skipFromSeconds, s
   skipToSeconds?: number | null;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const usesDefaultCut = skipFromSeconds === undefined && skipToSeconds === undefined && videoUrl.includes(CUT_VIDEO_MARKER);
+  const isTargetVideo = videoUrl.includes(CUT_VIDEO_MARKER);
+  // Older records may still contain the original 13–63 range, or null because
+  // they were created before trim settings were added. Keep this target video
+  // on the requested 12–60 segment until the teacher saves a different range.
+  const usesDefaultCut = isTargetVideo && (
+    (skipFromSeconds == null && skipToSeconds == null) ||
+    (skipFromSeconds === 13 && skipToSeconds === 63)
+  );
   const cutFrom = usesDefaultCut ? DEFAULT_CUT_FROM_SECONDS : skipFromSeconds;
   const cutTo = usesDefaultCut ? DEFAULT_CUT_TO_SECONDS : skipToSeconds;
   const shouldCut = typeof cutFrom === 'number' && typeof cutTo === 'number' && cutTo > cutFrom;
