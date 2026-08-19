@@ -20,8 +20,8 @@ export function UploadVideo() {
   const [editUrl, setEditUrl] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [trimmingLesson, setTrimmingLesson] = useState<any>(null);
-  const [trimFrom, setTrimFrom] = useState('13');
-  const [trimTo, setTrimTo] = useState('63');
+  const [trimFrom, setTrimFrom] = useState('12');
+  const [trimTo, setTrimTo] = useState('60');
   const [savingTrim, setSavingTrim] = useState(false);
 
   useEffect(() => { fetchLessons(); }, []);
@@ -83,8 +83,8 @@ export function UploadVideo() {
 
   const openTrim = (lesson: any) => {
     setTrimmingLesson(lesson);
-    setTrimFrom(String(lesson.skipFromSeconds ?? (lesson.videoUrl.includes('/712182/9d022807-a8d3-4d21-a6a6-59d2b79b283e') ? 13 : '')));
-    setTrimTo(String(lesson.skipToSeconds ?? (lesson.videoUrl.includes('/712182/9d022807-a8d3-4d21-a6a6-59d2b79b283e') ? 63 : '')));
+    setTrimFrom(String(lesson.skipFromSeconds ?? (lesson.videoUrl.includes('/712182/9d022807-a8d3-4d21-a6a6-59d2b79b283e') ? 12 : '')));
+    setTrimTo(String(lesson.skipToSeconds ?? (lesson.videoUrl.includes('/712182/9d022807-a8d3-4d21-a6a6-59d2b79b283e') ? 60 : '')));
   };
 
   const handleSaveTrim = async (e: FormEvent) => {
@@ -284,6 +284,71 @@ export function UploadVideo() {
                 />
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trim modal */}
+      {trimmingLesson && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onClick={() => setTrimmingLesson(null)}
+        >
+          <div className="neon-card p-6 rounded-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-bold text-slate-900">قص جزء من الفيديو</h2>
+              <button onClick={() => setTrimmingLesson(null)} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-5 truncate">{trimmingLesson.title}</p>
+            <form onSubmit={handleSaveTrim} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL_CLS}>من ثانية</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={trimFrom}
+                    onChange={e => setTrimFrom(e.target.value)}
+                    className={INPUT_CLS}
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLS}>إلى ثانية</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={trimTo}
+                    onChange={e => setTrimTo(e.target.value)}
+                    className={INPUT_CLS}
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">الفيديو سيبدأ من الثانية الأولى ويتخطى الجزء المحدد من {trimFrom || '—'} إلى {trimTo || '—'} عند تشغيله للطلاب.</p>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" disabled={savingTrim} className="neon-btn flex-1 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50">
+                  {savingTrim ? 'بيتحفظ...' : 'حفظ القص'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearTrim}
+                  disabled={savingTrim || (trimmingLesson.skipFromSeconds == null && trimmingLesson.skipToSeconds == null)}
+                  className="px-4 py-2.5 rounded-xl font-semibold text-sm bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
+                >
+                  مسح القص
+                </button>
+                <button type="button" onClick={() => setTrimmingLesson(null)} className="px-4 py-2.5 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+                  إلغاء
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

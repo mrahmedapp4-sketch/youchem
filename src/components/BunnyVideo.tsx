@@ -18,8 +18,8 @@ declare global {
 
 const PLAYER_JS_URL = 'https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js';
 const CUT_VIDEO_MARKER = '/712182/9d022807-a8d3-4d21-a6a6-59d2b79b283e';
-const DEFAULT_CUT_FROM_SECONDS = 13;
-const DEFAULT_CUT_TO_SECONDS = 63;
+const DEFAULT_CUT_FROM_SECONDS = 12;
+const DEFAULT_CUT_TO_SECONDS = 60;
 
 let playerScriptPromise: Promise<void> | null = null;
 
