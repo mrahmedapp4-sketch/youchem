@@ -467,6 +467,8 @@ app.post('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
       gradeLevel,
       platform,
       videoUrl,
+      skipFromSeconds: null,
+      skipToSeconds: null,
       isFree: false,
       isHidden: false,
       createdAt: new Date().toISOString(),
@@ -484,7 +486,7 @@ app.patch('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => {
     const lesson = jsonDb.find('lessons', (l: DbLesson) => l.id === id);
     if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
 
-    const { title, gradeLevel, platform, videoUrl } = req.body;
+    const { title, gradeLevel, platform, videoUrl, skipFromSeconds, skipToSeconds } = req.body;
     const updates: Partial<DbLesson> = {};
     if (title !== undefined) updates.title = title;
     if (gradeLevel !== undefined) updates.gradeLevel = gradeLevel;
@@ -493,6 +495,18 @@ app.patch('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => {
       updates.isFree = false;
     }
     if (videoUrl !== undefined) updates.videoUrl = videoUrl;
+    if (skipFromSeconds === null || skipToSeconds === null) {
+      updates.skipFromSeconds = null;
+      updates.skipToSeconds = null;
+    } else if (skipFromSeconds !== undefined || skipToSeconds !== undefined) {
+      const from = Number(skipFromSeconds);
+      const to = Number(skipToSeconds);
+      if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || to <= from) {
+        return res.status(400).json({ error: 'وقت القص غير صحيح' });
+      }
+      updates.skipFromSeconds = from;
+      updates.skipToSeconds = to;
+    }
 
     const updated = jsonDb.update('lessons', (l: DbLesson) => l.id === id, updates);
     res.json(updated);

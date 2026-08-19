@@ -18,8 +18,8 @@ declare global {
 
 const PLAYER_JS_URL = 'https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js';
 const CUT_VIDEO_MARKER = '/712182/9d022807-a8d3-4d21-a6a6-59d2b79b283e';
-const CUT_FROM_SECONDS = 13;
-const CUT_TO_SECONDS = 63;
+const DEFAULT_CUT_FROM_SECONDS = 13;
+const DEFAULT_CUT_TO_SECONDS = 63;
 
 let playerScriptPromise: Promise<void> | null = null;
 
@@ -50,13 +50,18 @@ function toEmbedUrl(videoUrl: string): string {
   return videoUrl.replace('player.mediadelivery.net/play/', 'iframe.mediadelivery.net/embed/');
 }
 
-export function BunnyVideo({ videoUrl, title, className = '' }: {
+export function BunnyVideo({ videoUrl, title, className = '', skipFromSeconds, skipToSeconds }: {
   videoUrl: string;
   title: string;
   className?: string;
+  skipFromSeconds?: number | null;
+  skipToSeconds?: number | null;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const shouldCut = videoUrl.includes(CUT_VIDEO_MARKER);
+  const usesDefaultCut = skipFromSeconds === undefined && skipToSeconds === undefined && videoUrl.includes(CUT_VIDEO_MARKER);
+  const cutFrom = usesDefaultCut ? DEFAULT_CUT_FROM_SECONDS : skipFromSeconds;
+  const cutTo = usesDefaultCut ? DEFAULT_CUT_TO_SECONDS : skipToSeconds;
+  const shouldCut = typeof cutFrom === 'number' && typeof cutTo === 'number' && cutTo > cutFrom;
 
   useEffect(() => {
     if (!shouldCut) return;
@@ -65,8 +70,8 @@ export function BunnyVideo({ videoUrl, title, className = '' }: {
 
     const handleTimeUpdate = (data?: { seconds?: number; currentTime?: number }) => {
       const seconds = data?.seconds ?? data?.currentTime;
-      if (!player || seconds === undefined || seconds < CUT_FROM_SECONDS || seconds >= CUT_TO_SECONDS) return;
-      player.setCurrentTime(CUT_TO_SECONDS);
+      if (!player || seconds === undefined || seconds < cutFrom! || seconds >= cutTo!) return;
+      player.setCurrentTime(cutTo!);
     };
 
     loadPlayerScript()
@@ -90,7 +95,7 @@ export function BunnyVideo({ videoUrl, title, className = '' }: {
       }
       player = null;
     };
-  }, [shouldCut, videoUrl]);
+  }, [shouldCut, videoUrl, cutFrom, cutTo]);
 
   return (
     <iframe

@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Video, Trash2, Eye, EyeOff, Plus, Pencil, X, Play } from 'lucide-react';
+import { Video, Trash2, Eye, EyeOff, Plus, Pencil, X, Scissors } from 'lucide-react';
 import { BunnyVideo } from '../../components/BunnyVideo';
 
 export function UploadVideo() {
@@ -19,6 +19,10 @@ export function UploadVideo() {
   const [editPlatform, setEditPlatform] = useState('youtube');
   const [editUrl, setEditUrl] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [trimmingLesson, setTrimmingLesson] = useState<any>(null);
+  const [trimFrom, setTrimFrom] = useState('13');
+  const [trimTo, setTrimTo] = useState('63');
+  const [savingTrim, setSavingTrim] = useState(false);
 
   useEffect(() => { fetchLessons(); }, []);
 
@@ -75,6 +79,60 @@ export function UploadVideo() {
       const res = await fetch(`/api/youchem/lessons/${id}/toggle-visibility`, { method: 'PATCH' });
       if (res.ok) fetchLessons();
     } catch { alert('فشل في التعديل'); }
+  };
+
+  const openTrim = (lesson: any) => {
+    setTrimmingLesson(lesson);
+    setTrimFrom(String(lesson.skipFromSeconds ?? (lesson.videoUrl.includes('/712182/9d022807-a8d3-4d21-a6a6-59d2b79b283e') ? 13 : '')));
+    setTrimTo(String(lesson.skipToSeconds ?? (lesson.videoUrl.includes('/712182/9d022807-a8d3-4d21-a6a6-59d2b79b283e') ? 63 : '')));
+  };
+
+  const handleSaveTrim = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!trimmingLesson) return;
+    const from = Number(trimFrom);
+    const to = Number(trimTo);
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || to <= from) {
+      alert('اكتب وقت بداية ونهاية صحيحين');
+      return;
+    }
+    setSavingTrim(true);
+    try {
+      const res = await fetch(`/api/youchem/lessons/${trimmingLesson.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipFromSeconds: from, skipToSeconds: to }),
+      });
+      if (res.ok) {
+        setTrimmingLesson(null);
+        fetchLessons();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'في مشكلة في حفظ القص');
+      }
+    } catch {
+      alert('في مشكلة في حفظ القص');
+    } finally {
+      setSavingTrim(false);
+    }
+  };
+
+  const handleClearTrim = async () => {
+    if (!trimmingLesson) return;
+    setSavingTrim(true);
+    try {
+      const res = await fetch(`/api/youchem/lessons/${trimmingLesson.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipFromSeconds: null, skipToSeconds: null }),
+      });
+      if (res.ok) {
+        setTrimmingLesson(null);
+        fetchLessons();
+      }
+    } finally {
+      setSavingTrim(false);
+    }
   };
 
   const extractYoutubeId = (url: string) => {
@@ -167,7 +225,10 @@ export function UploadVideo() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => setPreviewLesson(lesson)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="مشاهدة الفيديو">
-                    <Play className="w-4 h-4" />
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => openTrim(lesson)} className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="قص جزء من الفيديو">
+                    <Scissors className="w-4 h-4" />
                   </button>
                   <button onClick={() => openEditLesson(lesson)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="تعديل">
                     <Pencil className="w-4 h-4" />
@@ -209,6 +270,8 @@ export function UploadVideo() {
                 <BunnyVideo
                   videoUrl={previewLesson.videoUrl}
                   title={previewLesson.title}
+                  skipFromSeconds={previewLesson.skipFromSeconds}
+                  skipToSeconds={previewLesson.skipToSeconds}
                   className="w-full h-full"
                 />
               ) : (
