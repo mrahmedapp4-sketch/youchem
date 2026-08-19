@@ -96,8 +96,12 @@ export function Codes() {
       alert('مفيش أكواد غير مستخدمة لتصديرها');
       return;
     }
-    const ws = XLSX.utils.aoa_to_sheet(unusedCodes.map(c => [c.codeString]));
-    ws['!cols'] = [{ wch: 20 }];
+    const rows = [
+      ['الكود', 'الحصة'],
+      ...unusedCodes.map(c => [c.codeString, c.lessonId ? getLessonTitle(c.lessonId) : 'عام']),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 20 }, { wch: 32 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Codes');
     XLSX.writeFile(wb, `youchem-codes-${new Date().toLocaleDateString('en-CA')}.xlsx`);
@@ -114,8 +118,12 @@ export function Codes() {
       alert(`مفيش أكواد غير مستخدمة اتولدت في ${new Date(exportDate + 'T00:00:00').toLocaleDateString('ar-EG')}`);
       return;
     }
-    const ws = XLSX.utils.aoa_to_sheet(filtered.map(c => [c.codeString]));
-    ws['!cols'] = [{ wch: 20 }];
+    const rows = [
+      ['الكود', 'الحصة'],
+      ...filtered.map(c => [c.codeString, c.lessonId ? getLessonTitle(c.lessonId) : 'عام']),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 20 }, { wch: 32 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Codes');
     XLSX.writeFile(wb, `youchem-codes-${exportDate}.xlsx`);
