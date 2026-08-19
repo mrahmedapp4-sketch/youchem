@@ -230,6 +230,10 @@ export function GradeSelection() {
         setError(lang === 'ar'
           ? 'الاتصال بجوجل انقطع. اتأكد من الإنترنت وحاول تاني.'
           : 'The connection to Google was interrupted. Check your internet and try again.');
+      } else if (code === 'auth/unauthorized-domain') {
+        setError(lang === 'ar'
+          ? 'الدومين الحالي مش مضاف في إعدادات Google Login. لازم تضيف دومين الموقع في Firebase ثم تحاول تاني.'
+          : 'This website domain is not authorized for Google Login. Add it to Firebase Authorized Domains, then try again.');
       } else {
         setError(code ? `${tr('errGoogleGeneric', lang)} (${code})` : tr('errGoogleGeneric', lang));
       }

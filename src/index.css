@@ -105,6 +105,42 @@ body {
   min-height: 100vh;
 }
 
+/* ── Shared button motion ── */
+button:not(:disabled) {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+button:not(:disabled)::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 130%;
+  aspect-ratio: 1;
+  left: -15%;
+  top: -15%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.2), transparent 64%);
+  opacity: 0;
+  transform: scale(0.25);
+  transition: opacity 0.28s ease, transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+button:not(:disabled):hover {
+  transform: translateY(-2px);
+  filter: brightness(1.07);
+}
+button:not(:disabled):hover::before {
+  opacity: 1;
+  transform: scale(1.05);
+}
+button:not(:disabled):active {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.98);
+  transition-duration: 0.08s;
+}
+
 /* ── Cards ── */
 .neon-card {
   background: var(--bg-card);
@@ -231,5 +267,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .neon-btn { animation: none; transition: none; }
   .neon-btn::after { display: none; }
+  button:not(:disabled),
+  button:not(:disabled)::before { transition: none; }
+  button:not(:disabled):hover,
+  button:not(:disabled):active { transform: none; }
   .theme-toggle svg { transition: none; }
 }
