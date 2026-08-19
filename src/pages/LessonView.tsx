@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowRight, Lock, Key, CheckCircle, XCircle, RefreshCw, X } from 'lucide-react';
+import { BunnyVideo } from '../components/BunnyVideo';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -208,7 +209,7 @@ export function LessonView() {
               lesson.platform === 'youtube'
                 ? <iframe src={`https://www.youtube.com/embed/${extractYoutubeId(lesson.videoUrl)}`} className="absolute inset-0 w-full h-full" allowFullScreen />
                 : lesson.platform === 'bunny'
-                ? <iframe src={lesson.videoUrl.replace('player.mediadelivery.net/play/', 'iframe.mediadelivery.net/embed/')} className="absolute inset-0 w-full h-full" allowFullScreen allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" />
+                ? <BunnyVideo videoUrl={lesson.videoUrl} title={lesson.title} className="absolute inset-0 w-full h-full" />
                 : <iframe src={`https://player.vimeo.com/video/${lesson.videoUrl}?dnt=1`} className="absolute inset-0 w-full h-full" allowFullScreen />
             ) : quizLoading && access ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-slate-100">

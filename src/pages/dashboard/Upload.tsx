@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { Video, Trash2, Eye, EyeOff, Plus, Pencil, X, Play } from 'lucide-react';
+import { BunnyVideo } from '../../components/BunnyVideo';
 
 export function UploadVideo() {
   const [lessons, setLessons] = useState<any[]>([]);
@@ -84,7 +85,7 @@ export function UploadVideo() {
   const getEmbedUrl = (platform: string, videoUrl: string) => {
     if (platform === 'youtube') return `https://www.youtube.com/embed/${extractYoutubeId(videoUrl)}?autoplay=1`;
     if (platform === 'vimeo')   return `https://player.vimeo.com/video/${videoUrl}?autoplay=1`;
-    if (platform === 'bunny')   return videoUrl; // Bunny embed URL used as-is
+    if (platform === 'bunny')   return videoUrl;
     return videoUrl;
   };
 
@@ -204,13 +205,21 @@ export function UploadVideo() {
               </button>
             </div>
             <div className="aspect-video w-full">
-              <iframe
-                src={getEmbedUrl(previewLesson.platform, previewLesson.videoUrl)}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={previewLesson.title}
-              />
+              {previewLesson.platform === 'bunny' ? (
+                <BunnyVideo
+                  videoUrl={previewLesson.videoUrl}
+                  title={previewLesson.title}
+                  className="w-full h-full"
+                />
+              ) : (
+                <iframe
+                  src={getEmbedUrl(previewLesson.platform, previewLesson.videoUrl)}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={previewLesson.title}
+                />
+              )}
             </div>
           </div>
         </div>
