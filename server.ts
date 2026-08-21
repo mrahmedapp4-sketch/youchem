@@ -944,7 +944,8 @@ app.post('/api/youchem/manual-grades', authenticateTeacher, async (req, res) => 
     const rawScore = typeof req.body?.score === 'number' ? req.body.score : Number(req.body?.score);
     const score = Number.isFinite(rawScore) ? rawScore : NaN;
     const requestedMaxScore = Number(req.body?.maxScore);
-    const maxScore: 20 | 60 = requestedMaxScore === 20 ? 20 : 60;
+    const maxScore: 10 | 20 | 60 = requestedMaxScore === 10 ? 10 : requestedMaxScore === 20 ? 20 : 60;
+    const gradeType: 'exam' | 'quiz' = req.body?.gradeType === 'quiz' ? 'quiz' : 'exam';
     const student = jsonDb.find('users', (u: DbUser) => u.id === studentId && u.role === 'student');
 
     if (!student) return res.status(404).json({ error: 'الطالب غير موجود' });
@@ -958,10 +959,11 @@ app.post('/api/youchem/manual-grades', authenticateTeacher, async (req, res) => 
     const percentage = Math.round((normalizedScore / maxScore) * 10000) / 100;
     const existing = jsonDb.find(
       'manualExamGrades',
-      (g: DbManualExamGrade) => g.studentId === studentId && g.examName.toLowerCase() === examName.toLowerCase(),
+      (g: DbManualExamGrade) => g.studentId === studentId && (g.gradeType || 'exam') === gradeType && g.examName.toLowerCase() === examName.toLowerCase(),
     );
     const updates = {
       examName,
+      gradeType,
       score: normalizedScore,
       maxScore,
       percentage,
@@ -1230,7 +1232,7 @@ app.get('/api/student/grades', authenticateStudent, requireCompleteStudentProfil
     const studentId = (req as any).studentId;
     const grades = jsonDb.filter(
       'manualExamGrades',
-      (g: DbManualExamGrade) => g.studentId === studentId && g.confirmed,
+       (g: DbManualExamGrade) => g.studentId === studentId && g.confirmed && (g.gradeType || 'exam') === 'exam',
     ).sort((a: DbManualExamGrade, b: DbManualExamGrade) =>
       new Date(b.confirmedAt || b.createdAt).getTime() - new Date(a.confirmedAt || a.createdAt).getTime(),
     );
@@ -1687,6 +1689,7 @@ app.get('/api/youchem/student-file/:userId', authenticateTeacher, async (req, re
 
     const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === userId);
     const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
+    const manualGrades = (jsonDb.getAll('manualExamGrades') as DbManualExamGrade[]).filter(g => g.studentId === userId);
     const lessons = jsonDb.getAll('lessons') as DbLesson[];
     const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
 
@@ -1700,7 +1703,7 @@ app.get('/api/youchem/student-file/:userId', authenticateTeacher, async (req, re
       return { ...s, homeworkTitle: hw?.title || s.homeworkId };
     });
 
-    res.json({ user, accesses: enrichedAccesses, homeworkSubmissions: enrichedSubmissions });
+    res.json({ user, accesses: enrichedAccesses, homeworkSubmissions: enrichedSubmissions, manualGrades });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

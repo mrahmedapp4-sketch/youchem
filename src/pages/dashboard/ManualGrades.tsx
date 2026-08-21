@@ -13,20 +13,22 @@ type ManualGrade = {
   studentId: string;
   examName: string;
   score: number;
-  maxScore: 20 | 60;
+  gradeType?: 'exam' | 'quiz';
+  maxScore: 10 | 20 | 60;
   percentage: number;
   confirmed: boolean;
   confirmedAt?: string;
 };
 
-export function ManualGrades() {
+export function ManualGrades({ gradeType = 'exam' }: { gradeType?: 'exam' | 'quiz' }) {
+  const isQuiz = gradeType === 'quiz';
   const [students, setStudents] = useState<Student[]>([]);
   const [grades, setGrades] = useState<ManualGrade[]>([]);
   const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [examName, setExamName] = useState('');
   const [score, setScore] = useState('');
-  const [maxScore, setMaxScore] = useState<20 | 60>(60);
+  const [maxScore, setMaxScore] = useState<10 | 20 | 60>(60);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -39,7 +41,7 @@ export function ManualGrades() {
       if (!res.ok) throw new Error('تعذر تحميل البيانات');
       const data = await res.json();
       setStudents(data.students);
-      setGrades(data.grades);
+      setGrades(data.grades.filter((grade: ManualGrade) => (grade.gradeType || 'exam') === gradeType));
     } catch (err: any) {
       setError(err.message || 'في مشكلة');
     } finally {
@@ -72,7 +74,7 @@ export function ManualGrades() {
       const res = await fetch('/api/youchem/manual-grades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId: selectedStudent.id, examName, score: Number(score), maxScore }),
+        body: JSON.stringify({ studentId: selectedStudent.id, examName, score: Number(score), maxScore, gradeType }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -83,7 +85,7 @@ export function ManualGrades() {
       setExamName('');
       setScore('');
       setMaxScore(60);
-      setSuccess('تم تأكيد الدرجة وإرسالها للطالب');
+      setSuccess(isQuiz ? 'تم حفظ درجة الكويز في ملف الطالب' : 'تم تأكيد الدرجة وإرسالها للطالب');
     } catch {
       setError('في مشكلة في الاتصال');
     } finally {
@@ -94,8 +96,8 @@ export function ManualGrades() {
   return (
     <div className="max-w-5xl mx-auto space-y-6" dir="rtl">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">درجات الامتحان</h1>
-        <p className="text-slate-500 text-sm mt-1">ابحث عن الطالب وسجّل درجته من 20 أو 60، والطالب هيشوف النتيجة عند دخوله.</p>
+        <h1 className="text-xl font-bold text-slate-900">{isQuiz ? 'تسجيل درجات الكويزات' : 'درجات الامتحان'}</h1>
+        <p className="text-slate-500 text-sm mt-1">{isQuiz ? 'سجّل درجة الكويز في ملف الطالب — الدرجة لن تظهر للطالب.' : 'ابحث عن الطالب وسجّل درجته من 10 أو 20 أو 60، والطالب هيشوف النتيجة عند دخوله.'}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-6 items-start">
@@ -152,7 +154,8 @@ export function ManualGrades() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">الدرجة من</label>
-                <select value={maxScore} onChange={e => { const value = Number(e.target.value) as 20 | 60; setMaxScore(value); setScore(''); }} className="neon-input w-full px-4 py-3 rounded-xl">
+                <select value={maxScore} onChange={e => { const value = Number(e.target.value) as 10 | 20 | 60; setMaxScore(value); setScore(''); }} className="neon-input w-full px-4 py-3 rounded-xl">
+                  <option value="10">10</option>
                   <option value="20">20</option>
                   <option value="60">60</option>
                 </select>

@@ -173,6 +173,30 @@ export function StudentFiles() {
                           {/* Lessons */}
                           <div>
                             <div className="flex items-center gap-2 mb-3">
+                              <CheckCircle className="w-4 h-4 text-indigo-500" />
+                              <span className="font-semibold text-slate-800 text-sm">الدرجات المسجلة ({(file.manualGrades || []).length})</span>
+                            </div>
+                            {(file.manualGrades || []).length === 0 ? (
+                              <p className="text-xs text-slate-400">مفيش درجات مسجلة لسه</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {file.manualGrades.map((grade: any) => (
+                                  <div key={grade.id} className="bg-white rounded-xl border border-slate-200 p-3 flex flex-wrap items-center gap-3">
+                                    <span className="font-semibold text-slate-800 text-sm flex-1">{grade.examName}</span>
+                                    <span className="text-xs rounded-lg px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold">
+                                      {grade.gradeType === 'quiz' ? 'كويز' : 'امتحان'}
+                                    </span>
+                                    <span className="font-black text-indigo-600">{grade.score}/{grade.maxScore ?? 60}</span>
+                                    <span className="text-xs text-slate-500">{grade.percentage}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Lessons */}
+                          <div>
+                            <div className="flex items-center gap-2 mb-3">
                               <BookOpen className="w-4 h-4 text-indigo-500" />
                               <span className="font-semibold text-slate-800 text-sm">الحصص ({file.accesses.length})</span>
                             </div>

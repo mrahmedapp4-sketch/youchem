@@ -112,8 +112,9 @@ export interface DbManualExamGrade {
   id: string;
   studentId: string;
   examName: string;
+  gradeType?: 'exam' | 'quiz';
   score: number;
-  maxScore: 20 | 60;
+  maxScore: 10 | 20 | 60;
   percentage: number;
   confirmed: boolean;
   createdAt: string;

@@ -42,6 +42,7 @@ export default function App() {
             <Route path="upload" element={<UploadVideo />} />
             <Route path="quizzes" element={<Quizzes />} />
             <Route path="grades" element={<ManualGrades />} />
+            <Route path="quiz-grades" element={<ManualGrades gradeType="quiz" />} />
             <Route path="homework" element={<Homework />} />
             <Route path="students" element={<Students />} />
             <Route path="emails" element={<Emails />} />

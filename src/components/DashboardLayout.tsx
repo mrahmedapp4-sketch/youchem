@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Key, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut, FolderOpen, Settings, Sun, Moon, Folder, ClipboardCheck } from 'lucide-react';
+import { Key, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut, FolderOpen, Settings, Sun, Moon, Folder, ClipboardCheck, ListChecks } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -8,6 +8,7 @@ const navItems = [
   { path: '/youchem/codes', label: 'الأكواد', icon: Key },
   { path: '/youchem/quizzes', label: 'الامتحانات', icon: FileQuestion },
   { path: '/youchem/grades', label: 'درجات الامتحان', icon: ClipboardCheck },
+  { path: '/youchem/quiz-grades', label: 'درجات الكويزات', icon: ListChecks },
   { path: '/youchem/homework', label: 'الواجبات', icon: FileText },
   { path: '/youchem/files', label: 'الملفات', icon: Folder },
   { path: '/youchem/students', label: 'الطلاب', icon: Users },
