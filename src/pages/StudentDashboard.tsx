@@ -839,7 +839,7 @@ export function StudentDashboard() {
                     {revealed && (
                       <div className="px-4 pb-5 pt-1 text-center border-t border-slate-100">
                         <p className="text-5xl font-black text-indigo-600 mt-4">
-                          {grade.score}<span className="text-2xl text-slate-400">/60</span>
+                           {grade.score}<span className="text-2xl text-slate-400">/{grade.maxScore ?? 60}</span>
                         </p>
                         <p className="text-slate-500 mt-2 font-semibold">النسبة المئوية: {grade.percentage}%</p>
                       </div>

@@ -107,14 +107,13 @@ export interface DbHomeworkSubmission {
   createdAt: string;
 }
 
-// A manually graded exam entered by the teacher. Scores are always out of 60
-// and are kept separate from the automatic lesson quizzes.
+// A manually graded exam entered by the teacher. The maximum can be 20 or 60.
 export interface DbManualExamGrade {
   id: string;
   studentId: string;
   examName: string;
   score: number;
-  maxScore: 60;
+  maxScore: 20 | 60;
   percentage: number;
   confirmed: boolean;
   createdAt: string;

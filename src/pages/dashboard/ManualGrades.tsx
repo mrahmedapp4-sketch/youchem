@@ -13,6 +13,7 @@ type ManualGrade = {
   studentId: string;
   examName: string;
   score: number;
+  maxScore: 20 | 60;
   percentage: number;
   confirmed: boolean;
   confirmedAt?: string;
@@ -25,6 +26,7 @@ export function ManualGrades() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [examName, setExamName] = useState('');
   const [score, setScore] = useState('');
+  const [maxScore, setMaxScore] = useState<20 | 60>(60);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -70,7 +72,7 @@ export function ManualGrades() {
       const res = await fetch('/api/youchem/manual-grades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId: selectedStudent.id, examName, score: Number(score) }),
+        body: JSON.stringify({ studentId: selectedStudent.id, examName, score: Number(score), maxScore }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -80,6 +82,7 @@ export function ManualGrades() {
       setGrades(current => [data, ...current.filter(g => g.id !== data.id)]);
       setExamName('');
       setScore('');
+      setMaxScore(60);
       setSuccess('تم تأكيد الدرجة وإرسالها للطالب');
     } catch {
       setError('في مشكلة في الاتصال');
@@ -92,7 +95,7 @@ export function ManualGrades() {
     <div className="max-w-5xl mx-auto space-y-6" dir="rtl">
       <div>
         <h1 className="text-xl font-bold text-slate-900">درجات الامتحان</h1>
-        <p className="text-slate-500 text-sm mt-1">ابحث عن الطالب وسجّل درجته من 60، والطالب هيشوف النتيجة عند دخوله.</p>
+        <p className="text-slate-500 text-sm mt-1">ابحث عن الطالب وسجّل درجته من 20 أو 60، والطالب هيشوف النتيجة عند دخوله.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-6 items-start">
@@ -146,9 +149,18 @@ export function ManualGrades() {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">اسم الامتحان</label>
               <input value={examName} onChange={e => setExamName(e.target.value)} required placeholder="مثال: امتحان الباب الأول" className="neon-input w-full px-4 py-3 rounded-xl" />
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">الدرجة من 60</label>
-              <input type="number" min="0" max="60" step="0.01" value={score} onChange={e => setScore(e.target.value)} required placeholder="اكتب الدرجة" className="neon-input w-full px-4 py-3 rounded-xl" dir="ltr" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">الدرجة من</label>
+                <select value={maxScore} onChange={e => { const value = Number(e.target.value) as 20 | 60; setMaxScore(value); setScore(''); }} className="neon-input w-full px-4 py-3 rounded-xl">
+                  <option value="20">20</option>
+                  <option value="60">60</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">الدرجة</label>
+                <input type="number" min="0" max={maxScore} step="0.01" value={score} onChange={e => setScore(e.target.value)} required placeholder={`من ${maxScore}`} className="neon-input w-full px-4 py-3 rounded-xl" dir="ltr" />
+              </div>
             </div>
             {error && <p className="text-red-600 text-sm font-semibold">{error}</p>}
             {success && <p className="text-emerald-600 text-sm font-semibold flex items-center gap-2"><CheckCircle className="w-4 h-4" />{success}</p>}
@@ -175,7 +187,7 @@ export function ManualGrades() {
                     <p className="font-bold text-slate-800 text-sm">{student?.name || 'طالب'}</p>
                     <p className="text-xs text-slate-500 mt-1">{grade.examName}</p>
                   </div>
-                  <span className="font-black text-indigo-600">{grade.score}/60</span>
+                  <span className="font-black text-indigo-600">{grade.score}/{grade.maxScore ?? 60}</span>
                   <span className="text-sm text-slate-500">{grade.percentage}%</span>
                   <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> مؤكدة</span>
                 </div>

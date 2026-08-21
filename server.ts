@@ -943,17 +943,19 @@ app.post('/api/youchem/manual-grades', authenticateTeacher, async (req, res) => 
     const examName = typeof req.body?.examName === 'string' ? req.body.examName.trim() : '';
     const rawScore = typeof req.body?.score === 'number' ? req.body.score : Number(req.body?.score);
     const score = Number.isFinite(rawScore) ? rawScore : NaN;
+    const requestedMaxScore = Number(req.body?.maxScore);
+    const maxScore: 20 | 60 = requestedMaxScore === 20 ? 20 : 60;
     const student = jsonDb.find('users', (u: DbUser) => u.id === studentId && u.role === 'student');
 
     if (!student) return res.status(404).json({ error: 'الطالب غير موجود' });
     if (!examName) return res.status(400).json({ error: 'اكتب اسم الامتحان' });
     if (examName.length > 120) return res.status(400).json({ error: 'اسم الامتحان طويل جدًا' });
-    if (!Number.isFinite(score) || score < 0 || score > 60) {
-      return res.status(400).json({ error: 'الدرجة لازم تكون من 0 إلى 60' });
+    if (!Number.isFinite(score) || score < 0 || score > maxScore) {
+      return res.status(400).json({ error: `الدرجة لازم تكون من 0 إلى ${maxScore}` });
     }
 
     const normalizedScore = Math.round(score * 100) / 100;
-    const percentage = Math.round((normalizedScore / 60) * 10000) / 100;
+    const percentage = Math.round((normalizedScore / maxScore) * 10000) / 100;
     const existing = jsonDb.find(
       'manualExamGrades',
       (g: DbManualExamGrade) => g.studentId === studentId && g.examName.toLowerCase() === examName.toLowerCase(),
@@ -961,7 +963,7 @@ app.post('/api/youchem/manual-grades', authenticateTeacher, async (req, res) => 
     const updates = {
       examName,
       score: normalizedScore,
-      maxScore: 60 as const,
+      maxScore,
       percentage,
       confirmed: true,
       confirmedAt: new Date().toISOString(),
