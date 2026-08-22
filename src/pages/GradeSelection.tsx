@@ -190,11 +190,15 @@ export function GradeSelection() {
     setSigningIn(true);
     try {
       const { idToken } = await signInWithGoogle();
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15000);
       const res = await fetch('/api/student/google-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken, deviceId: getDeviceId() }),
+        signal: controller.signal,
       });
+      window.clearTimeout(timeout);
       const data = await res.json();
       if (res.ok) {
         if (data.needsProfile) {
@@ -220,7 +224,11 @@ export function GradeSelection() {
     } catch (err) {
       console.error('Google sign-in failed:', err);
       const code = (err as { code?: string })?.code;
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      if ((err as DOMException)?.name === 'AbortError') {
+        setError(lang === 'ar'
+          ? 'تسجيل الدخول أخد وقت طويل. اتأكد من الإنترنت وحاول تاني.'
+          : 'Sign-in took too long. Check your connection and try again.');
+      } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
         setError('');
       } else if (code === 'auth/popup-blocked') {
         setError(lang === 'ar'
