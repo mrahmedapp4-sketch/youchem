@@ -53,10 +53,10 @@ export function ManualGrades({ gradeType = 'exam' }: { gradeType?: 'exam' | 'qui
 
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return [];
-    return students.filter(student =>
+    const matchingStudents = q ? students.filter(student =>
       [student.name, student.email, student.phone].some(value => (value || '').toLowerCase().includes(q)),
-    ).slice(0, 8);
+    ) : students;
+    return matchingStudents.slice(0, 8);
   }, [students, search]);
 
   const studentGrades = useMemo(
@@ -115,8 +115,9 @@ export function ManualGrades({ gradeType = 'exam' }: { gradeType?: 'exam' | 'qui
               className="neon-input w-full pr-10 pl-4 py-3 rounded-xl text-sm"
             />
           </div>
-          {search && (
+          {(search || !selectedStudent) && (
             <div className="mt-3 space-y-2">
+              {!search && <p className="text-xs text-slate-400 px-1">اختار طالب من القائمة أو اكتب للبحث</p>}
               {results.map(student => (
                 <button
                   key={student.id}
