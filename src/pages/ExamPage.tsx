@@ -488,7 +488,7 @@ export function ExamPage() {
                 ))}
               </div>
 
-              {isMissing && <p className="text-red-500 text-xs font-semibold">⚠ الرجاء الإجابة على هذا السؤال</p>}
+              {isMissing && <p className="text-red-500 text-xs font-semibold flex items-center gap-2"><span className="css-pattern text-red-500" aria-hidden="true" />الرجاء الإجابة على هذا السؤال</p>}
             </div>
           );
         })}
@@ -500,7 +500,7 @@ export function ExamPage() {
             onClick={handleSubmitExam} disabled={submitting}
             className="neon-btn w-full py-4 rounded-xl font-bold text-base disabled:opacity-50"
           >
-            {submitting ? 'جاري الإرسال...' : 'تصحيح الامتحان ✓'}
+            {submitting ? 'جاري الإرسال...' : 'تصحيح الامتحان'}
           </button>
         </div>
       </div>
@@ -517,7 +517,7 @@ export function ExamPage() {
           <CheckCircle className="w-8 h-8 text-emerald-500" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-900">✅ تم فتح الحصة</h2>
+          <h2 className="text-xl font-bold text-slate-900 flex items-center justify-center gap-2"><span className="css-pattern text-emerald-500" aria-hidden="true" />تم فتح الحصة</h2>
           <p className="text-slate-500 text-sm mt-1">{selectedLesson?.title}</p>
         </div>
         <a
@@ -564,7 +564,7 @@ export function ExamPage() {
           </p>
           <p className="text-slate-500 text-sm mb-3">{pct}%</p>
           <p className={`font-bold text-base ${passed ? 'text-emerald-700' : 'text-red-600'}`}>
-            {passed ? '🎉 أحسنت! لقد اجتزت الامتحان' : '❌ لم تجتز الامتحان — تواصل مع مستر أحمد لفتح الحصة'}
+            {passed ? 'أحسنت! لقد اجتزت الامتحان' : 'لم تجتز الامتحان — تواصل مع مستر أحمد لفتح الحصة'}
           </p>
           {passed && (
             <a

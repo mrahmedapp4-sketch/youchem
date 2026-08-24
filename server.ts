@@ -1770,14 +1770,14 @@ function buildStudentPdfHtml(
         ? `<span class="badge ${a.quizPassed ? 'green' : 'red'}">${a.quizScore}/${a.quizTotal}</span>`
         : `<span class="dim">—</span>`;
     const statusCell = a.quizPassed
-      ? '<span class="ok">✓ اجتاز</span>'
+      ? '<span class="ok">اجتاز</span>'
       : a.quizExempt
       ? '<span class="warn">معفي</span>'
       : a.lessonLocked
-      ? '<span class="err">🔒 مقفول</span>'
+      ? '<span class="err"><span class="status-pattern" aria-hidden="true"></span> مقفول</span>'
       : a.quizTotal == null
       ? '<span class="dim">لا يوجد امتحان</span>'
-      : '<span class="err">✗ لم يجتز</span>';
+      : '<span class="err">لم يجتز</span>';
     return `<tr>
       <td>${esc(lesson?.title || a.lessonId)}</td>
       <td class="c">${a.viewingMinutes || 0} د</td>
@@ -2003,6 +2003,17 @@ tbody td { padding: 5px 9px; border-bottom: 1px solid #f1f5f9; }
 .badge.red   { background: #fee2e2; color: #b91c1c; }
 .badge.amber { background: #fef3c7; color: #92400e; }
 .badge.blue  { background: #dbeafe; color: #1d4ed8; }
+.status-pattern {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-left: 3px;
+  border-radius: 2px;
+  background-color: currentColor;
+  background-image: radial-gradient(rgba(255,255,255,.9) 1px, transparent 1px);
+  background-size: 3px 3px;
+  vertical-align: -1px;
+}
 
 /* ═══════════════════════════════════════════════════════════
    EMPTY NOTE
@@ -2165,7 +2176,7 @@ ${autoPrint
 <div class="page">
 
   <!-- Print button (hidden in print) -->
-  <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  <button class="print-btn" onclick="window.print()">طباعة / حفظ PDF</button>
 
   <!-- ══ HEADER ══ -->
   <div class="header">
@@ -2181,7 +2192,7 @@ ${autoPrint
   </div>
 
   <!-- ══ STUDENT PROFILE ══ -->
-  <div class="section">📋 بيانات الطالب</div>
+  <div class="section">بيانات الطالب</div>
   <div class="profile-grid">
     <div class="info-box"><div class="lbl">الاسم الكامل</div><div class="val">${esc(user.name)}</div></div>
     <div class="info-box"><div class="lbl">البريد الإلكتروني</div><div class="val" style="font-size:8.5px">${esc(user.email)}</div></div>
@@ -2195,7 +2206,7 @@ ${autoPrint
   </div>
 
   <!-- ══ LESSONS ══ -->
-  <div class="section">📚 الحصص ووقت المشاهدة</div>
+  <div class="section">الحصص ووقت المشاهدة</div>
   ${accesses.length === 0
     ? '<p class="empty">لم يفتح الطالب أي حصة بعد</p>'
     : `<table>
@@ -2211,7 +2222,7 @@ ${autoPrint
       </table>`}
 
   <!-- ══ HOMEWORK ══ -->
-  <div class="section">📝 الواجبات</div>
+  <div class="section">الواجبات</div>
   ${homeworkSubmissions.length === 0
     ? '<p class="empty">لم يسلّم الطالب أي واجب بعد</p>'
     : `<table>
@@ -2225,7 +2236,7 @@ ${autoPrint
       </table>`}
 
   <!-- ══ TEACHER-ENTERED GRADES ══ -->
-  <div class="section">🎓 درجات الامتحانات المسجلة يدوياً</div>
+  <div class="section">درجات الامتحانات المسجلة يدوياً</div>
   ${manualGradeRows.length === 0
     ? '<p class="empty">لم تُسجل درجات يدوية للطالب بعد</p>'
     : `<table>

@@ -195,7 +195,8 @@ export function Quizzes() {
             </select>
             {selectedLessonHasQuiz && (
               <p className="mt-2 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-                ⚠️ الحصة دي عندها امتحان بالفعل — امسحه الأول من القائمة فوق علشان تعمل امتحان جديد
+                <span className="css-pattern text-amber-600 mr-2 align-middle" aria-hidden="true" />
+                الحصة دي عندها امتحان بالفعل — امسحه الأول من القائمة فوق علشان تعمل امتحان جديد
               </p>
             )}
           </div>

@@ -50,7 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
               boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
             }}
           >
-            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+            <div className="css-pattern" style={{ width: 40, height: 40, marginBottom: 12, color: '#d97706' }} aria-hidden="true" />
             <h2 style={{ color: '#0f172a', fontWeight: 700, marginBottom: 8 }}>
               في مشكلة في التطبيق
             </h2>

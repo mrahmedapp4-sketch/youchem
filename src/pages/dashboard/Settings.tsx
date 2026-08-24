@@ -74,7 +74,7 @@ export function Settings() {
       });
       const data = await res.json();
       if (res.ok) {
-        setLimitMsg({ type: 'ok', text: `تم تحديد الحد بـ ${data.limitMB} MB ✓` });
+        setLimitMsg({ type: 'ok', text: `تم تحديد الحد بـ ${data.limitMB} MB` });
         setFilesUsage(prev => prev ? { ...prev, limitMB: data.limitMB, remainingMB: Math.max(0, data.limitMB - prev.usedMB) } : prev);
       } else {
         setLimitMsg({ type: 'err', text: data.error || 'في مشكلة' });
@@ -99,7 +99,7 @@ export function Settings() {
       });
       const data = await res.json();
       if (res.ok) {
-        setPwMsg({ type: 'ok', text: 'اتغيرت كلمة السر بنجاح ✓' });
+        setPwMsg({ type: 'ok', text: 'اتغيرت كلمة السر بنجاح' });
         setCurrentPw(''); setNewPw(''); setConfirmPw('');
       } else {
         setPwMsg({ type: 'err', text: data.error || 'فشل تغيير كلمة السر' });
@@ -236,7 +236,7 @@ export function Settings() {
           )}
 
           {apiKeyCopied && (
-            <p className="text-xs text-emerald-600 font-semibold">Copied to clipboard ✓</p>
+            <p className="text-xs text-emerald-600 font-semibold">Copied to clipboard</p>
           )}
         </div>
       </section>

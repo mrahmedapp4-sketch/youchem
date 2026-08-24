@@ -300,3 +300,16 @@ button:not(:disabled):active {
   button:not(:disabled):active { transform: none; }
   .theme-toggle svg { transition: none; }
 }
+
+/* CSS-only replacement for decorative emoji marks. */
+.css-pattern {
+  display: inline-block;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+  border-radius: 0.3rem;
+  background-color: currentColor;
+  background-image: radial-gradient(rgba(255,255,255,.85) 1.5px, transparent 1.5px);
+  background-size: 5px 5px;
+  transform: rotate(8deg);
+}

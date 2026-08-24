@@ -10,7 +10,7 @@ export function Codes() {
   const [codesList, setCodesList] = useState<any[]>([]);
   const [lessons, setLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  // Track which code was just copied (to show ✓ feedback)
+  // Track which code was just copied to show confirmation feedback.
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [exportDate, setExportDate] = useState('');
 

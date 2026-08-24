@@ -222,7 +222,7 @@ export function LessonView() {
                 <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
                   <CheckCircle className="w-8 h-8 text-emerald-500" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">✅ الدرس اتفتح</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-1 flex items-center justify-center gap-2"><span className="css-pattern text-emerald-500" aria-hidden="true" />الدرس اتفتح</h3>
                 <p className="text-slate-500 max-w-sm text-sm">بيتجهز...</p>
               </div>
             ) : isLessonLocked ? (
@@ -231,7 +231,7 @@ export function LessonView() {
                 <div className="w-16 h-16 rounded-full bg-red-100 border border-red-200 flex items-center justify-center mb-4">
                   <Lock className="w-8 h-8 text-red-500" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">🔒 الحصة مقفولة</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-1 flex items-center justify-center gap-2"><span className="css-pattern text-red-500" aria-hidden="true" />الحصة مقفولة</h3>
                 <p className="text-slate-500 max-w-sm text-sm">
                   جبت {access.quizScore}/{access.quizTotal} في الامتحان. اعمل إعادة الامتحان من تحت أو كلم مستر أحمد علشان يفتحهالك.
                 </p>
@@ -305,14 +305,14 @@ export function LessonView() {
                   </p>
                   <p className="text-slate-500 mt-1">({Math.round((quizResult.score / quizResult.total) * 100)}%)</p>
                   <p className={`mt-3 font-bold ${quizResult.passed ? 'text-emerald-700' : 'text-red-600'}`}>
-                    {quizResult.passed ? '🎉 مبروك! عدّيت الامتحان والفيديو اتفتح.' : '❌ لم تجتز الامتحان.'}
+                    {quizResult.passed ? 'مبروك! عدّيت الامتحان والفيديو اتفتح.' : 'لم تجتز الامتحان.'}
                   </p>
 
                   {!quizResult.passed && (
                     <div className="mt-4 space-y-3">
                       {/* Locked notice */}
                       <p className="text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
-                        🔒 الحصة مقفولة — كلم مستر أحمد علشان يفتحهالك، أو اعمل إعادة الامتحان
+                         <span className="inline-flex items-center gap-2"><span className="css-pattern text-red-600" aria-hidden="true" />الحصة مقفولة — كلم مستر أحمد علشان يفتحهالك، أو اعمل إعادة الامتحان</span>
                       </p>
                       {/* Retake button */}
                       <button
