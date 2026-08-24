@@ -96,7 +96,7 @@ export function DashboardLayout() {
 
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 neon-panel border-b border-slate-200 flex items-center px-4 lg:px-8 shrink-0">
+        <header className="h-[4.5rem] neon-panel border-b border-slate-200 flex items-center px-4 lg:px-8 shrink-0">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="lg:hidden text-slate-400 hover:text-slate-700 ml-4 p-2 rounded-xl hover:bg-slate-100"
@@ -121,7 +121,7 @@ export function DashboardLayout() {
           </div>
         </header>
 
-        <div className="flex-1 p-4 lg:p-8 overflow-auto">
+        <div className="flex-1 p-4 sm:p-6 lg:p-9 overflow-auto">
           <Outlet />
         </div>
       </main>

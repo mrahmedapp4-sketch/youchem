@@ -315,7 +315,7 @@ export function GradeSelection() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center gap-8 p-4 lg:px-16" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen flex items-center justify-center gap-10 p-5 sm:p-8 lg:px-16" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
 
       {/* Teacher image — desktop only, shown on login screen only, points toward the card.
           In RTL (Arabic) the flex container reverses order so this first-in-DOM div appears
@@ -329,12 +329,12 @@ export function GradeSelection() {
           <img
             src="/mr-ahmed.png"
             alt="مستر أحمد"
-            className="h-[70vh] max-h-[560px] w-auto object-contain drop-shadow-xl"
+            className="h-[68vh] max-h-[540px] w-auto object-contain drop-shadow-xl"
           />
         </div>
       )}
 
-      <div className="neon-card p-8 rounded-2xl max-w-md w-full">
+      <div className="neon-card p-7 sm:p-9 rounded-[1.5rem] max-w-lg w-full">
 
         {/* Lang toggle */}
         <div className="flex justify-end mb-2">
@@ -363,7 +363,7 @@ export function GradeSelection() {
             <img
               src="/logo.png"
               alt="يوكيم"
-              className="w-full object-contain"
+              className="w-full max-w-[280px] mx-auto object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
                 (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
@@ -373,7 +373,7 @@ export function GradeSelection() {
               <GraduationCap className="w-10 h-10 text-indigo-600" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">
+          <h1 className="text-2xl sm:text-[1.7rem] font-bold text-slate-900 mb-2 leading-tight">
             {tr('welcomeTo', lang)}{' '}
             <span className="neon-text">youchem platform</span>
           </h1>
@@ -393,7 +393,7 @@ export function GradeSelection() {
           <button
             onClick={handleGoogleSignIn}
             disabled={signingIn}
-            className="neon-btn w-full flex items-center justify-center gap-3 p-4 rounded-xl disabled:opacity-50 font-bold text-base"
+             className="neon-btn w-full flex items-center justify-center gap-3 p-4 rounded-xl disabled:opacity-50 font-bold text-base focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-600/20"
           >
             <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
               <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />

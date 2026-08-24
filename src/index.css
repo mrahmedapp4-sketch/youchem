@@ -18,36 +18,36 @@
 }
 
 @theme {
-  --font-sans: "NaNSuperXSerifDisplayArabicBold", "NaNSuperXSerifDisplayArabicBlack", "Cairo", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  --primary:        #4f46e5;
-  --primary-hover:  #4338ca;
-  --bg-main:        #f8fafc;
+  --primary:        #0f766e;
+  --primary-hover:  #115e59;
+  --bg-main:        #f4f8f7;
   --bg-card:        #ffffff;
-  --text-main:      #0f172a;
-  --text-muted:     #64748b;
-  --border:         #e2e8f0;
+  --text-main:      #102a43;
+  --text-muted:     #627d98;
+  --border:         #d9e5e2;
 }
 
 /* ── Dark mode ── */
 .dark {
-  --primary:        #8b5cf6;
-  --primary-hover:  #06b6d4;
-  --bg-main:        #070b1a;
-  --bg-card:        rgba(15, 23, 42, 0.82);
+  --primary:        #2dd4bf;
+  --primary-hover:  #5eead4;
+  --bg-main:        #071c20;
+  --bg-card:        rgba(13, 42, 47, 0.9);
   --text-main:      #f8fafc;
-  --text-muted:     #a5b4fc;
-  --border:         rgba(99, 102, 241, 0.35);
+  --text-muted:     #9bc5c2;
+  --border:         rgba(91, 191, 181, 0.28);
   color-scheme: dark;
 }
 .dark body {
   background-color: var(--bg-main);
   background-image:
-    radial-gradient(700px circle at 8% 8%, rgba(34, 211, 238, 0.14), transparent 58%),
-    radial-gradient(850px circle at 92% 92%, rgba(139, 92, 246, 0.16), transparent 60%),
-    linear-gradient(135deg, #070b1a 0%, #11102d 48%, #061923 100%);
+    radial-gradient(700px circle at 8% 8%, rgba(45, 212, 191, 0.12), transparent 58%),
+    radial-gradient(850px circle at 92% 92%, rgba(244, 143, 74, 0.08), transparent 60%),
+    linear-gradient(135deg, #071c20 0%, #0c2930 48%, #071c20 100%);
   color: var(--text-main);
 }
 /* Text overrides */
@@ -98,8 +98,8 @@ body {
   font-family: var(--font-sans);
   background-color: var(--bg-main);
   background-image:
-    radial-gradient(900px circle at 10% 0%, rgba(79, 70, 229, 0.05), transparent 60%),
-    radial-gradient(700px circle at 90% 100%, rgba(79, 70, 229, 0.04), transparent 55%);
+    radial-gradient(850px circle at 8% 0%, rgba(15, 118, 110, 0.07), transparent 58%),
+    radial-gradient(700px circle at 92% 100%, rgba(244, 143, 74, 0.06), transparent 55%);
   background-attachment: fixed;
   color: var(--text-main);
   min-height: 100vh;
@@ -112,15 +112,15 @@ body {
 }
 .dark body {
   background-image:
-    radial-gradient(700px circle at 8% 8%, rgba(34, 211, 238, 0.14), transparent 58%),
-    radial-gradient(850px circle at 92% 92%, rgba(139, 92, 246, 0.16), transparent 60%),
-    linear-gradient(135deg, #070b1a 0%, #11102d 48%, #061923 100%) !important;
+    radial-gradient(700px circle at 8% 8%, rgba(45, 212, 191, 0.12), transparent 58%),
+    radial-gradient(850px circle at 92% 92%, rgba(244, 143, 74, 0.08), transparent 60%),
+    linear-gradient(135deg, #071c20 0%, #0c2930 48%, #071c20 100%) !important;
   background-attachment: fixed;
 }
 .dark .neon-panel {
-  background: rgba(10, 16, 34, 0.88);
-  border-color: rgba(34, 211, 238, 0.25) !important;
-  box-shadow: 0 0 22px rgba(34, 211, 238, 0.05);
+  background: rgba(13, 42, 47, 0.92);
+  border-color: rgba(91, 191, 181, 0.24) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
 }
 .dark .neon-input:focus {
   border-color: #22d3ee;
@@ -175,11 +175,11 @@ button:not(:disabled):active {
 .neon-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: 0 18px 45px rgba(16, 42, 67, 0.08), 0 2px 8px rgba(16, 42, 67, 0.04);
 }
 .dark .neon-card {
-  border-color: rgba(34, 211, 238, 0.25);
-  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.08), 0 0 28px rgba(34, 211, 238, 0.08), inset 0 0 22px rgba(139, 92, 246, 0.04);
+  border-color: rgba(91, 191, 181, 0.24);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(16px);
 }
 
@@ -214,12 +214,10 @@ button:not(:disabled):active {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: linear-gradient(110deg, var(--primary), #6366f1 52%, #06b6d4);
-  background-size: 200% 100%;
+  background: var(--primary);
   color: #ffffff;
-  animation: neon-button-breathe 3.2s ease-in-out infinite;
-  transition: background-position 0.35s ease, box-shadow 0.2s ease, transform 0.1s ease;
-  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 5px 12px rgba(15, 118, 110, 0.2);
 }
 .neon-btn::after {
   content: '';
@@ -231,9 +229,8 @@ button:not(:disabled):active {
   transition: transform 0.6s ease;
 }
 .neon-btn:hover:not(:disabled) {
-  background: linear-gradient(110deg, #a78bfa, var(--primary-hover), #22d3ee);
-  background-position: 100% 0;
-  box-shadow: 0 0 20px rgba(34, 211, 238, 0.32), 0 4px 12px rgba(79, 70, 229, 0.25);
+  background: var(--primary-hover);
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.26);
   transform: translateY(-2px);
   animation-play-state: paused;
 }
@@ -262,7 +259,7 @@ button:not(:disabled):active {
 
 /* ── Focus ring (e.g. grade selection buttons) ── */
 .neon-glow-ring {
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
 }
 
 .theme-toggle {
@@ -295,7 +292,7 @@ button:not(:disabled):active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .neon-btn { animation: none; transition: none; }
+  .neon-btn { transition: none; }
   .neon-btn::after { display: none; }
   button:not(:disabled),
   button:not(:disabled)::before { transition: none; }
