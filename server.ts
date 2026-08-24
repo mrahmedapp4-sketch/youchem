@@ -246,6 +246,11 @@ const COOKIE_OPTS: express.CookieOptions = {
   secure: process.env.NODE_ENV === 'production',
 };
 
+// Keep sessions persistent enough for normal student/teacher use. These
+// durations only control login sessions; they never delete user data.
+const TEACHER_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+const STUDENT_SESSION_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
+
 // Authentication Middleware
 const authenticateTeacher = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const token = req.cookies.teacher_token;
@@ -396,13 +401,17 @@ app.post('/api/teacher/login', async (req, res) => {
     // Generate a server-side session token so logout actually invalidates
     // the cookie even if it was copied or stolen.
     const teacherSessionToken = randomBytes(32).toString('hex');
-    const token = jwt.sign({ role: 'teacher', teacherSessionToken }, JWT_SECRET, { expiresIn: '1d' });
+    const token = jwt.sign(
+      { role: 'teacher', teacherSessionToken },
+      JWT_SECRET,
+      { expiresIn: '30d' },
+    );
     if (storedSettings) {
       jsonDb.update('settings', (s: DbSettings) => s.id === 'main', { activeTeacherToken: teacherSessionToken });
     } else {
       jsonDb.insert('settings', { id: 'main', activeTeacherToken: teacherSessionToken });
     }
-    res.cookie('teacher_token', token, { ...COOKIE_OPTS, maxAge: 24 * 60 * 60 * 1000 }).json({ success: true });
+    res.cookie('teacher_token', token, { ...COOKIE_OPTS, maxAge: TEACHER_SESSION_DURATION_MS }).json({ success: true });
   } else {
     res.status(401).json({ error: 'Invalid password' });
   }
@@ -1026,9 +1035,8 @@ app.post('/api/student/google-login', async (req, res) => {
       return res.status(403).json({ error: 'DEVICE_LOCKED' });
     }
 
-    const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — mirrors JWT
     const sessionToken = randomBytes(32).toString('hex');
-    const sessionExpiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
+    const sessionExpiresAt = new Date(Date.now() + STUDENT_SESSION_DURATION_MS).toISOString();
 
     if (!user) {
       // ── New student — do NOT save to DB yet ───────────────────────────────
@@ -1060,9 +1068,9 @@ app.post('/api/student/google-login', async (req, res) => {
     const token = jwt.sign(
       { role: 'student', studentId: user.id, sessionToken, deviceId },
       JWT_SECRET,
-      { expiresIn: '30d' },
+      { expiresIn: '90d' },
     );
-    res.cookie('student_token', token, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie('student_token', token, { ...COOKIE_OPTS, maxAge: STUDENT_SESSION_DURATION_MS });
 
     const profileErrors = getStudentProfileErrors(user);
     const missingFields = Object.keys(profileErrors);
