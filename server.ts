@@ -979,6 +979,8 @@ app.post('/api/youchem/manual-grades', authenticateTeacher, async (req, res) => 
           createdAt: new Date().toISOString(),
         } satisfies DbManualExamGrade);
 
+    // Keep the saved student report in sync with the live student file.
+    void saveStudentPdfToDisk(studentId);
     res.json({ ...grade, student: { id: student.id, name: student.name, email: student.email, phone: student.phone } });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -1361,6 +1363,12 @@ app.post('/api/student/submit-quiz', authenticateStudent, requireCompleteStudent
       });
     }
 
+    // The lesson access record now contains the online exam result. Refresh the
+    // saved report without making the student's submission wait for Chromium.
+    void saveStudentPdfToDisk(studentId);
+    // The lesson access record now contains the online exam result. Refresh the
+    // saved report without making the student's submission wait for Chromium.
+    void saveStudentPdfToDisk(studentId);
     res.json({ score, total, passed, results });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -1736,6 +1744,7 @@ function buildStudentPdfHtml(
   homeworkSubmissions: DbHomeworkSubmission[],
   lessons: DbLesson[],
   homeworks: DbHomework[],
+  manualGrades: DbManualExamGrade[],
   autoPrint = false,
 ): string {
   // ── helpers ────────────────────────────────────────────────────────────────
@@ -1790,6 +1799,21 @@ function buildStudentPdfHtml(
       <td class="c dim">${new Date(s.createdAt).toLocaleDateString('ar-EG')}</td>
     </tr>`;
   }).join('');
+
+  // ── teacher-entered grades ─────────────────────────────────────────────────
+  const manualGradeRows = [...manualGrades]
+    .sort((a, b) => new Date(b.confirmedAt || b.createdAt).getTime() - new Date(a.confirmedAt || a.createdAt).getTime())
+    .map((grade: DbManualExamGrade) => {
+      const typeLabel = (grade.gradeType || 'exam') === 'quiz' ? 'كويز' : 'امتحان';
+      const date = new Date(grade.confirmedAt || grade.createdAt).toLocaleDateString('ar-EG');
+      return `<tr>
+        <td>${esc(grade.examName)}</td>
+        <td class="c"><span class="badge blue">${typeLabel}</span></td>
+        <td class="c"><span class="badge ${grade.percentage >= 50 ? 'green' : 'red'}">${esc(grade.score)}/${esc(grade.maxScore)}</span></td>
+        <td class="c">${esc(grade.percentage)}%</td>
+        <td class="c dim">${esc(date)}</td>
+      </tr>`;
+    }).join('');
 
   // ── HTML ───────────────────────────────────────────────────────────────────
   return `<!DOCTYPE html>
@@ -1978,6 +2002,7 @@ tbody td { padding: 5px 9px; border-bottom: 1px solid #f1f5f9; }
 .badge.green { background: #dcfce7; color: #15803d; }
 .badge.red   { background: #fee2e2; color: #b91c1c; }
 .badge.amber { background: #fef3c7; color: #92400e; }
+.badge.blue  { background: #dbeafe; color: #1d4ed8; }
 
 /* ═══════════════════════════════════════════════════════════
    EMPTY NOTE
@@ -2199,6 +2224,21 @@ ${autoPrint
         <tbody>${hwRows}</tbody>
       </table>`}
 
+  <!-- ══ TEACHER-ENTERED GRADES ══ -->
+  <div class="section">🎓 درجات الامتحانات المسجلة يدوياً</div>
+  ${manualGradeRows.length === 0
+    ? '<p class="empty">لم تُسجل درجات يدوية للطالب بعد</p>'
+    : `<table>
+        <thead><tr>
+          <th>اسم الامتحان</th>
+          <th class="c" style="width:58px">النوع</th>
+          <th class="c" style="width:80px">الدرجة</th>
+          <th class="c" style="width:58px">النسبة</th>
+          <th class="c" style="width:80px">تاريخ التأكيد</th>
+        </tr></thead>
+        <tbody>${manualGradeRows}</tbody>
+      </table>`}
+
   <!-- ══ VERIFICATION (stamp + signature) ══
        Both images are Base64 data-URIs — no external request, always visible. -->
   <div class="verify-row">
@@ -2270,7 +2310,8 @@ async function saveStudentPdfToDisk(userId: string): Promise<void> {
     const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
     const lessons  = jsonDb.getAll('lessons')  as DbLesson[];
     const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
-    const html   = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks);
+    const manualGrades = jsonDb.filter('manualExamGrades', (g: DbManualExamGrade) => g.studentId === userId);
+    const html   = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks, manualGrades);
     const buffer = await renderPdfBuffer(html);
     const outPath = path.join(STUDENT_PDFS_DIR, `${userId}.pdf`);
     fs.writeFileSync(outPath, buffer);
@@ -2291,8 +2332,9 @@ app.get('/api/youchem/student-file/:userId/view', authenticateTeacher, (req, res
     const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
     const lessons   = jsonDb.getAll('lessons')   as DbLesson[];
     const homeworks = jsonDb.getAll('homeworks')  as DbHomework[];
+    const manualGrades = jsonDb.filter('manualExamGrades', (g: DbManualExamGrade) => g.studentId === userId);
 
-    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks);
+    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks, manualGrades);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err: any) {
@@ -2311,8 +2353,9 @@ app.get('/api/youchem/student-file/:userId/download', authenticateTeacher, async
     const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === userId);
     const lessons   = jsonDb.getAll('lessons')   as DbLesson[];
     const homeworks = jsonDb.getAll('homeworks')  as DbHomework[];
+    const manualGrades = jsonDb.filter('manualExamGrades', (g: DbManualExamGrade) => g.studentId === userId);
 
-    const html   = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks);
+    const html   = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks, manualGrades);
     const buffer = await renderPdfBuffer(html);
 
     // Also overwrite the saved copy so it's always current
