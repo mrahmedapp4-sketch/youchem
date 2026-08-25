@@ -163,9 +163,34 @@ export function ExamPage() {
   };
 
   /* ── Step 1 → 2: pick lesson ── */
-  const handleLessonPick = (lesson: any) => {
+  const handleLessonPick = async (lesson: any) => {
     setSelectedLesson(lesson);
     setCode(''); setCodeError('');
+    const existingAccess = accesses.find((access: any) => access.lessonId === lesson.id);
+    if (existingAccess) {
+      setUnlocking(true);
+      try {
+        const res = await fetch(`/api/student/quiz/${lesson.id}`);
+        const data = res.ok ? await res.json() : null;
+        const existingQuestions = data?.questions || [];
+        setLessonId(lesson.id);
+        if (existingQuestions.length > 0) {
+          setQuestions(existingQuestions);
+          setAnswers(Array(existingQuestions.length).fill(''));
+          setTimeLeft(data.examDurationMinutes > 0 ? data.examDurationMinutes * 60 : null);
+          setStep('exam');
+        } else {
+          setStep('access');
+        }
+        window.scrollTo(0, 0);
+        setUnlocking(false);
+        return;
+      } catch {
+        // If the already-open lesson cannot be loaded, show the code form so
+        // the student can retry without losing the persistent access record.
+      }
+      setUnlocking(false);
+    }
     setStep('code');
     window.scrollTo(0, 0);
   };

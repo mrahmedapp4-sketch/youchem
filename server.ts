@@ -1338,10 +1338,6 @@ app.post('/api/student/submit-quiz', authenticateStudent, requireCompleteStudent
       'studentLessonAccess',
       (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
     );
-    // Lesson gets locked if score < 5 (out of 10) or < 50% of total.
-    // Once locked, only teacher exemption or a passing retake clears it.
-    const nowLocked = !passed;
-
     if (existing) {
       const alreadyPassed = existing.quizPassed;
       jsonDb.update(
@@ -1352,7 +1348,8 @@ app.post('/api/student/submit-quiz', authenticateStudent, requireCompleteStudent
           quizScore: score,
           quizTotal: total,
           quizResults: results,
-          lessonLocked: alreadyPassed ? false : nowLocked,
+          // Code activation keeps the lesson open; only the quiz attempt is updated.
+          lessonLocked: false,
           quizAttempts: (existing.quizAttempts || 0) + 1,
         }
       );
@@ -1366,7 +1363,7 @@ app.post('/api/student/submit-quiz', authenticateStudent, requireCompleteStudent
         quizScore: score,
         quizTotal: total,
         quizResults: results,
-        lessonLocked: nowLocked,
+        lessonLocked: false,
         quizAttempts: 1,
       });
     }
@@ -1522,8 +1519,6 @@ app.post('/api/student/exam/submit', authenticateStudent, requireCompleteStudent
       'studentLessonAccess',
       (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
     );
-    const nowLocked2 = !passed;
-
     if (existing) {
       const alreadyPassed2 = existing.quizPassed;
       jsonDb.update(
@@ -1534,7 +1529,8 @@ app.post('/api/student/exam/submit', authenticateStudent, requireCompleteStudent
           quizScore: score,
           quizTotal: total,
           quizResults: persistResults,
-          lessonLocked: alreadyPassed2 ? false : nowLocked2,
+          // Leaving or failing the exam must never revoke code-based lesson access.
+          lessonLocked: false,
           quizAttempts: (existing.quizAttempts || 0) + 1,
         }
       );
@@ -1544,7 +1540,7 @@ app.post('/api/student/exam/submit', authenticateStudent, requireCompleteStudent
         unlockedAt: new Date().toISOString(),
         quizPassed: passed, quizExempt: false,
         quizScore: score, quizTotal: total, quizResults: persistResults,
-        lessonLocked: nowLocked2,
+         lessonLocked: false,
         quizAttempts: 1,
       });
     }

@@ -74,8 +74,8 @@ export interface DbStudentLessonAccess {
   quizResults?: Array<{ question: string; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }>;
   // Minutes the student spent on the lesson viewing page (incremented by heartbeat)
   viewingMinutes?: number;
-  // True when the student submitted the quiz and scored < 5/10 — the lesson
-  // is locked until the teacher exempts them (quizExempt) or they retake and pass.
+  // Kept for backwards compatibility with older records. Access is now
+  // permanent after code activation, so a failed attempt does not lock the lesson.
   lessonLocked?: boolean;
   // How many times the student has attempted the quiz
   quizAttempts?: number;

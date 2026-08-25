@@ -162,11 +162,9 @@ export function LessonView() {
   );
 
   // ── Derived state ──────────────────────────────────────────────────────────
-  // Code entry unlocks the lesson immediately. The only exception is when the
-  // student already submitted the quiz and scored < 5/10 (lessonLocked=true),
-  // in which case the lesson is re-locked until the teacher exempts them OR
-  // they retake and pass.
-  const isLessonLocked = access?.lessonLocked && !access?.quizExempt;
+  // Code activation permanently opens the lesson. Quiz attempts are separate:
+  // a failed or abandoned attempt can be repeated without hiding the video.
+  const isLessonLocked = false;
   const isVideoUnlocked = access && !isLessonLocked;
   const needsCode = !access;
 
