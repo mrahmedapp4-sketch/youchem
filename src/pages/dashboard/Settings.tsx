@@ -49,6 +49,8 @@ export function Settings() {
 
   useEffect(() => {
     loadStats();
+    const refreshStatsOnFocus = () => loadStats();
+    window.addEventListener('focus', refreshStatsOnFocus);
     fetch('/api/youchem/files/usage')
       .then(r => r.json())
       .then(d => { setFilesUsage(d); setLimitInput(String(d.limitMB)); })
@@ -58,6 +60,8 @@ export function Settings() {
       .then(r => r.json())
       .then(d => setApiKey(d.apiKey ?? null))
       .catch(() => {});
+
+    return () => window.removeEventListener('focus', refreshStatsOnFocus);
   }, []);
 
   const handleGenerateApiKey = async () => {
@@ -166,6 +170,15 @@ export function Settings() {
         <h2 className="font-bold text-slate-700 text-sm flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-slate-400" />
           إحصائيات المنصة
+          <button
+            type="button"
+            onClick={loadStats}
+            className="mr-auto inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+            title="تحديث الإحصائيات"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            تحديث
+          </button>
         </h2>
         {statsLoading ? (
           <div className="text-slate-400 text-sm">بيتحمل...</div>
@@ -194,7 +207,9 @@ export function Settings() {
         {stats && (
           <div className="grid grid-cols-2 gap-3">
             <div className="neon-card p-4 rounded-2xl text-center">
-              <p className="text-lg font-bold text-slate-800">{stats.codesUsed} / {stats.codesTotal}</p>
+              <p className="text-lg font-bold text-slate-800">
+                {Number(stats.codesUsed) || 0} / {Number(stats.codesTotal) || 0}
+              </p>
               <p className="text-xs text-slate-500">أكواد مستخدمة / إجمالي الأكواد</p>
             </div>
             <div className="neon-card p-4 rounded-2xl text-center">
