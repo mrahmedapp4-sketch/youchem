@@ -4,6 +4,7 @@ import { Settings as SettingsIcon, Users, BookOpen, FileText, FileQuestion, Shie
 export function Settings() {
   const [stats, setStats] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState('');
 
   // Change password state
   const [currentPw, setCurrentPw] = useState('');
@@ -28,11 +29,26 @@ export function Settings() {
   const [resetInput, setResetInput] = useState('');
   const [resetting, setResetting] = useState(false);
 
+  const loadStats = async () => {
+    setStatsLoading(true);
+    setStatsError('');
+    try {
+      const res = await fetch('/api/youchem/settings/stats');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.students !== 'number') {
+        throw new Error(res.status === 401 ? 'انتهت جلسة المعلم، سجل الدخول مرة أخرى.' : 'تعذر تحميل إحصائيات المنصة.');
+      }
+      setStats(data);
+    } catch (err: any) {
+      setStats(null);
+      setStatsError(err.message || 'تعذر تحميل إحصائيات المنصة.');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch('/api/youchem/settings/stats')
-      .then(r => r.json())
-      .then(d => { setStats(d); setStatsLoading(false); })
-      .catch(() => setStatsLoading(false));
+    loadStats();
     fetch('/api/youchem/files/usage')
       .then(r => r.json())
       .then(d => { setFilesUsage(d); setLimitInput(String(d.limitMB)); })
@@ -119,8 +135,7 @@ export function Settings() {
       if (res.ok) {
         alert('اتعملت إعادة ضبط للمنصة بنجاح. الحسابات موجودة.');
         setResetInput('');
-        // refresh stats
-        fetch('/api/youchem/settings/stats').then(r => r.json()).then(setStats);
+          loadStats();
       } else {
         const d = await res.json().catch(() => ({}));
         alert(d.error || 'فشلت عملية الإعادة');
@@ -154,6 +169,13 @@ export function Settings() {
         </h2>
         {statsLoading ? (
           <div className="text-slate-400 text-sm">بيتحمل...</div>
+        ) : statsError ? (
+          <div className="neon-card p-4 rounded-2xl flex items-center justify-between gap-3">
+            <p className="text-red-600 text-sm font-semibold">{statsError}</p>
+            <button type="button" onClick={loadStats} className="text-sm font-bold text-indigo-600 hover:text-indigo-800">
+              إعادة المحاولة
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {statCards.map(card => (
