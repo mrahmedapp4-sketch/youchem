@@ -1603,6 +1603,52 @@ app.get('/api/student/files', authenticateStudent, requireCompleteStudentProfile
   }
 });
 
+// A student can view or download only their own complete student file.
+app.get('/api/student/my-file/view', authenticateStudent, requireCompleteStudentProfile, (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === studentId && u.role === 'student');
+    if (!user) return res.status(404).send('<p>الطالب غير موجود</p>');
+
+    const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === studentId);
+    const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === studentId);
+    const manualGrades = jsonDb.filter('manualExamGrades', (g: DbManualExamGrade) => g.studentId === studentId);
+    const lessons = jsonDb.getAll('lessons') as DbLesson[];
+    const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
+    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks, manualGrades);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err: any) {
+    res.status(500).send('<p>فشل فتح الملف: ' + err.message + '</p>');
+  }
+});
+
+app.get('/api/student/my-file/download', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const user = jsonDb.find('users', (u: DbUser) => u.id === studentId && u.role === 'student');
+    if (!user) return res.status(404).json({ error: 'الطالب غير موجود' });
+
+    const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === studentId);
+    const homeworkSubmissions = jsonDb.filter('homeworkSubmissions', (s: DbHomeworkSubmission) => s.userId === studentId);
+    const manualGrades = jsonDb.filter('manualExamGrades', (g: DbManualExamGrade) => g.studentId === studentId);
+    const lessons = jsonDb.getAll('lessons') as DbLesson[];
+    const homeworks = jsonDb.getAll('homeworks') as DbHomework[];
+    const html = buildStudentPdfHtml(user, accesses, homeworkSubmissions, lessons, homeworks, manualGrades);
+    const buffer = await renderPdfBuffer(html);
+
+    fs.writeFileSync(path.join(STUDENT_PDFS_DIR, `${studentId}.pdf`), buffer);
+    const safeName = (user.name || studentId).replace(/[^a-zA-Z\u0600-\u06FF0-9 _-]/g, '').trim();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(`${safeName}_ملف.pdf`)}`);
+    res.send(buffer);
+  } catch (err: any) {
+    console.error('[PDF] Student download failed:', err.message);
+    res.status(500).json({ error: 'فشل تحميل الملف: ' + err.message });
+  }
+});
+
 // Aggregated homework list for the student's grade, no lesson access required.
 app.get('/api/student/homeworks', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {

@@ -36,8 +36,6 @@ export function StudentDashboard() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
-  const [studentFiles, setStudentFiles] = useState<any[]>([]);
-  const [filesLoading, setFilesLoading] = useState(false);
   const [manualGrades, setManualGrades] = useState<any[]>([]);
   const [showGradeNotice, setShowGradeNotice] = useState(false);
   const [revealedGradeIds, setRevealedGradeIds] = useState<string[]>([]);
@@ -137,17 +135,6 @@ export function StudentDashboard() {
 
   useEffect(() => {
     if (section === 'leaderboard' && leaderboard.length === 0) fetchLeaderboard();
-  }, [section]);
-
-  useEffect(() => {
-    if (section === 'files' && studentFiles.length === 0) {
-      setFilesLoading(true);
-      fetch('/api/student/files')
-        .then(r => r.ok ? r.json() : [])
-        .then(data => setStudentFiles(data))
-        .catch(() => {})
-        .finally(() => setFilesLoading(false));
-    }
   }, [section]);
 
   /* ── Modal helpers ── */
@@ -498,49 +485,42 @@ export function StudentDashboard() {
           </div>
         ))}
 
-        {/* ── Files ── */}
-        {section === 'files' && (filesLoading ? (
-          <div className="text-center p-12 text-slate-400">{tr('loading', lang)}</div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-slate-500 text-sm mb-5">{tr('filesSubtitle', lang)}</p>
-            {studentFiles.map((f: any) => (
-              <div key={f.id} className="neon-card rounded-2xl p-4 flex items-center gap-4">
-                <img
-                  src="/folder-icon.png"
-                  alt="ملف"
-                  className="w-10 h-10 object-contain shrink-0"
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 truncate">{f.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5 truncate">{f.fileName}</p>
-                </div>
+        {/* ── My student file ── */}
+        {section === 'files' && (
+          <div className="max-w-2xl mx-auto space-y-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{tr('tabFiles', lang)}</h2>
+              <p className="text-slate-500 text-sm mt-1">{tr('filesSubtitle', lang)}</p>
+            </div>
+            <div className="neon-card rounded-2xl p-6 sm:p-8 text-center">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-4">
+                <FileText className="w-8 h-8 text-indigo-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">ملف الطالب</h3>
+              <p className="text-sm text-slate-500 mt-1 mb-6">
+                يحتوي على بياناتك ودرجاتك ونشاطك في الحصص والواجبات.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-3">
                 <a
-                  href={f.fileUrl}
-                  download={f.fileName}
+                  href="/api/student/my-file/view"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl neon-btn text-sm font-bold shrink-0"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-sm font-bold transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  {tr('viewStudentFile', lang)}
+                </a>
+                <a
+                  href="/api/student/my-file/download"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl neon-btn text-sm font-bold"
                 >
                   <Download className="w-4 h-4" />
-                  {tr('downloadFile', lang)}
+                  {tr('downloadStudentFile', lang)}
                 </a>
               </div>
-            ))}
-            {studentFiles.length === 0 && (
-              <div className="p-12 text-center text-slate-400 neon-card rounded-2xl">
-                <img
-                  src="/folder-icon.png"
-                  alt="ملفات"
-                  className="w-14 h-14 mx-auto mb-3 opacity-40"
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-                <p>{tr('noFiles', lang)}</p>
-              </div>
-            )}
+            </div>
           </div>
-        ))}
+        )}
 
         </div>{/* end .flex-1.p-4 */}
       </main>
