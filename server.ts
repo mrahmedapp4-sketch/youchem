@@ -566,19 +566,35 @@ app.get('/api/youchem/codes', authenticateTeacher, async (req, res) => {
 
 app.post('/api/youchem/codes/generate', authenticateTeacher, async (req, res) => {
   try {
-    const { count, lessonId } = req.body;
-    for (let i = 0; i < count; i++) {
+    const { count, lessonId, kind = 'lesson', expiresAt } = req.body;
+    const codeKind = kind === 'promo' ? 'promo' : 'lesson';
+    const amount = Number(count);
+    if (!Number.isInteger(amount) || amount < 1 || amount > 500) {
+      return res.status(400).json({ error: 'عدد الأكواد لازم يكون من 1 إلى 500' });
+    }
+    if (codeKind === 'promo') {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(expiresAt || ''))) {
+        return res.status(400).json({ error: 'لازم تحدد تاريخ انتهاء صحيح للكود' });
+      }
+      const expiry = new Date(`${expiresAt}T23:59:59.999Z`);
+      if (Number.isNaN(expiry.getTime()) || expiry.getTime() < Date.now()) {
+        return res.status(400).json({ error: 'تاريخ انتهاء الكود لازم يكون في المستقبل' });
+      }
+    }
+    for (let i = 0; i < amount; i++) {
       const code: DbCode = {
         id: newId(),
-        codeString: `YCH-${randomBytes(4).toString('hex').toUpperCase()}`,
+        codeString: `${codeKind === 'promo' ? 'PROMO' : 'YCH'}-${randomBytes(4).toString('hex').toUpperCase()}`,
         isUsed: false,
         usedBy: null,
-        lessonId: lessonId || undefined,
+        lessonId: codeKind === 'lesson' ? lessonId || undefined : undefined,
+        kind: codeKind,
+        expiresAt: codeKind === 'promo' ? String(expiresAt) : null,
         createdAt: new Date().toISOString(),
       };
       jsonDb.insert('codes', code);
     }
-    res.json({ success: true, generated: count });
+    res.json({ success: true, generated: amount });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1259,6 +1275,7 @@ app.post('/api/student/validate-code', authenticateStudent, requireCompleteStude
 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === code);
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
+    if (key.kind === 'promo') return res.status(400).json({ error: 'استخدم كود Promo Code من قسم البرومو كود' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
     // Enforce lesson-specific codes: a code tied to a lesson can ONLY unlock that lesson.
     if (key.lessonId && key.lessonId !== lessonId) {
@@ -1277,6 +1294,64 @@ app.post('/api/student/validate-code', authenticateStudent, requireCompleteStude
     jsonDb.insert('studentLessonAccess', access);
 
     res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Redeem a one-use promo code. The lesson IDs are intentionally snapshotted
+// now: lessons added later must require another promo code.
+app.post('/api/student/promo-code/redeem', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const code = String(req.body?.code || '').trim().toUpperCase();
+    const key = jsonDb.find('codes', (c: DbCode) =>
+      c.codeString === code && c.kind === 'promo'
+    );
+    if (!key) return res.status(400).json({ error: 'كود Promo Code غير صحيح' });
+    if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم أو محروق من قبل' });
+
+    if (key.expiresAt) {
+      const expiry = new Date(`${key.expiresAt}T23:59:59.999Z`);
+      if (Number.isNaN(expiry.getTime()) || expiry.getTime() < Date.now()) {
+        return res.status(400).json({ error: 'كود Promo Code انتهت صلاحيته' });
+      }
+    }
+
+    const student = jsonDb.find('users', (u: DbUser) => u.id === studentId);
+    if (!student?.gradeLevel) return res.status(400).json({ error: 'الصف الدراسي غير محدد' });
+
+    const currentLessons = jsonDb.filter(
+      'lessons',
+      (lesson: DbLesson) => lesson.gradeLevel === student.gradeLevel && !lesson.isHidden,
+    );
+    const existingAccesses = jsonDb.filter(
+      'studentLessonAccess',
+      (access: DbStudentLessonAccess) => access.userId === studentId,
+    );
+    const existingLessonIds = new Set(existingAccesses.map(access => access.lessonId));
+    const unlockedAt = new Date().toISOString();
+    let unlockedCount = 0;
+    for (const lesson of currentLessons) {
+      if (existingLessonIds.has(lesson.id)) continue;
+      jsonDb.insert('studentLessonAccess', {
+        userId: studentId,
+        lessonId: lesson.id,
+        unlockedAt,
+        quizPassed: false,
+        quizExempt: false,
+        lessonLocked: false,
+      });
+      unlockedCount++;
+    }
+
+    jsonDb.update('codes', (c: DbCode) => c.id === key.id, {
+      isUsed: true,
+      usedBy: studentId,
+      usedAt: unlockedAt,
+    });
+
+    res.json({ success: true, unlockedCount });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1390,6 +1465,7 @@ app.post('/api/student/exam/unlock', authenticateStudent, requireCompleteStudent
 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
+    if (key.kind === 'promo') return res.status(400).json({ error: 'استخدم كود Promo Code من قسم البرومو كود' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم أو محروق من قبل' });
     // Enforce lesson-specific codes
     if (key.lessonId && key.lessonId !== lessonId) {
@@ -1441,6 +1517,7 @@ app.post('/api/student/exam/start', authenticateStudent, requireCompleteStudentP
 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
+    if (key.kind === 'promo') return res.status(400).json({ error: 'استخدم كود Promo Code من قسم البرومو كود' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم أو محروق من قبل' });
     if (!key.lessonId) return res.status(400).json({ error: 'هذا الكود غير مرتبط بامتحان — تواصل مع مستر أحمد' });
 

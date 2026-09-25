@@ -39,6 +39,7 @@ export default function App() {
           <Route element={<DashboardLayout />}>
             <Route index element={<Navigate to="/youchem/upload" replace />} />
             <Route path="codes" element={<Codes />} />
+            <Route path="promo-code" element={<Codes mode="promo" />} />
             <Route path="upload" element={<UploadVideo />} />
             <Route path="quizzes" element={<Quizzes />} />
             <Route path="grades" element={<ManualGrades />} />

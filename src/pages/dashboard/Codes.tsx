@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe, FileDown } from 'lucide-react';
+import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe, FileDown, CalendarDays } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-export function Codes() {
+export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
+  const isPromoPage = mode === 'promo';
   const [count, setCount] = useState(50);
   const [lessonId, setLessonId] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedMessage, setGeneratedMessage] = useState('');
   const [codesList, setCodesList] = useState<any[]>([]);
@@ -47,14 +49,22 @@ export function Codes() {
       const res = await fetch('/api/youchem/codes/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count, lessonId: lessonId || undefined }),
+        body: JSON.stringify({
+          count,
+          lessonId: isPromoPage ? undefined : lessonId || undefined,
+          kind: isPromoPage ? 'promo' : 'lesson',
+          expiresAt: isPromoPage ? expiresAt : undefined,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        const label = lessonId ? `"${getLessonTitle(lessonId)}"` : 'كل الحصص (عام)';
+        const label = isPromoPage
+          ? `كل الحصص الحالية حتى ${new Date(`${expiresAt}T00:00:00`).toLocaleDateString('ar-EG')}`
+          : lessonId ? `"${getLessonTitle(lessonId)}"` : 'كل الحصص (عام)';
         setGeneratedMessage(`اتعمل ${data.generated} كود بنجاح لـ ${label}.`);
         fetchCodes();
       }
+      else setGeneratedMessage(data.error || 'في مشكلة في إنشاء الأكواد');
     } catch { alert('في مشكلة في الإنشاء'); }
     setIsGenerating(false);
   };
@@ -91,14 +101,14 @@ export function Codes() {
   };
 
   const handleExportTxt = () => {
-    const unusedCodes = codesList.filter(c => !c.isUsed);
+    const unusedCodes = codesList.filter(c => !c.isUsed && (c.kind === 'promo') === isPromoPage);
     if (unusedCodes.length === 0) {
       alert('مفيش أكواد غير مستخدمة لتصديرها');
       return;
     }
     const rows = [
-      ['الكود', 'الحصة'],
-      ...unusedCodes.map(c => [c.codeString, c.lessonId ? getLessonTitle(c.lessonId) : 'عام']),
+      ['الكود', isPromoPage ? 'ينتهي في' : 'الحصة'],
+      ...unusedCodes.map(c => [c.codeString, isPromoPage ? c.expiresAt : c.lessonId ? getLessonTitle(c.lessonId) : 'عام']),
     ];
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [{ wch: 20 }, { wch: 32 }];
@@ -111,6 +121,7 @@ export function Codes() {
     if (!exportDate) { alert('اختار تاريخ الأول'); return; }
     const filtered = codesList.filter(c => {
       if (c.isUsed) return false;
+      if ((c.kind === 'promo') !== isPromoPage) return false;
       const created = new Date(c.createdAt).toLocaleDateString('en-CA'); // YYYY-MM-DD
       return created === exportDate;
     });
@@ -119,8 +130,8 @@ export function Codes() {
       return;
     }
     const rows = [
-      ['الكود', 'الحصة'],
-      ...filtered.map(c => [c.codeString, c.lessonId ? getLessonTitle(c.lessonId) : 'عام']),
+      ['الكود', isPromoPage ? 'ينتهي في' : 'الحصة'],
+      ...filtered.map(c => [c.codeString, isPromoPage ? c.expiresAt : c.lessonId ? getLessonTitle(c.lessonId) : 'عام']),
     ];
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [{ wch: 20 }, { wch: 32 }];
@@ -129,15 +140,19 @@ export function Codes() {
     XLSX.writeFile(wb, `youchem-codes-${exportDate}.xlsx`);
   };
 
+  const visibleCodes = codesList.filter(c => (c.kind === 'promo') === isPromoPage);
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">أكواد الوصول</h1>
-          <p className="text-slate-500 text-sm mt-0.5">توليد وإدارة الأكواد للطلاب</p>
-          {codesList.some(c => !c.isUsed) && (
+          <h1 className="text-xl font-bold text-slate-900">{isPromoPage ? 'Promo Code' : 'أكواد الوصول'}</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {isPromoPage ? 'تصاريح تفتح كل حصص صف الطالب الموجودة وقت استخدام الكود' : 'توليد وإدارة الأكواد للطلاب'}
+          </p>
+          {visibleCodes.some(c => !c.isUsed) && (
             <button
               onClick={handleExportTxt}
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors border border-indigo-200"
@@ -169,23 +184,43 @@ export function Codes() {
         <div className="neon-card rounded-2xl p-4 flex flex-col gap-3 min-w-[260px]" dir="rtl">
           {/* Lesson picker */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">الحصة المرتبطة (اختياري)</label>
-            <div className="relative">
-              <BookOpen className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              <select
-                value={lessonId}
-                onChange={e => setLessonId(e.target.value)}
-                className="neon-input w-full pr-9 pl-3 py-2.5 rounded-xl text-sm appearance-none"
-              >
-                <option value="">— عام (يشتغل على كل الحصص) —</option>
-                {lessons.map((l: any) => (
-                  <option key={l.id} value={l.id}>{l.title}</option>
-                ))}
-              </select>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">
-              {lessonId ? 'الكود ده هيشتغل بس على الحصة دي.' : 'الكود العام يشتغل على أي حصة.'}
-            </p>
+            {isPromoPage ? (
+              <>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">تاريخ انتهاء Promo Code</label>
+                <div className="relative">
+                  <CalendarDays className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={expiresAt}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={e => setExpiresAt(e.target.value)}
+                    className="neon-input w-full pr-9 pl-3 py-2.5 rounded-xl text-sm"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">الكود يفتح حصص الصف الموجودة وقت استخدامه فقط.</p>
+              </>
+            ) : (
+              <>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">الحصة المرتبطة (اختياري)</label>
+                <div className="relative">
+                  <BookOpen className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <select
+                    value={lessonId}
+                    onChange={e => setLessonId(e.target.value)}
+                    className="neon-input w-full pr-9 pl-3 py-2.5 rounded-xl text-sm appearance-none"
+                  >
+                    <option value="">— عام (يشتغل على كل الحصص) —</option>
+                    {lessons.map((l: any) => (
+                      <option key={l.id} value={l.id}>{l.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  {lessonId ? 'الكود ده هيشتغل بس على الحصة دي.' : 'الكود العام يشتغل على أي حصة.'}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Count + generate button */}
@@ -235,10 +270,10 @@ export function Codes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {codesList.length === 0 && (
+               {visibleCodes.length === 0 && (
                   <tr><td colSpan={6} className="p-10 text-center text-slate-400 text-sm">مفيش أكواد اتعملت.</td></tr>
                 )}
-                {codesList.map(c => (
+                 {visibleCodes.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3.5 font-mono text-slate-800 font-semibold text-sm">
                       <div className="flex items-center gap-2">
@@ -262,7 +297,12 @@ export function Codes() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-sm max-w-[180px]">
-                      {c.lessonId ? (
+                       {isPromoPage ? (
+                         <span className="inline-flex items-center gap-1 text-amber-700 text-xs font-medium">
+                           <CalendarDays className="w-3 h-3" />
+                           حتى {c.expiresAt}
+                         </span>
+                       ) : c.lessonId ? (
                         <span className="text-indigo-700 font-medium truncate block">{getLessonTitle(c.lessonId)}</span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-slate-500 text-xs font-medium">
@@ -272,7 +312,7 @@ export function Codes() {
                       )}
                     </td>
                     <td className="px-5 py-3.5">
-                      {c.isUsed ? (
+                       {c.isUsed ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100 text-xs font-semibold">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-400" />اتاستخدم
                         </span>
@@ -286,7 +326,7 @@ export function Codes() {
                       {c.usedByName || (c.usedBy ? c.usedBy : '—')}
                     </td>
                     <td className="px-5 py-3.5 text-slate-400 text-sm">
-                      {new Date(c.createdAt).toLocaleDateString('ar-EG')}
+                       {new Date(c.createdAt).toLocaleDateString('ar-EG')}
                     </td>
                     <td className="px-5 py-3.5">
                       <button onClick={() => handleBurnCode(c.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors mx-auto flex" title="حذف نهائي">

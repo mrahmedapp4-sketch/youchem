@@ -50,6 +50,10 @@ export function StudentDashboard() {
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [unlocking, setUnlocking] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoCodeError, setPromoCodeError] = useState('');
+  const [promoCodeMessage, setPromoCodeMessage] = useState('');
+  const [redeemingPromo, setRedeemingPromo] = useState(false);
 
   /* exam */
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -131,6 +135,31 @@ export function StudentDashboard() {
       if (r.ok) setLeaderboard(await r.json());
     } catch { /* ignore */ }
     setLeaderboardLoading(false);
+  };
+
+  const handlePromoRedeem = async (e: FormEvent) => {
+    e.preventDefault();
+    setPromoCodeError('');
+    setPromoCodeMessage('');
+    setRedeemingPromo(true);
+    try {
+      const res = await fetch('/api/student/promo-code/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode.trim().toUpperCase() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPromoCodeError(data.error || tr('errGeneric', lang));
+      } else {
+        setPromoCodeMessage(tr('promoCodeSuccess', lang).replace('{count}', String(data.unlockedCount)));
+        setPromoCode('');
+        await refreshAccesses();
+      }
+    } catch {
+      setPromoCodeError(tr('errGenericNet', lang));
+    }
+    setRedeemingPromo(false);
   };
 
   useEffect(() => {
@@ -333,6 +362,41 @@ export function StudentDashboard() {
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{tr('welcomeHeading', lang)}</h2>
           <p className="text-slate-500 mt-1 text-sm sm:text-base">{tr('welcomeSub', lang)}</p>
         </div>
+
+        {section === 'lessons' && (
+          <div className="neon-card rounded-2xl p-5 sm:p-6 mb-6 border border-indigo-100 bg-indigo-50/40" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                <Key className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-900">{tr('promoCodeTitle', lang)}</h2>
+                <p className="text-sm text-slate-500 mt-1">{tr('promoCodeSub', lang)}</p>
+              </div>
+            </div>
+            <form onSubmit={handlePromoRedeem} className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                required
+                value={promoCode}
+                onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoCodeError(''); }}
+                placeholder={tr('promoCodePlaceholder', lang)}
+                className="neon-input flex-1 px-4 py-3 rounded-xl font-mono uppercase tracking-widest"
+                dir="ltr"
+                autoComplete="off"
+              />
+              <button
+                type="submit"
+                disabled={redeemingPromo || !promoCode.trim()}
+                className="neon-btn px-5 py-3 rounded-xl font-bold disabled:opacity-50"
+              >
+                {redeemingPromo ? tr('verifying', lang) : tr('promoCodeRedeem', lang)}
+              </button>
+            </form>
+            {promoCodeError && <p className="text-red-500 text-sm font-semibold mt-3">{promoCodeError}</p>}
+            {promoCodeMessage && <p className="text-emerald-600 text-sm font-semibold mt-3">{promoCodeMessage}</p>}
+          </div>
+        )}
 
         {/* ── Lessons Grid ── */}
         {section === 'lessons' && (loading ? (

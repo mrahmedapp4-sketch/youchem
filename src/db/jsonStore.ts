@@ -58,6 +58,10 @@ export interface DbCode {
   isUsed: boolean;
   usedBy?: string | null;
   lessonId?: string; // which exam/lesson this code unlocks
+  /** Promo codes unlock a snapshot of the student's current lessons. */
+  kind?: 'lesson' | 'promo';
+  /** Calendar date (YYYY-MM-DD) on which a promo code expires. */
+  expiresAt?: string | null;
   createdAt: string;
 }
 
