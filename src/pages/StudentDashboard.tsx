@@ -3,6 +3,7 @@ import {
   Video, CheckCircle, Lock, PlayCircle, FileText, ClipboardList,
   Key, X, XCircle, Maximize2, Sun, Moon, Trophy, Medal, Award, Languages,
   Menu, Folder, Download, LogOut,
+  Sparkles,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -19,7 +20,7 @@ interface Result {
 }
 
 type ModalStep = 'code' | 'exam' | 'results' | 'access';
-type Section = 'lessons' | 'homework' | 'files' | 'leaderboard';
+type Section = 'lessons' | 'promo-code' | 'homework' | 'files' | 'leaderboard';
 
 export function StudentDashboard() {
   const navigate = useNavigate();
@@ -278,7 +279,7 @@ export function StudentDashboard() {
         <nav
           className="flex-1 p-3 space-y-0.5 overflow-y-auto"
           onKeyDown={e => {
-            const sections: Section[] = ['lessons', 'homework', 'files', 'leaderboard'];
+            const sections: Section[] = ['lessons', 'promo-code', 'homework', 'files', 'leaderboard'];
             const cur = sections.indexOf(section);
             if (e.key === 'ArrowDown') { e.preventDefault(); const next = sections[Math.min(cur + 1, sections.length - 1)]; setSection(next); navBtnRefs.current[Math.min(cur + 1, sections.length - 1)]?.focus(); }
             if (e.key === 'ArrowUp')   { e.preventDefault(); const next = sections[Math.max(cur - 1, 0)]; setSection(next); navBtnRefs.current[Math.max(cur - 1, 0)]?.focus(); }
@@ -286,6 +287,7 @@ export function StudentDashboard() {
         >
           {([
             { id: 'lessons',     label: tr('tabLessons', lang),     Icon: Video },
+            { id: 'promo-code',  label: tr('tabPromoCode', lang),   Icon: Sparkles },
             { id: 'homework',    label: tr('tabHomework', lang),    Icon: ClipboardList },
             { id: 'files',       label: tr('tabFiles', lang),       Icon: Folder },
             { id: 'leaderboard', label: tr('tabLeaderboard', lang), Icon: Trophy },
@@ -363,7 +365,7 @@ export function StudentDashboard() {
           <p className="text-slate-500 mt-1 text-sm sm:text-base">{tr('welcomeSub', lang)}</p>
         </div>
 
-        {section === 'lessons' && (
+        {section === 'promo-code' && (
           <div className="neon-card rounded-2xl p-5 sm:p-6 mb-6 border border-indigo-100 bg-indigo-50/40" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
             <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">

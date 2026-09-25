@@ -51,6 +51,7 @@ const t: Record<string, Record<Lang, string>> = {
   welcomeHeading:   { ar: 'أهلاً بيك', en: 'Welcome' },
   welcomeSub:       { ar: 'كمّل رحلتك في التعليم.', en: 'Continue your learning journey.' },
   tabLessons:       { ar: 'الحصص', en: 'Lessons' },
+  tabPromoCode:     { ar: 'Promo Code', en: 'Promo Code' },
   tabHomework:      { ar: 'واجباتي', en: 'My Homework' },
   tabLeaderboard:   { ar: 'student leaderboard', en: 'student leaderboard' },
   loading:          { ar: 'بيتحمل...', en: 'Loading...' },
