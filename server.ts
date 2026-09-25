@@ -610,6 +610,24 @@ app.delete('/api/youchem/codes/:id', authenticateTeacher, async (req, res) => {
   }
 });
 
+app.patch('/api/youchem/codes/:id/toggle-pause', authenticateTeacher, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const code = jsonDb.find('codes', (c: DbCode) => c.id === id);
+    if (!code) return res.status(404).json({ error: 'الكود غير موجود' });
+    if (code.kind !== 'promo') return res.status(400).json({ error: 'الإيقاف متاح لأكواد Promo Code فقط' });
+    if (!code.isUsed || !code.usedBy) return res.status(400).json({ error: 'الكود لم يُستخدم بعد' });
+
+    const updated = jsonDb.update('codes', (c: DbCode) => c.id === id, {
+      isPaused: !code.isPaused,
+      pausedAt: !code.isPaused ? new Date().toISOString() : null,
+    });
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Quizzes API
 app.get('/api/youchem/quizzes', authenticateTeacher, async (req, res) => {
   try {
@@ -1241,6 +1259,10 @@ app.get('/api/student/lessons', authenticateStudent, requireCompleteStudentProfi
     const user = jsonDb.find('users', (u: DbUser) => u.id === studentId);
     if (!user || !user.gradeLevel) return res.status(400).json({ error: 'Grade not set' });
 
+    // An active promo code keeps opening lessons added after redemption.
+    // Pausing the code stops this sync but leaves existing access records intact.
+    syncActivePromoAccess(studentId, user.gradeLevel);
+
     const availableLessons = jsonDb.filter(
       'lessons',
       (l: DbLesson) => l.gradeLevel === user.gradeLevel && !l.isHidden
@@ -1299,8 +1321,8 @@ app.post('/api/student/validate-code', authenticateStudent, requireCompleteStude
   }
 });
 
-// Redeem a one-use promo code. The lesson IDs are intentionally snapshotted
-// now: lessons added later must require another promo code.
+// Redeem a one-use promo code. The initial lessons are opened immediately;
+// future lessons are opened by syncActivePromoAccess while the code is active.
 app.post('/api/student/promo-code/redeem', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
@@ -1349,6 +1371,7 @@ app.post('/api/student/promo-code/redeem', authenticateStudent, requireCompleteS
       isUsed: true,
       usedBy: studentId,
       usedAt: unlockedAt,
+      isPaused: false,
     });
 
     res.json({ success: true, unlockedCount });
@@ -1356,6 +1379,39 @@ app.post('/api/student/promo-code/redeem', authenticateStudent, requireCompleteS
     res.status(500).json({ error: err.message });
   }
 });
+
+function syncActivePromoAccess(studentId: string, gradeLevel: DbUser['gradeLevel']) {
+  if (!gradeLevel) return;
+  const now = Date.now();
+  const activePromo = jsonDb.find('codes', (code: DbCode) => {
+    if (code.kind !== 'promo' || !code.isUsed || code.usedBy !== studentId || code.isPaused) return false;
+    if (!code.expiresAt) return true;
+    const expiresAt = new Date(`${code.expiresAt}T23:59:59.999Z`).getTime();
+    return Number.isFinite(expiresAt) && expiresAt >= now;
+  });
+  if (!activePromo) return;
+
+  const currentLessons = jsonDb.filter(
+    'lessons',
+    (lesson: DbLesson) => lesson.gradeLevel === gradeLevel && !lesson.isHidden,
+  );
+  const existingAccesses = jsonDb.filter(
+    'studentLessonAccess',
+    (access: DbStudentLessonAccess) => access.userId === studentId,
+  );
+  const existingLessonIds = new Set(existingAccesses.map(access => access.lessonId));
+  for (const lesson of currentLessons) {
+    if (existingLessonIds.has(lesson.id)) continue;
+    jsonDb.insert('studentLessonAccess', {
+      userId: studentId,
+      lessonId: lesson.id,
+      unlockedAt: new Date().toISOString(),
+      quizPassed: false,
+      quizExempt: false,
+      lessonLocked: false,
+    });
+  }
+}
 
 // Fetch the real quiz for a lesson, with correct answers stripped so students can't see them.
 app.get('/api/student/quiz/:lessonId', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {

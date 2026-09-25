@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe, FileDown, CalendarDays } from 'lucide-react';
+import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe, FileDown, CalendarDays, PauseCircle, PlayCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
@@ -77,6 +77,17 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
     } catch { alert('فشل مسح الكود'); }
   };
 
+  const handleTogglePause = async (code: any) => {
+    const action = code.isPaused ? 'تشغيل' : 'إيقاف';
+    if (!confirm(`متأكد إنك عاوز ${action} الفتح التلقائي للكود ده؟`)) return;
+    try {
+      const res = await fetch(`/api/youchem/codes/${code.id}/toggle-pause`, { method: 'PATCH' });
+      const data = await res.json();
+      if (res.ok) fetchCodes();
+      else alert(data.error || 'فشل تغيير حالة الكود');
+    } catch { alert('فشل تغيير حالة الكود'); }
+  };
+
   const handleCopy = (codeString: string, id: string) => {
     navigator.clipboard.writeText(codeString).then(() => {
       setCopiedId(id);
@@ -150,7 +161,7 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
         <div>
           <h1 className="text-xl font-bold text-slate-900">{isPromoPage ? 'Promo Code' : 'أكواد الوصول'}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            {isPromoPage ? 'تصاريح تفتح كل حصص صف الطالب الموجودة وقت استخدام الكود' : 'توليد وإدارة الأكواد للطلاب'}
+            {isPromoPage ? 'الكود يفتح الحصص الجديدة تلقائيًا حتى تضغط Pause' : 'توليد وإدارة الأكواد للطلاب'}
           </p>
           {visibleCodes.some(c => !c.isUsed) && (
             <button
@@ -198,7 +209,7 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
                     required
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">الكود يفتح حصص الصف الموجودة وقت استخدامه فقط.</p>
+                <p className="text-xs text-slate-400 mt-1">بعد استخدامه، يفتح حصص الصف الحالية والجديدة تلقائيًا حتى يتم إيقافه.</p>
               </>
             ) : (
               <>
@@ -313,9 +324,19 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
                     </td>
                     <td className="px-5 py-3.5">
                        {c.isUsed ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100 text-xs font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />اتاستخدم
-                        </span>
+                         isPromoPage && c.isPaused ? (
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-xs font-semibold">
+                             <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />موقوف
+                           </span>
+                         ) : isPromoPage ? (
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold">
+                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />فعال
+                           </span>
+                         ) : (
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100 text-xs font-semibold">
+                             <span className="w-1.5 h-1.5 rounded-full bg-red-400" />اتاستخدم
+                           </span>
+                         )
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />متاح
@@ -329,9 +350,20 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
                        {new Date(c.createdAt).toLocaleDateString('ar-EG')}
                     </td>
                     <td className="px-5 py-3.5">
-                      <button onClick={() => handleBurnCode(c.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors mx-auto flex" title="حذف نهائي">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                       <div className="flex items-center justify-center gap-1">
+                         {isPromoPage && c.isUsed && (
+                           <button
+                             onClick={() => handleTogglePause(c)}
+                             className={`p-1.5 rounded-lg transition-colors ${c.isPaused ? 'text-emerald-500 hover:bg-emerald-50' : 'text-amber-500 hover:bg-amber-50'}`}
+                             title={c.isPaused ? 'تشغيل الفتح التلقائي' : 'Pause — إيقاف الفتح التلقائي'}
+                           >
+                             {c.isPaused ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
+                           </button>
+                         )}
+                         <button onClick={() => handleBurnCode(c.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex" title="حذف نهائي">
+                           <Trash2 className="w-4 h-4" />
+                         </button>
+                       </div>
                     </td>
                   </tr>
                 ))}

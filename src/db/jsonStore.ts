@@ -62,6 +62,8 @@ export interface DbCode {
   kind?: 'lesson' | 'promo';
   /** Calendar date (YYYY-MM-DD) on which a promo code expires. */
   expiresAt?: string | null;
+  /** A used promo code can stop opening newly-created lessons without revoking existing access. */
+  isPaused?: boolean;
   createdAt: string;
 }
 
