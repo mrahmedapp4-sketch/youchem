@@ -44,6 +44,7 @@ import {
   DbQuiz,
   DbCode,
   DbStudentLessonAccess,
+  DbQuizSubmission,
   DbHomework,
   DbHomeworkSubmission,
   DbFile,
@@ -1417,8 +1418,17 @@ function syncActivePromoAccess(studentId: string, gradeLevel: DbUser['gradeLevel
 app.get('/api/student/quiz/:lessonId', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { lessonId } = req.params;
+    const studentId = (req as any).studentId;
+    const access = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
+    );
+    if (!access) return res.status(403).json({ error: 'افتح الحصة أولاً علشان تدخل امتحانها' });
+
     const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
-    if (!quiz || !Array.isArray(quiz.questions)) return res.json({ questions: [] });
+    if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+      return res.json({ questions: [], notFound: true });
+    }
 
     const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
@@ -1430,80 +1440,107 @@ app.get('/api/student/quiz/:lessonId', authenticateStudent, requireCompleteStude
   }
 });
 
+app.get('/api/student/recent-quizzes', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
+  try {
+    const studentId = (req as any).studentId;
+    const saved = jsonDb.filter(
+      'quizSubmissions',
+      (submission: DbQuizSubmission) => submission.userId === studentId,
+    );
+    const savedLessonIds = new Set(saved.map((submission: DbQuizSubmission) => submission.lessonId));
+
+    // Show latest results created before quiz history was introduced.
+    const legacy = jsonDb.filter(
+      'studentLessonAccess',
+      (access: DbStudentLessonAccess) =>
+        access.userId === studentId &&
+        typeof access.quizScore === 'number' &&
+        typeof access.quizTotal === 'number' &&
+        Array.isArray(access.quizResults) &&
+        !savedLessonIds.has(access.lessonId),
+    ).map((access: DbStudentLessonAccess) => ({
+      id: `legacy-${studentId}-${access.lessonId}`,
+      userId: studentId,
+      lessonId: access.lessonId,
+      score: access.quizScore,
+      total: access.quizTotal,
+      passed: !!access.quizPassed,
+      submittedAt: access.quizSubmittedAt || access.unlockedAt,
+      results: access.quizResults || [],
+    }));
+
+    const submissions = [...saved, ...legacy]
+      .map((submission: DbQuizSubmission) => {
+        const lesson = jsonDb.find('lessons', (l: DbLesson) => l.id === submission.lessonId);
+        return { ...submission, lessonTitle: lesson?.title || 'حصة محذوفة' };
+      })
+      .sort((a: DbQuizSubmission & { lessonTitle: string }, b: DbQuizSubmission & { lessonTitle: string }) =>
+        new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
+      );
+    res.json(submissions);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/student/submit-quiz', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const { lessonId, answers } = req.body;
     const studentId = (req as any).studentId;
 
-    const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
-
-    let score = 0;
-    let total = 10;
-    // Per-question breakdown so the student can see what they got right/wrong
-    // and what the correct answer was, right after submitting.
-    let results: Array<{ question: string; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }> = [];
-
-    if (quiz && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
-      total = quiz.questions.length;
-      results = quiz.questions.map((q: any, idx: number) => {
-        const studentAnswer = answers?.[idx] !== undefined && answers[idx] !== '' ? answers[idx] : null;
-        const isCorrect = studentAnswer !== null && studentAnswer === q.correct_answer;
-        if (isCorrect) score++;
-        return {
-          question: q.question,
-          studentAnswer,
-          correctAnswer: q.correct_answer,
-          isCorrect,
-        };
-      });
-    } else if (answers && answers.length >= 5) {
-      // No quiz configured yet for this lesson: fall back to previous permissive behavior
-      score = 10;
-    }
-
-    const passed = score >= Math.ceil(total / 2);
-
-    // Always persist the latest attempt (score/results) so the student can
-    // see it again when they come back to the lesson, whether they passed or not.
     const existing = jsonDb.find(
       'studentLessonAccess',
-      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
     );
-    if (existing) {
-      const alreadyPassed = existing.quizPassed;
-      jsonDb.update(
-        'studentLessonAccess',
-        (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
-        {
-          quizPassed: passed || alreadyPassed,
-          quizScore: score,
-          quizTotal: total,
-          quizResults: results,
-          // Code activation keeps the lesson open; only the quiz attempt is updated.
-          lessonLocked: false,
-          quizAttempts: (existing.quizAttempts || 0) + 1,
-        }
-      );
-    } else {
-      jsonDb.insert('studentLessonAccess', {
-        userId: studentId,
-        lessonId,
-        unlockedAt: new Date().toISOString(),
-        quizPassed: passed,
-        quizExempt: false,
+    if (!existing) return res.status(403).json({ error: 'افتح الحصة أولاً علشان تدخل امتحانها' });
+    const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
+    if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+      return res.status(404).json({ error: 'الامتحان غير متاح للحصة دي حاليًا' });
+    }
+    if (!Array.isArray(answers) || answers.length !== quiz.questions.length) {
+      return res.status(400).json({ error: 'إجابات الامتحان غير مكتملة' });
+    }
+
+    let score = 0;
+    const total = quiz.questions.length;
+    const results = quiz.questions.map((q: any, idx: number) => {
+      const studentAnswer = answers[idx] !== undefined && answers[idx] !== '' ? answers[idx] : null;
+      const isCorrect = studentAnswer !== null && studentAnswer === q.correct_answer;
+      if (isCorrect) score++;
+      return {
+        question: q.question,
+        image: q.image || null,
+        studentAnswer,
+        correctAnswer: q.correct_answer,
+        isCorrect,
+      };
+    });
+    const passed = score >= Math.ceil(total / 2);
+    const submittedAt = new Date().toISOString();
+    jsonDb.update(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
+      {
+        quizPassed: passed || existing.quizPassed,
         quizScore: score,
         quizTotal: total,
         quizResults: results,
+        quizSubmittedAt: submittedAt,
         lessonLocked: false,
-        quizAttempts: 1,
-      });
-    }
+        quizAttempts: (existing.quizAttempts || 0) + 1,
+      },
+    );
+    jsonDb.insert('quizSubmissions', {
+      id: newId(),
+      userId: studentId,
+      lessonId,
+      score,
+      total,
+      passed,
+      submittedAt,
+      results,
+    } satisfies DbQuizSubmission);
 
-    // The lesson access record now contains the online exam result. Refresh the
-    // saved report without making the student's submission wait for Chromium.
-    void saveStudentPdfToDisk(studentId);
-    // The lesson access record now contains the online exam result. Refresh the
-    // saved report without making the student's submission wait for Chromium.
     void saveStudentPdfToDisk(studentId);
     res.json({ score, total, passed, results });
   } catch (err: any) {
@@ -1621,9 +1658,17 @@ app.post('/api/student/exam/submit', authenticateStudent, requireCompleteStudent
     const { lessonId, answers } = req.body;
     const studentId = (req as any).studentId;
 
+    const existing = jsonDb.find(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
+    );
+    if (!existing) return res.status(403).json({ error: 'افتح الحصة أولاً علشان تدخل امتحانها' });
     const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === lessonId);
-    if (!quiz || !Array.isArray(quiz.questions)) {
+    if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
       return res.status(404).json({ error: 'الامتحان غير موجود' });
+    }
+    if (!Array.isArray(answers) || answers.length !== quiz.questions.length) {
+      return res.status(400).json({ error: 'إجابات الامتحان غير مكتملة' });
     }
 
     const total = quiz.questions.length;
@@ -1645,38 +1690,34 @@ app.post('/api/student/exam/submit', authenticateStudent, requireCompleteStudent
     const passed = score >= Math.ceil(total / 2);
 
     // Persist the result
-    const persistResults = results.map(({ question, studentAnswer, correctAnswer, isCorrect }) => ({
-      question, studentAnswer, correctAnswer, isCorrect,
+    const persistResults = results.map(({ question, image, studentAnswer, correctAnswer, isCorrect }) => ({
+      question, image, studentAnswer, correctAnswer, isCorrect,
     }));
-    const existing = jsonDb.find(
+    const submittedAt = new Date().toISOString();
+    jsonDb.update(
       'studentLessonAccess',
-      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId
+      (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
+      {
+        quizPassed: passed || existing.quizPassed,
+        quizScore: score,
+        quizTotal: total,
+        quizResults: persistResults,
+        quizSubmittedAt: submittedAt,
+        // Leaving or failing the exam must never revoke code-based lesson access.
+        lessonLocked: false,
+        quizAttempts: (existing.quizAttempts || 0) + 1,
+      },
     );
-    if (existing) {
-      const alreadyPassed2 = existing.quizPassed;
-      jsonDb.update(
-        'studentLessonAccess',
-        (a: DbStudentLessonAccess) => a.userId === studentId && a.lessonId === lessonId,
-        {
-          quizPassed: passed || alreadyPassed2,
-          quizScore: score,
-          quizTotal: total,
-          quizResults: persistResults,
-          // Leaving or failing the exam must never revoke code-based lesson access.
-          lessonLocked: false,
-          quizAttempts: (existing.quizAttempts || 0) + 1,
-        }
-      );
-    } else {
-      jsonDb.insert('studentLessonAccess', {
-        userId: studentId, lessonId,
-        unlockedAt: new Date().toISOString(),
-        quizPassed: passed, quizExempt: false,
-        quizScore: score, quizTotal: total, quizResults: persistResults,
-         lessonLocked: false,
-        quizAttempts: 1,
-      });
-    }
+    jsonDb.insert('quizSubmissions', {
+      id: newId(),
+      userId: studentId,
+      lessonId,
+      score,
+      total,
+      passed,
+      submittedAt,
+      results: persistResults,
+    } satisfies DbQuizSubmission);
 
     res.json({ score, total, passed, results });
   } catch (err: any) {

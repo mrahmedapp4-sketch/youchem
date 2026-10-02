@@ -4,3 +4,4 @@
 - [Workspace pnpm shadowing](workspace-pnpm-shadowing.md) — installing pnpm locally can shadow Replit's Node-compatible pnpm and break scripts; prefer the system pnpm.
 - [Student access controls](student-access-controls.md) — account blocking is authoritative; browser/device blocking is an additional layer and cannot guarantee hardware-level identity.
 - [Student report images](student-report-images.md) — report PDFs need explicit image-load waiting and visible print styles for embedded stamp/signature assets.
+- [Promo Code exam access](promo-code-exam-access.md) — Promo Code lesson access must stay independent from quiz pass/fail, with exam results available separately.

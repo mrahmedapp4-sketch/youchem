@@ -77,7 +77,8 @@ export interface DbStudentLessonAccess {
   // again whenever they revisit the lesson, not just right after submitting.
   quizScore?: number;
   quizTotal?: number;
-  quizResults?: Array<{ question: string; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }>;
+  quizResults?: Array<{ question: string; image?: string | null; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }>;
+  quizSubmittedAt?: string;
   // Minutes the student spent on the lesson viewing page (incremented by heartbeat)
   viewingMinutes?: number;
   // Kept for backwards compatibility with older records. Access is now
@@ -85,6 +86,23 @@ export interface DbStudentLessonAccess {
   lessonLocked?: boolean;
   // How many times the student has attempted the quiz
   quizAttempts?: number;
+}
+
+export interface DbQuizSubmission {
+  id: string;
+  userId: string;
+  lessonId: string;
+  score: number;
+  total: number;
+  passed: boolean;
+  submittedAt: string;
+  results: Array<{
+    question: string;
+    image?: string | null;
+    studentAnswer: string | null;
+    correctAnswer: string;
+    isCorrect: boolean;
+  }>;
 }
 
 // A homework is a PDF the teacher publishes for a lesson, plus a bubble-sheet
@@ -156,6 +174,7 @@ interface DBShape {
   users: DbUser[];
   lessons: DbLesson[];
   quizzes: DbQuiz[];
+  quizSubmissions: DbQuizSubmission[];
   codes: DbCode[];
   studentLessonAccess: DbStudentLessonAccess[];
   homeworks: DbHomework[];
@@ -181,6 +200,7 @@ const emptyData = (): DBShape => ({
   users: [],
   lessons: [],
   quizzes: [],
+  quizSubmissions: [],
   codes: [],
   studentLessonAccess: [],
   homeworks: [],

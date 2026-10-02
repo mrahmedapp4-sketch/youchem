@@ -12,14 +12,15 @@ export function LessonView() {
   const [lesson, setLesson] = useState<any>(null);
   const [access, setAccess] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const quizFetchGeneration = useRef(0);
 
   const [code, setCode] = useState('');
   const [validatingCode, setValidatingCode] = useState(false);
   const [codeError, setCodeError] = useState('');
 
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
-  const [quizLoading, setQuizLoading] = useState(false);
-  const [noQuizExists, setNoQuizExists] = useState(false);
+  const [quizLoadState, setQuizLoadState] = useState<'idle' | 'loading' | 'ready' | 'missing' | 'error'>('idle');
+  const [quizLoadError, setQuizLoadError] = useState('');
   const [answers, setAnswers] = useState<string[]>([]);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [quizResult, setQuizResult] = useState<any>(null);
@@ -56,45 +57,62 @@ export function LessonView() {
   }, [id]);
 
   useEffect(() => {
-    if (lesson && access && !access.quizPassed && !access.quizExempt) fetchQuiz();
+    if (lesson && access && !access.quizPassed && !access.quizExempt) void fetchQuiz();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lesson, access]);
+  }, [lesson?.id, access?.quizPassed, access?.quizExempt]);
 
   const fetchQuiz = async () => {
-    setQuizLoading(true);
+    const requestGeneration = ++quizFetchGeneration.current;
+    setQuizLoadState('loading');
+    setQuizLoadError('');
     try {
       const res = await fetch(`/api/student/quiz/${lesson.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        const qs = data.questions || [];
-        if (qs.length === 0) {
-          setNoQuizExists(true);
-        } else {
-          setQuizQuestions(qs);
-          setAnswers(Array(qs.length).fill(''));
-        }
-      }
-    } catch (err) { console.error(err); }
-    setQuizLoading(false);
+      const data = await res.json();
+      if (requestGeneration !== quizFetchGeneration.current) return;
+      if (!res.ok) throw new Error(data.error || 'تعذر تحميل الامتحان');
+      const qs = Array.isArray(data.questions) ? data.questions : [];
+      setQuizQuestions(qs);
+      setAnswers(Array(qs.length).fill(''));
+      setFocusedQIdx(0);
+      setQuizLoadState(qs.length ? 'ready' : 'missing');
+    } catch (err: any) {
+      if (requestGeneration !== quizFetchGeneration.current) return;
+      console.error('Failed to load lesson quiz:', err);
+      setQuizLoadError(err.message || 'تعذر تحميل الامتحان. حاول مرة أخرى.');
+      setQuizLoadState('error');
+    }
   };
 
   const fetchLessonData = async () => {
+    quizFetchGeneration.current++;
     setLoading(true);
+    setLesson(null);
+    setAccess(null);
+    setQuizResult(null);
+    setQuizQuestions([]);
+    setQuizLoadState('idle');
+    setQuizDismissed(false);
     try {
       const res = await fetch('/api/student/lessons');
       if (res.ok) {
         const data = await res.json();
-        const foundLesson = data.lessons.find((l: any) => l.id === id);
+        const foundLesson = data.lessons?.find((l: any) => l.id === id);
         if (!foundLesson) { navigate('/student-dashboard'); return; }
         setLesson(foundLesson);
-        const foundAccess = data.accesses.find((a: any) => a.lessonId === id);
+        const foundAccess = data.accesses?.find((a: any) => a.lessonId === id);
         setAccess(foundAccess);
         if (foundAccess?.quizScore !== undefined) {
           setQuizResult({ score: foundAccess.quizScore, total: foundAccess.quizTotal, passed: foundAccess.quizPassed, results: foundAccess.quizResults || [] });
         }
+      } else {
+        navigate('/student-dashboard');
       }
-    } catch (err) { console.error(err); }
-    setLoading(false);
+    } catch (err) {
+      console.error('Failed to load lesson:', err);
+      navigate('/student-dashboard');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleValidateCode = async (e: FormEvent) => {
@@ -116,7 +134,20 @@ export function LessonView() {
     try {
       const res = await fetch('/api/student/submit-quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lessonId: lesson.id, answers }) });
       const data = await res.json();
-      if (res.ok) { setQuizResult(data); fetchLessonData(); }
+      if (res.ok) {
+        setQuizResult(data);
+        setAccess((current: any) => current ? {
+          ...current,
+          quizPassed: data.passed || current.quizPassed,
+          quizScore: data.score,
+          quizTotal: data.total,
+          quizResults: data.results,
+          quizSubmittedAt: data.submittedAt || new Date().toISOString(),
+          quizAttempts: (current.quizAttempts || 0) + 1,
+        } : current);
+      } else {
+        alert(data.error || 'تعذر تصحيح الامتحان');
+      }
     } catch { alert('في مشكلة'); }
     setSubmittingQuiz(false);
   };
@@ -168,13 +199,10 @@ export function LessonView() {
   const isVideoUnlocked = access && !isLessonLocked;
   const needsCode = !access;
 
-  // Show quiz section when: has code, not yet passed, not exempt, quiz exists,
-  // AND (lesson is locked — must show for retake — OR quiz not dismissed yet)
-  const showQuizSection =
-    access &&
-    !access.quizPassed &&
-    !access.quizExempt &&
-    !noQuizExists &&
+  // Promo access keeps lessons open independently from quiz completion.
+  // Keep result corrections visible, and show the quiz/retry state until dismissed.
+  const showQuizSection = access && !access.quizExempt &&
+    (quizResult || !access.quizPassed) &&
     (isLessonLocked || !quizDismissed);
 
   const extractYoutubeId = (url: string) => {
@@ -215,7 +243,7 @@ export function LessonView() {
                     className="absolute inset-0 w-full h-full"
                   />
                 : <iframe src={`https://player.vimeo.com/video/${lesson.videoUrl}?dnt=1`} className="absolute inset-0 w-full h-full" allowFullScreen />
-            ) : quizLoading && access ? (
+            ) : quizLoadState === 'loading' && access ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-slate-100">
                 <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
                   <CheckCircle className="w-8 h-8 text-emerald-500" />
@@ -303,14 +331,14 @@ export function LessonView() {
                   </p>
                   <p className="text-slate-500 mt-1">({Math.round((quizResult.score / quizResult.total) * 100)}%)</p>
                   <p className={`mt-3 font-bold ${quizResult.passed ? 'text-emerald-700' : 'text-red-600'}`}>
-                    {quizResult.passed ? 'مبروك! عدّيت الامتحان والفيديو اتفتح.' : 'لم تجتز الامتحان.'}
+                    {quizResult.passed ? 'مبروك! عدّيت الامتحان.' : 'لم تجتز الامتحان — الحصة تظل مفتوحة، وتقدر تعيد الامتحان.'}
                   </p>
 
                   {!quizResult.passed && (
                     <div className="mt-4 space-y-3">
                       {/* Locked notice */}
                       <p className="text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
-                         <span className="inline-flex items-center gap-2"><span className="css-pattern text-red-600" aria-hidden="true" />الحصة مقفولة — كلم مستر أحمد علشان يفتحهالك، أو اعمل إعادة الامتحان</span>
+                         <span className="inline-flex items-center gap-2"><span className="css-pattern text-red-600" aria-hidden="true" />راجع التصحيح أو اعمل إعادة الامتحان — الحصة تظل مفتوحة</span>
                       </p>
                       {/* Retake button */}
                       <button
@@ -338,9 +366,16 @@ export function LessonView() {
                   ))}
                 </div>
               </div>
-            ) : quizLoading ? (
+            ) : quizLoadState === 'loading' || quizLoadState === 'idle' ? (
               <div className="text-center p-8 text-slate-400">بيتحمل الامتحان...</div>
-            ) : quizQuestions.length === 0 ? (
+            ) : quizLoadState === 'error' ? (
+              <div className="text-center p-8 space-y-4">
+                <p className="text-red-600 text-sm font-semibold">{quizLoadError}</p>
+                <button onClick={() => void fetchQuiz()} className="neon-btn px-5 py-2.5 rounded-xl font-bold">
+                  حاول تحميل الامتحان تاني
+                </button>
+              </div>
+            ) : quizLoadState === 'missing' ? (
               <div className="text-center p-8 text-slate-400">مفيش امتحان للدرس ده لسه.</div>
             ) : (
               <>
@@ -387,7 +422,7 @@ export function LessonView() {
         )}
 
         {/* ── Quiz dismissed notice ── */}
-        {access && quizDismissed && !isLessonLocked && !access.quizPassed && !access.quizExempt && !noQuizExists && (
+        {access && quizDismissed && !isLessonLocked && !access.quizPassed && !access.quizExempt && quizLoadState !== 'missing' && (
           <div className="neon-card p-4 rounded-2xl flex items-center justify-between gap-4">
             <p className="text-sm text-slate-500">تخطيت الامتحان — الحصة مفتوحة. ممكن ترجعله في أي وقت.</p>
             <button

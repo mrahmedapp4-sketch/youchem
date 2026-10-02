@@ -3,7 +3,7 @@ import {
   Video, CheckCircle, Lock, PlayCircle, FileText, ClipboardList,
   Key, X, XCircle, Maximize2, Sun, Moon, Trophy, Medal, Award, Languages,
   Menu, Folder, Download, LogOut,
-  Sparkles,
+  Sparkles, ClipboardCheck, CalendarClock,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -20,7 +20,7 @@ interface Result {
 }
 
 type ModalStep = 'code' | 'exam' | 'results' | 'access';
-type Section = 'lessons' | 'promo-code' | 'homework' | 'files' | 'leaderboard';
+type Section = 'lessons' | 'promo-code' | 'recent-quizzes' | 'homework' | 'files' | 'leaderboard';
 
 export function StudentDashboard() {
   const navigate = useNavigate();
@@ -36,6 +36,10 @@ export function StudentDashboard() {
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [recentQuizzes, setRecentQuizzes] = useState<any[]>([]);
+  const [recentQuizzesLoading, setRecentQuizzesLoading] = useState(false);
+  const [recentQuizzesError, setRecentQuizzesError] = useState('');
+  const [expandedQuizId, setExpandedQuizId] = useState<string | null>(null);
 
   const [manualGrades, setManualGrades] = useState<any[]>([]);
   const [showGradeNotice, setShowGradeNotice] = useState(false);
@@ -138,6 +142,21 @@ export function StudentDashboard() {
     setLeaderboardLoading(false);
   };
 
+  const fetchRecentQuizzes = async () => {
+    setRecentQuizzesLoading(true);
+    setRecentQuizzesError('');
+    try {
+      const response = await fetch('/api/student/recent-quizzes');
+      if (!response.ok) throw new Error('Failed to load recent quizzes');
+      setRecentQuizzes(await response.json());
+    } catch (error) {
+      console.error(error);
+      setRecentQuizzesError(tr('recentQuizzesLoadError', lang));
+    } finally {
+      setRecentQuizzesLoading(false);
+    }
+  };
+
   const handlePromoRedeem = async (e: FormEvent) => {
     e.preventDefault();
     setPromoCodeError('');
@@ -165,6 +184,7 @@ export function StudentDashboard() {
 
   useEffect(() => {
     if (section === 'leaderboard' && leaderboard.length === 0) fetchLeaderboard();
+    if (section === 'recent-quizzes') fetchRecentQuizzes();
   }, [section]);
 
   /* ── Modal helpers ── */
@@ -279,7 +299,7 @@ export function StudentDashboard() {
         <nav
           className="flex-1 p-3 space-y-0.5 overflow-y-auto"
           onKeyDown={e => {
-            const sections: Section[] = ['lessons', 'promo-code', 'homework', 'files', 'leaderboard'];
+            const sections: Section[] = ['lessons', 'promo-code', 'recent-quizzes', 'homework', 'files', 'leaderboard'];
             const cur = sections.indexOf(section);
             if (e.key === 'ArrowDown') { e.preventDefault(); const next = sections[Math.min(cur + 1, sections.length - 1)]; setSection(next); navBtnRefs.current[Math.min(cur + 1, sections.length - 1)]?.focus(); }
             if (e.key === 'ArrowUp')   { e.preventDefault(); const next = sections[Math.max(cur - 1, 0)]; setSection(next); navBtnRefs.current[Math.max(cur - 1, 0)]?.focus(); }
@@ -288,6 +308,7 @@ export function StudentDashboard() {
           {([
             { id: 'lessons',     label: tr('tabLessons', lang),     Icon: Video },
             { id: 'promo-code',  label: tr('tabPromoCode', lang),   Icon: Sparkles },
+            { id: 'recent-quizzes', label: tr('tabRecentQuizzes', lang), Icon: ClipboardCheck },
             { id: 'homework',    label: tr('tabHomework', lang),    Icon: ClipboardList },
             { id: 'files',       label: tr('tabFiles', lang),       Icon: Folder },
             { id: 'leaderboard', label: tr('tabLeaderboard', lang), Icon: Trophy },
@@ -460,6 +481,100 @@ export function StudentDashboard() {
             )}
           </div>
         ))}
+
+        {section === 'recent-quizzes' && (
+          <section className="max-w-4xl mx-auto space-y-5">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{tr('tabRecentQuizzes', lang)}</h2>
+              <p className="text-sm text-slate-500 mt-1">{tr('recentQuizzesSubtitle', lang)}</p>
+            </div>
+            {recentQuizzesLoading ? (
+              <div className="neon-card rounded-2xl p-10 text-center text-slate-400">{tr('loading', lang)}</div>
+            ) : recentQuizzesError ? (
+              <div className="neon-card rounded-2xl p-8 text-center space-y-3">
+                <p className="text-red-600 font-semibold">{recentQuizzesError}</p>
+                <button onClick={() => void fetchRecentQuizzes()} className="text-indigo-600 hover:underline font-bold text-sm">
+                  {tr('retryLoad', lang)}
+                </button>
+              </div>
+            ) : recentQuizzes.length === 0 ? (
+              <div className="neon-card rounded-2xl p-10 text-center">
+                <ClipboardCheck className="w-10 h-10 mx-auto text-slate-300 mb-3" />
+                <p className="font-semibold text-slate-600">{tr('noRecentQuizzes', lang)}</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentQuizzes.map((attempt: any) => {
+                  const isExpanded = expandedQuizId === attempt.id;
+                  const percentage = attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
+                  return (
+                    <article key={attempt.id} className="neon-card rounded-2xl overflow-hidden">
+                      <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${attempt.passed ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+                          <ClipboardCheck className={`w-5 h-5 ${attempt.passed ? 'text-emerald-600' : 'text-amber-600'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-slate-900 truncate">{attempt.lessonTitle}</h3>
+                          <p className="flex items-center gap-1.5 text-xs text-slate-400 mt-1">
+                            <CalendarClock className="w-3.5 h-3.5" />
+                            {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US') : ''}
+                          </p>
+                        </div>
+                        <div className="sm:text-center shrink-0">
+                          <p className={`text-lg font-extrabold ${attempt.passed ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            {attempt.score} / {attempt.total}
+                          </p>
+                          <p className="text-xs text-slate-400">{percentage}%</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedQuizId(isExpanded ? null : attempt.id)}
+                          className="neon-btn px-4 py-2 rounded-xl text-sm font-bold shrink-0"
+                          aria-expanded={isExpanded}
+                        >
+                          {isExpanded ? tr('hideCorrection', lang) : tr('viewCorrection', lang)}
+                        </button>
+                        {lessons.some((lesson: any) => lesson.id === attempt.lessonId) && (
+                          <Link to={`/lessons/${attempt.lessonId}`} className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold shrink-0">
+                            {tr('openLesson', lang)}
+                          </Link>
+                        )}
+                      </div>
+                      {isExpanded && (
+                        <div className="border-t border-slate-100 p-4 sm:p-5 space-y-3">
+                          {(attempt.results || []).map((result: any, index: number) => (
+                            <div key={`${attempt.id}-${index}`} className={`rounded-xl border p-4 ${result.isCorrect ? 'border-emerald-200 bg-emerald-50/60' : 'border-red-200 bg-red-50/50'}`}>
+                              <div className="flex items-start gap-3">
+                                <span className="w-7 h-7 rounded-full bg-white text-slate-600 border border-slate-200 font-bold text-xs flex items-center justify-center shrink-0">
+                                  {index + 1}
+                                </span>
+                                <div className="min-w-0 flex-1 space-y-2">
+                                  <p className="font-semibold text-slate-800 text-sm whitespace-pre-wrap">{result.question}</p>
+                                  {result.image && <img src={result.image} alt="" className="max-h-56 max-w-full object-contain rounded-lg bg-white" />}
+                                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+                                    <span className={result.isCorrect ? 'text-emerald-700' : 'text-red-700'}>
+                                      {tr('yourAnswer', lang)} {result.studentAnswer || '—'}
+                                    </span>
+                                    <span className="font-bold text-emerald-700">
+                                      {tr('correctAnswer', lang)} {result.correctAnswer}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {(!attempt.results || attempt.results.length === 0) && (
+                            <p className="text-sm text-slate-400 text-center">{tr('noCorrectionSaved', lang)}</p>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ── Homework Grid ── */}
         {section === 'homework' && (homeworksLoading ? (
