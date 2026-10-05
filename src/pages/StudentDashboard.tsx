@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, useRef } from 'react';
+import { useState, useEffect, type FormEvent, type MouseEvent, useRef } from 'react';
 import {
   Video, CheckCircle, Lock, PlayCircle, FileText, ClipboardList,
   Key, X, XCircle, Maximize2, Sun, Moon, Trophy, Medal, Award, Languages,
@@ -9,6 +9,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LanguageContext';
 import { tr } from '../lib/translations';
+import { startPageTransition } from '../lib/viewTransitions';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 const ANSWER_LABELS: Record<string, string> = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
@@ -76,7 +77,32 @@ export function StudentDashboard() {
 
   /* ── Keyboard nav refs ── */
   const navBtnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const sectionTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSectionRef = useRef<Section | null>(null);
 
+  const handleSectionChange = (nextSection: Section) => {
+    setIsSidebarOpen(false);
+    if (nextSection === pendingSectionRef.current || (!pendingSectionRef.current && nextSection === section)) return;
+
+    pendingSectionRef.current = nextSection;
+    document.getElementById('student-dashboard-section')?.classList.add('dashboard-section-exit');
+    if (sectionTransitionTimerRef.current) clearTimeout(sectionTransitionTimerRef.current);
+    sectionTransitionTimerRef.current = setTimeout(() => {
+      setSection(nextSection);
+      pendingSectionRef.current = null;
+      sectionTransitionTimerRef.current = null;
+    }, 150);
+  };
+
+  const handleLessonNavigation = (event: MouseEvent<HTMLAnchorElement>, to: string) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    startPageTransition(() => navigate(to));
+  };
+
+  useEffect(() => () => {
+    if (sectionTransitionTimerRef.current) clearTimeout(sectionTransitionTimerRef.current);
+  }, []);
 
   /* ── Data fetching ── */
   useEffect(() => {
@@ -301,8 +327,8 @@ export function StudentDashboard() {
           onKeyDown={e => {
             const sections: Section[] = ['lessons', 'promo-code', 'recent-quizzes', 'homework', 'files', 'leaderboard'];
             const cur = sections.indexOf(section);
-            if (e.key === 'ArrowDown') { e.preventDefault(); const next = sections[Math.min(cur + 1, sections.length - 1)]; setSection(next); navBtnRefs.current[Math.min(cur + 1, sections.length - 1)]?.focus(); }
-            if (e.key === 'ArrowUp')   { e.preventDefault(); const next = sections[Math.max(cur - 1, 0)]; setSection(next); navBtnRefs.current[Math.max(cur - 1, 0)]?.focus(); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); const next = sections[Math.min(cur + 1, sections.length - 1)]; handleSectionChange(next); navBtnRefs.current[Math.min(cur + 1, sections.length - 1)]?.focus(); }
+            if (e.key === 'ArrowUp')   { e.preventDefault(); const next = sections[Math.max(cur - 1, 0)]; handleSectionChange(next); navBtnRefs.current[Math.max(cur - 1, 0)]?.focus(); }
           }}
         >
           {([
@@ -316,7 +342,7 @@ export function StudentDashboard() {
             <button
               key={id}
               ref={el => { navBtnRefs.current[idx] = el; }}
-              onClick={() => { setSection(id); setIsSidebarOpen(false); }}
+              onClick={() => handleSectionChange(id)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors ${
                 section === id
                   ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
@@ -379,6 +405,7 @@ export function StudentDashboard() {
         </header>
 
         <div className="flex-1 p-4 lg:p-8 overflow-auto">
+        <div id="student-dashboard-section" key={section} className="dashboard-section-enter">
 
         {/* Welcome */}
         <div className="mb-6 sm:mb-8">
@@ -425,7 +452,7 @@ export function StudentDashboard() {
         {section === 'lessons' && (loading ? (
           <div className="text-center p-12 text-slate-400">{tr('loading', lang)}</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 motion-stagger">
             {lessons.map((lesson) => {
               const access     = accesses.find(a => a.lessonId === lesson.id);
               const isUnlocked = !!access;
@@ -464,7 +491,7 @@ export function StudentDashboard() {
               );
 
               return isUnlocked ? (
-                <Link to={`/lessons/${lesson.id}`} key={lesson.id} className="block group">
+                <Link to={`/lessons/${lesson.id}`} key={lesson.id} onClick={event => handleLessonNavigation(event, `/lessons/${lesson.id}`)} className="block group">
                   {cardInner}
                 </Link>
               ) : (
@@ -503,7 +530,7 @@ export function StudentDashboard() {
                 <p className="font-semibold text-slate-600">{tr('noRecentQuizzes', lang)}</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-4 motion-stagger">
                 {recentQuizzes.map((attempt: any) => {
                   const isExpanded = expandedQuizId === attempt.id;
                   const percentage = attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
@@ -535,7 +562,7 @@ export function StudentDashboard() {
                           {isExpanded ? tr('hideCorrection', lang) : tr('viewCorrection', lang)}
                         </button>
                         {lessons.some((lesson: any) => lesson.id === attempt.lessonId) && (
-                          <Link to={`/lessons/${attempt.lessonId}`} className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold shrink-0">
+                          <Link to={`/lessons/${attempt.lessonId}`} onClick={event => handleLessonNavigation(event, `/lessons/${attempt.lessonId}`)} className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold shrink-0">
                             {tr('openLesson', lang)}
                           </Link>
                         )}
@@ -580,7 +607,7 @@ export function StudentDashboard() {
         {section === 'homework' && (homeworksLoading ? (
           <div className="text-center p-12 text-slate-400">{tr('loading', lang)}</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 motion-stagger">
             {homeworks.map((hw) => (
               <div key={hw.id} className="neon-card rounded-2xl p-5 h-full flex flex-col">
                 <div className="flex items-start gap-3 mb-4">
@@ -620,7 +647,7 @@ export function StudentDashboard() {
               {leaderboard.length === 0 ? (
                 <div className="p-12 text-center text-slate-400">{tr('noResults', lang)}</div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-slate-100 motion-stagger">
                   {leaderboard.map((entry: any, i: number) => {
                     const rank = i + 1;
                     const medals = [
@@ -703,6 +730,7 @@ export function StudentDashboard() {
           </div>
         )}
 
+        </div>{/* end .dashboard-section-enter */}
         </div>{/* end .flex-1.p-4 */}
       </main>
 
@@ -711,7 +739,7 @@ export function StudentDashboard() {
       ════════════════════════════════════════════════════ */}
       {modalLesson && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 lesson-modal-enter"
           dir={lang === 'ar' ? 'rtl' : 'ltr'}
           onClick={e => { if (e.target === e.currentTarget) closeModal(); }}
         >
@@ -735,7 +763,7 @@ export function StudentDashboard() {
             </div>
           )}
 
-          <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
+          <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-y-auto shadow-2xl lesson-modal-panel-enter">
 
             {/* Modal header */}
             <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between z-10">
@@ -760,7 +788,7 @@ export function StudentDashboard() {
 
               {/* ── STEP: code ── */}
               {modalStep === 'code' && (
-                <div className="space-y-5 py-4">
+                <div className="space-y-5 py-4 lesson-step-enter">
                   <div className="flex justify-center">
                     <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
                       <Key className="w-7 h-7 text-indigo-600" />
@@ -797,7 +825,7 @@ export function StudentDashboard() {
 
               {/* ── STEP: exam ── */}
               {modalStep === 'exam' && (
-                <div className="space-y-5">
+                <div className="space-y-5 lesson-step-enter">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm text-slate-500">{tr('examInstructions', lang)}</p>
                     <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-3 py-1 rounded-full shrink-0">
@@ -867,7 +895,7 @@ export function StudentDashboard() {
 
               {/* ── STEP: results ── */}
               {modalStep === 'results' && (
-                <div className="space-y-5">
+                <div className="space-y-5 lesson-step-enter">
                   {/* Score card */}
                   <div className={`rounded-2xl p-6 text-center border-2 ${passed ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
                     <p className={`text-6xl font-extrabold mb-1 ${passed ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -880,6 +908,7 @@ export function StudentDashboard() {
                     {passed && (
                       <Link
                         to={`/lessons/${modalLesson.id}`}
+                        onClick={event => handleLessonNavigation(event, `/lessons/${modalLesson.id}`)}
                         className="neon-btn inline-block mt-4 px-8 py-3 rounded-xl font-bold text-base"
                       >
                         {tr('enterLesson', lang)}
@@ -944,7 +973,7 @@ export function StudentDashboard() {
 
               {/* ── STEP: access (no exam) ── */}
               {modalStep === 'access' && (
-                <div className="py-8 text-center space-y-5">
+                <div className="py-8 text-center space-y-5 lesson-step-enter">
                   <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto">
                     <CheckCircle className="w-8 h-8 text-emerald-500" />
                   </div>
@@ -954,6 +983,7 @@ export function StudentDashboard() {
                   </div>
                   <Link
                     to={`/lessons/${modalLesson.id}`}
+                    onClick={event => handleLessonNavigation(event, `/lessons/${modalLesson.id}`)}
                     className="neon-btn w-full py-4 rounded-xl font-bold text-base block"
                   >
                     {tr('enterLesson', lang)}

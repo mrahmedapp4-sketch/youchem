@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowRight, Lock, Key, CheckCircle, XCircle, RefreshCw, X } from 'lucide-react';
 import { BunnyVideo } from '../components/BunnyVideo';
+import { startPageTransition } from '../lib/viewTransitions';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -189,7 +190,7 @@ export function LessonView() {
   }, [quizResult, quizQuestions.length, focusedQIdx]);
 
   if (loading || !lesson) return (
-    <div className="min-h-screen flex items-center justify-center text-slate-400">بيتحمل...</div>
+      <div className="min-h-screen flex items-center justify-center text-slate-400 lesson-page-enter">بيتحمل...</div>
   );
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -211,12 +212,12 @@ export function LessonView() {
   };
 
   return (
-    <div className="min-h-screen" dir="rtl">
+    <div className="min-h-screen lesson-page-enter" dir="rtl">
 
       {/* ── Navbar ── */}
       <header className="neon-panel border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-2 sm:gap-3">
-          <button onClick={() => navigate('/student-dashboard')} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+          <button onClick={() => startPageTransition(() => navigate('/student-dashboard'))} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
             <ArrowRight className="w-5 h-5" />
           </button>
           <div>

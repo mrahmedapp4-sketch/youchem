@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe, FileDown, CalendarDays, PauseCircle, PlayCircle } from 'lucide-react';
+import { Key, Plus, Trash2, CheckCircle, BookOpen, Copy, Globe, FileDown, CalendarDays, PauseCircle, PlayCircle, Search, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
@@ -15,6 +15,7 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
   // Track which code was just copied to show confirmation feedback.
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [exportDate, setExportDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     Promise.all([fetchCodes(), fetchLessons()]);
@@ -151,7 +152,11 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
     XLSX.writeFile(wb, `youchem-codes-${exportDate}.xlsx`);
   };
 
-  const visibleCodes = codesList.filter(c => (c.kind === 'promo') === isPromoPage);
+  const normalizedSearch = searchQuery.trim().toUpperCase();
+  const visibleCodes = codesList.filter(c =>
+    (c.kind === 'promo') === isPromoPage &&
+    (!normalizedSearch || String(c.codeString || '').toUpperCase().includes(normalizedSearch))
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -265,6 +270,36 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
 
       {/* Table */}
       <div className="neon-card rounded-2xl overflow-hidden">
+        <div className="border-b border-slate-100 px-4 py-4 sm:px-5" dir="rtl">
+          <label htmlFor="code-search" className="block text-sm font-semibold text-slate-700 mb-2">
+            ابحث في الأكواد
+          </label>
+          <div className="relative max-w-xl">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+            <input
+              id="code-search"
+              type="search"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="اكتب الكود للبحث..."
+              autoComplete="off"
+              dir="ltr"
+              className="neon-input w-full rounded-xl py-2.5 pr-10 pl-10 text-left font-mono uppercase tracking-wide"
+              aria-label="ابحث عن كود وصول"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="مسح البحث"
+                title="مسح البحث"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
         {loading ? (
           <div className="p-10 text-center text-slate-400 text-sm">بيتحمل...</div>
         ) : (
@@ -282,7 +317,11 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
               </thead>
               <tbody className="divide-y divide-slate-100">
                {visibleCodes.length === 0 && (
-                  <tr><td colSpan={6} className="p-10 text-center text-slate-400 text-sm">مفيش أكواد اتعملت.</td></tr>
+                   <tr>
+                     <td colSpan={6} className="p-10 text-center text-slate-400 text-sm">
+                       {normalizedSearch ? 'مفيش كود مطابق للبحث.' : 'مفيش أكواد اتعملت.'}
+                     </td>
+                   </tr>
                 )}
                  {visibleCodes.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors">

@@ -286,12 +286,106 @@ button:not(:disabled):active {
 }
 .theme-toggle:active { transform: translateY(1px); }
 
+/* Dashboard section changes: a short fade, lift, and soft focus settle. */
+.dashboard-section-enter {
+  animation: dashboard-section-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: top center;
+}
+.dashboard-section-exit {
+  animation: dashboard-section-out 150ms ease-in both;
+  pointer-events: none;
+}
+
+.motion-stagger > * {
+  animation: dashboard-item-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.motion-stagger > *:nth-child(2) { animation-delay: 35ms; }
+.motion-stagger > *:nth-child(3) { animation-delay: 70ms; }
+.motion-stagger > *:nth-child(4) { animation-delay: 105ms; }
+.motion-stagger > *:nth-child(5) { animation-delay: 140ms; }
+.motion-stagger > *:nth-child(6) { animation-delay: 175ms; }
+.motion-stagger > *:nth-child(n + 7) { animation-delay: 210ms; }
+
+.lesson-page-enter {
+  animation: lesson-page-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lesson-modal-enter {
+  animation: lesson-overlay-in 200ms ease-out both;
+}
+.lesson-modal-panel-enter {
+  animation: lesson-panel-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lesson-step-enter {
+  animation: lesson-step-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dashboard-section-in {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); filter: blur(2px); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+@keyframes dashboard-section-out {
+  to { opacity: 0; transform: translate3d(0, -6px, 0); filter: blur(2px); }
+}
+@keyframes dashboard-item-in {
+  from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.99); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes lesson-page-in {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); filter: blur(2px); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+@keyframes lesson-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lesson-panel-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes lesson-step-in {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* React Router's viewTransition links cross-fade routes where supported. */
+::view-transition-old(root) {
+  animation: route-fade-out 180ms ease-in both;
+}
+::view-transition-new(root) {
+  animation: route-fade-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+#root.route-transition-exit {
+  animation: route-fade-out 180ms ease-in both;
+  pointer-events: none;
+}
+#root.route-transition-enter {
+  animation: route-fade-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes route-fade-out {
+  to { opacity: 0; transform: scale(0.995); filter: blur(3px); }
+}
+@keyframes route-fade-in {
+  from { opacity: 0; transform: scale(1.005); filter: blur(3px); }
+  to { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
 @keyframes neon-button-breathe {
   0%, 100% { box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3); }
   50% { box-shadow: 0 0 14px rgba(34, 211, 238, 0.18), 0 1px 5px rgba(79, 70, 229, 0.3); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dashboard-section-enter,
+  .dashboard-section-exit,
+  .motion-stagger > *,
+  .lesson-page-enter,
+  .lesson-modal-enter,
+  .lesson-modal-panel-enter,
+  .lesson-step-enter,
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
   .neon-btn { transition: none; }
   .neon-btn::after { display: none; }
   button:not(:disabled),
