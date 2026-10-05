@@ -49,7 +49,7 @@ const t: Record<string, Record<Lang, string>> = {
   nightMode:        { ar: 'الوضع الليلي', en: 'Dark mode' },
   leaderboardTitle: { ar: 'student leaderboard', en: 'student leaderboard' },
   welcomeHeading:   { ar: 'أهلاً بيك', en: 'Welcome' },
-  welcomeSub:       { ar: 'كمّل رحلتك في التعليم.', en: 'Continue your learning journey.' },
+  welcomeSub:       { ar: 'في منصه youchem التابعه لمستر احمد', en: 'Continue your learning journey.' },
   tabLessons:       { ar: 'الحصص', en: 'Lessons' },
   tabPromoCode:     { ar: 'Promo Code', en: 'Promo Code' },
   tabRecentQuizzes: { ar: 'Recent Quizzes', en: 'Recent Quizzes' },
