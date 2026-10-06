@@ -8,7 +8,7 @@ import {
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 const ANSWER_LABELS: Record<string, string> = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
 
-interface Question  { question: string; image: string | null; }
+interface Question  { question: string; image: string | null; options?: string[] | null; }
 interface Result    { question: string; image: string | null; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean; }
 
 type Step = 'lesson' | 'code' | 'exam' | 'results' | 'access';
@@ -496,7 +496,7 @@ export function ExamPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-2">
+              <div className={q.options?.some(Boolean) ? 'grid grid-cols-1 sm:grid-cols-2 gap-2' : 'grid grid-cols-4 gap-2'}>
                 {ANSWER_LETTERS.map(letter => (
                   <button
                     key={letter} type="button"
@@ -504,12 +504,15 @@ export function ExamPage() {
                       const a = [...answers]; a[idx] = letter; setAnswers(a);
                       if (unanswered) setUnanswered(false);
                     }}
-                    className={`py-3 rounded-xl border-2 font-bold text-base transition-all min-h-[52px] active:scale-95 ${
+                    className={`py-3 px-3 rounded-xl border-2 font-bold text-base transition-all min-h-[52px] active:scale-95 ${
                       answers[idx] === letter
                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-200'
                         : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
-                    }`}
-                  >{letter}</button>
+                    } ${q.options?.some(Boolean) ? 'flex items-center gap-3 text-right' : ''}`}
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center shrink-0">{letter}</span>
+                    {q.options?.[ANSWER_LETTERS.indexOf(letter)] && <span className="text-sm font-medium leading-relaxed">{q.options[ANSWER_LETTERS.indexOf(letter)]}</span>}
+                  </button>
                 ))}
               </div>
 

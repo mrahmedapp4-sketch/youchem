@@ -1,9 +1,12 @@
-import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { ImagePlus, X, Trash2, FileQuestion, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect, FormEvent, ChangeEvent, DragEvent, useRef } from 'react';
+import { ImagePlus, X, Trash2, FileQuestion, ChevronDown, ChevronUp, FileUp, Plus } from 'lucide-react';
+import { parseExamViewHtml } from '../../lib/examViewImporter';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
 const IMAGE_WIDTH = 800;
 const IMAGE_HEIGHT = 450;
+const emptyQuestion = () => ({ question: '', correct_answer: 'A', image: '', options: ['', '', '', ''] });
+type QuizQuestion = ReturnType<typeof emptyQuestion>;
 
 const resizeImageToFixedDimensions = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -35,8 +38,12 @@ export function Quizzes() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [selectedLesson, setSelectedLesson] = useState('');
   const [examDurationMinutes, setExamDurationMinutes] = useState(0);
-  const [questions, setQuestions] = useState(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
+  const [questions, setQuestions] = useState<QuizQuestion[]>(Array.from({ length: 10 }, emptyQuestion));
   const [expandedQuiz, setExpandedQuiz] = useState<string | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
+  const [importError, setImportError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -56,14 +63,69 @@ export function Quizzes() {
   };
 
   const updateQuestion = (index: number, field: string, value: string) => {
-    const qs = [...questions];
-    qs[index] = { ...qs[index], [field]: value };
-    setQuestions(qs);
+    setQuestions(current => current.map((question, questionIndex) =>
+      questionIndex === index ? { ...question, [field]: value } : question,
+    ));
+  };
+
+  const updateOption = (questionIndex: number, optionIndex: number, value: string) => {
+    setQuestions(current => current.map((question, index) => index === questionIndex
+      ? { ...question, options: question.options.map((option, i) => i === optionIndex ? value : option) }
+      : question,
+    ));
+  };
+
+  const importHtmlFile = async (file?: File) => {
+    setImportError('');
+    setImportMessage('');
+    if (!file) return;
+    if (!/\.html?$/i.test(file.name)) {
+      setImportError('اختار ملف HTML بامتداد .html أو .htm');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setImportError('حجم ملف HTML أكبر من الحد المسموح (8 ميجابايت)');
+      return;
+    }
+    try {
+      const imported = parseExamViewHtml(await file.text());
+      if (!imported.questions.length) {
+        setImportError('ملقتش أسئلة اختيار من متعدد مدعومة في الملف. تأكد إنه HTML مُصدّر من ExamView.');
+        return;
+      }
+      setQuestions(imported.questions);
+      const notes = [
+        `تم استخراج ${imported.questions.length} سؤال اختيار من متعدد. راجع الأسئلة والإجابات قبل الحفظ.`,
+        imported.skippedUnsupported ? `تم تجاهل ${imported.skippedUnsupported} سؤال غير مدعوم (مثل الأسئلة المقالية).` : '',
+        imported.missingImages.length ? `الصور المشار إليها غير موجودة ضمن الملف، واتضاف اسم الصورة داخل نص السؤال: ${imported.missingImages.join('، ')}.` : '',
+      ].filter(Boolean);
+      setImportMessage(notes.join(' '));
+    } catch {
+      setImportError('تعذر قراءة الملف. جرّب تصديره مرة أخرى كملف HTML.');
+    }
+  };
+
+  const handleFileInput = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    void importHtmlFile(file);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDraggingFile(false);
+    void importHtmlFile(event.dataTransfer.files?.[0]);
   };
 
   const handleSaveQuiz = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedLesson) return alert('لازم تختار حصة');
+    if (!questions.length || questions.some(q => !q.question.trim())) return alert('اكتب نص كل الأسئلة قبل الحفظ');
+    if (questions.some(q => {
+      const hasAnyOption = q.options.some(option => option.trim());
+      return hasAnyOption && q.options.some(option => !option.trim());
+    })) return alert('كمّل نص الاختيارات الأربعة لكل سؤال أو امسحها كلها');
+    if (questions.some(q => !ANSWER_LETTERS.includes(q.correct_answer))) return alert('اختار الإجابة الصحيحة لكل سؤال');
     try {
       const res = await fetch('/api/youchem/quizzes', {
         method: 'POST',
@@ -72,8 +134,9 @@ export function Quizzes() {
       });
       if (res.ok) {
         alert('اتحفظ الامتحان بنجاح');
-        setQuestions(Array(10).fill({ question: '', correct_answer: 'A', image: '' }));
+        setQuestions(Array.from({ length: 10 }, emptyQuestion));
         setExamDurationMinutes(0);
+        setImportMessage('');
         fetchData();
       } else {
         const data = await res.json();
@@ -166,6 +229,15 @@ export function Quizzes() {
                           </span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-slate-800">{q.question || '—'}</p>
+                            {q.options?.some((option: string) => option) && (
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {ANSWER_LETTERS.map(letter => q.options?.[ANSWER_LETTERS.indexOf(letter)] && (
+                                  <p key={letter} className="text-xs text-slate-600">
+                                    <span className="font-bold">{letter}.</span> {q.options[ANSWER_LETTERS.indexOf(letter)]}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
                             {q.image && (
                               <img src={q.image} alt="" className="mt-2 max-h-24 rounded-lg border border-slate-200 object-contain" />
                             )}
@@ -188,6 +260,23 @@ export function Quizzes() {
       <div className="space-y-3">
         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">اعمل امتحان جديد</h2>
         <form onSubmit={handleSaveQuiz} className="neon-card p-6 rounded-2xl space-y-6">
+          <div
+            onDragOver={event => { event.preventDefault(); setIsDraggingFile(true); }}
+            onDragLeave={() => setIsDraggingFile(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors ${
+              isDraggingFile ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/50'
+            }`}
+          >
+            <FileUp className="w-7 h-7 text-indigo-500 mx-auto mb-2" />
+            <p className="font-bold text-slate-800 text-sm">اسحب ملف امتحان HTML هنا</p>
+            <p className="text-xs text-slate-500 mt-1">أو اضغط لاختيار ملف .html أو .htm — هتقدر تراجع الأسئلة والاختيارات وتعدّلها قبل الحفظ</p>
+            <input ref={fileInputRef} type="file" accept=".html,.htm,text/html" onChange={handleFileInput} className="hidden" />
+          </div>
+          {importMessage && <p role="status" className="text-sm leading-relaxed text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">{importMessage}</p>}
+          {importError && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{importError}</p>}
+
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">اختر الحصة</label>
             <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} className="neon-input w-full px-4 py-2.5 rounded-xl text-sm" required>
@@ -221,13 +310,34 @@ export function Quizzes() {
                 <div className="flex items-center gap-2">
                   <span className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm flex items-center justify-center shrink-0">{qIndex + 1}</span>
                   <h3 className="font-bold text-slate-800 text-sm">السؤال رقم {qIndex + 1}</h3>
+                  {questions.length > 1 && (
+                    <button type="button" onClick={() => setQuestions(current => current.filter((_, index) => index !== qIndex))}
+                      className="mr-auto p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="حذف السؤال">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
-                <input
-                  type="text" placeholder="نص السؤال..." required
+                <textarea
+                  rows={2} placeholder="نص السؤال..." required
                   value={q.question} onChange={e => updateQuestion(qIndex, 'question', e.target.value)}
                   className="neon-input w-full px-4 py-2.5 rounded-xl text-sm"
                 />
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-600">الاختيارات (اختياري — لو كتبت اختيار لازم تكمّل الأربعة)</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {ANSWER_LETTERS.map((letter, optionIndex) => (
+                      <div key={letter} className="flex items-center gap-2">
+                        <span className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center shrink-0 ${
+                          q.correct_answer === letter ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-500'
+                        }`}>{letter}</span>
+                        <input type="text" value={q.options[optionIndex] || ''} onChange={e => updateOption(qIndex, optionIndex, e.target.value)}
+                          placeholder={`نص الاختيار ${letter}`} className="neon-input w-full px-3 py-2 rounded-lg text-sm" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-slate-600">صورة السؤال (اختياري)</label>
@@ -267,6 +377,11 @@ export function Quizzes() {
               </div>
             ))}
           </div>
+
+          <button type="button" onClick={() => setQuestions(current => [...current, emptyQuestion()])}
+            className="w-full flex items-center justify-center gap-2 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded-xl py-3 font-bold text-sm">
+            <Plus className="w-4 h-4" /> إضافة سؤال
+          </button>
 
           <div className="pt-4 border-t border-slate-200">
             <button type="submit" disabled={selectedLessonHasQuiz} className="neon-btn w-full px-6 py-3 rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed">احفظ الامتحان</button>

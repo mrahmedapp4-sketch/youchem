@@ -1433,6 +1433,7 @@ app.get('/api/student/quiz/:lessonId', authenticateStudent, requireCompleteStude
     const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
       image: q.image || null,
+      options: Array.isArray(q.options) ? q.options : null,
     }));
     res.json({ questions: sanitized });
   } catch (err: any) {
@@ -1594,6 +1595,7 @@ app.post('/api/student/exam/unlock', authenticateStudent, requireCompleteStudent
     const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
       image: q.image || null,
+      options: Array.isArray(q.options) ? q.options : null,
     }));
 
     res.json({ quizExists: true, questions: sanitized, lessonId, examDurationMinutes: quiz.examDurationMinutes || 0 });
@@ -1644,6 +1646,7 @@ app.post('/api/student/exam/start', authenticateStudent, requireCompleteStudentP
     const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
       image: q.image || null,
+      options: Array.isArray(q.options) ? q.options : null,
     }));
 
     res.json({ lessonId, questions: sanitized });

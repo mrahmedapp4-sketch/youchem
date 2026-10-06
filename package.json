@@ -48,6 +48,9 @@
       "esbuild",
       "@firebase/util",
       "protobufjs"
-    ]
+    ],
+    "overrides": {
+      "proxy-addr": "^2.0.8"
+    }
   }
 }

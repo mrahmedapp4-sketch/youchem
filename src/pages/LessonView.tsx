@@ -396,17 +396,20 @@ export function LessonView() {
                           <img src={q.image} alt={`صورة السؤال ${idx + 1}`} className="w-full h-full object-contain" />
                         </div>
                       )}
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className={q.options?.some(Boolean) ? 'grid grid-cols-1 sm:grid-cols-2 gap-2' : 'grid grid-cols-4 gap-2'}>
                         {ANSWER_LETTERS.map((letter) => (
                           <button
                             key={letter} type="button"
                             onClick={() => { const a = [...answers]; a[idx] = letter; setAnswers(a); }}
-                            className={`py-3.5 rounded-xl border-2 font-bold text-base transition-all min-h-[52px] active:scale-95 ${
+                            className={`py-3 px-3 rounded-xl border-2 font-bold text-base transition-all min-h-[52px] active:scale-95 ${
                               answers[idx] === letter
                                 ? 'bg-indigo-600 border-indigo-600 text-white neon-glow-ring'
                                 : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 active:bg-indigo-50'
-                            }`}
-                          >{letter}</button>
+                            } ${q.options?.some(Boolean) ? 'flex items-center gap-3 text-right' : ''}`}
+                          >
+                            <span className="w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center shrink-0">{letter}</span>
+                            {q.options?.[ANSWER_LETTERS.indexOf(letter)] && <span className="text-sm font-medium leading-relaxed">{q.options[ANSWER_LETTERS.indexOf(letter)]}</span>}
+                          </button>
                         ))}
                       </div>
                     </div>
