@@ -4,13 +4,11 @@ import fs from 'fs';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
-import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import { randomBytes } from 'crypto';
 import { execSync } from 'child_process';
-import puppeteer from 'puppeteer-core';
 
 // Resolve the real Chromium ELF binary at startup.
 // On Replit/NixOS the `chromium` command is a bash wrapper script, not the
@@ -2556,40 +2554,54 @@ ${autoPrint
 </html>`;
 }
 
+let pdfRenderQueue: Promise<void> = Promise.resolve();
+
 /** Launch Chromium, render the HTML, return PDF bytes. */
 async function renderPdfBuffer(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    executablePath: CHROMIUM_PATH,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--font-render-hinting=none',
-    ],
-    headless: true,
+  const previousRender = pdfRenderQueue;
+  let releaseRender!: () => void;
+  pdfRenderQueue = new Promise<void>((resolve) => {
+    releaseRender = resolve;
   });
+  await previousRender;
+
   try {
-    const page = await browser.newPage();
-    // networkidle2 lets Google Fonts finish loading without timing out on slow DNS
-    await page.setContent(html, { waitUntil: 'networkidle2' as any, timeout: 30_000 });
-    await page.evaluate(async () => {
-      const images = Array.from(document.images);
-      await Promise.all(images.map((image) => {
-        if (image.complete && image.naturalWidth > 0) return Promise.resolve();
-        return new Promise<void>((resolve) => {
-          image.addEventListener('load', () => resolve(), { once: true });
-          image.addEventListener('error', () => resolve(), { once: true });
-        });
-      }));
+    const { default: puppeteer } = await import('puppeteer-core');
+    const browser = await puppeteer.launch({
+      executablePath: CHROMIUM_PATH,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--font-render-hinting=none',
+      ],
+      headless: true,
     });
-    return Buffer.from(await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' },
-    }));
+    try {
+      const page = await browser.newPage();
+      // networkidle2 lets Google Fonts finish loading without timing out on slow DNS
+      await page.setContent(html, { waitUntil: 'networkidle2' as any, timeout: 30_000 });
+      await page.evaluate(async () => {
+        const images = Array.from(document.images);
+        await Promise.all(images.map((image) => {
+          if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+          return new Promise<void>((resolve) => {
+            image.addEventListener('load', () => resolve(), { once: true });
+            image.addEventListener('error', () => resolve(), { once: true });
+          });
+        }));
+      });
+      return Buffer.from(await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' },
+      }));
+    } finally {
+      await browser.close();
+    }
   } finally {
-    await browser.close();
+    releaseRender();
   }
 }
 
@@ -2839,6 +2851,7 @@ app.get('/api/youchem/grades/quiz', authenticateTeacher, async (req, res) => {
 async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
