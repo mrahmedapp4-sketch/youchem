@@ -77,7 +77,7 @@ export interface DbStudentLessonAccess {
   // again whenever they revisit the lesson, not just right after submitting.
   quizScore?: number;
   quizTotal?: number;
-  quizResults?: Array<{ question: string; image?: string | null; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }>;
+  quizResults?: Array<{ question: string; image?: string | null; options?: string[] | null; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean }>;
   quizSubmittedAt?: string;
   // Minutes the student spent on the lesson viewing page (incremented by heartbeat)
   viewingMinutes?: number;
@@ -99,6 +99,7 @@ export interface DbQuizSubmission {
   results: Array<{
     question: string;
     image?: string | null;
+    options?: string[] | null;
     studentAnswer: string | null;
     correctAnswer: string;
     isCorrect: boolean;

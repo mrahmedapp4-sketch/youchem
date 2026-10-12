@@ -4,12 +4,12 @@ import {
   Key, CheckCircle, XCircle, Maximize2, X,
   BookOpen, GraduationCap, ArrowRight, Clock,
 } from 'lucide-react';
+import { QuizAnswerReview } from '../components/QuizAnswerReview';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
-const ANSWER_LABELS: Record<string, string> = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
 
 interface Question  { question: string; image: string | null; options?: string[] | null; }
-interface Result    { question: string; image: string | null; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean; }
+interface Result    { question: string; image: string | null; options?: string[] | null; studentAnswer: string | null; correctAnswer: string; isCorrect: boolean; }
 
 type Step = 'lesson' | 'code' | 'exam' | 'results' | 'access';
 
@@ -634,21 +634,13 @@ export function ExamPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className={`flex items-center gap-2 rounded-xl px-4 py-3 font-bold ${
-                r.isCorrect ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'
-              }`}>
-                <span className="text-xs text-slate-400 font-normal shrink-0">إجابتك:</span>
-                <span>{r.studentAnswer ?? '—'}</span>
-                {r.studentAnswer && <span className="text-xs opacity-60">({ANSWER_LABELS[r.studentAnswer] ?? ''})</span>}
-              </div>
-              <div className="flex items-center gap-2 rounded-xl px-4 py-3 font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <CheckCircle className="w-4 h-4 shrink-0" />
-                <span className="text-xs text-slate-400 font-normal shrink-0">الصحيحة:</span>
-                <span>{r.correctAnswer}</span>
-                <span className="text-xs opacity-60">({ANSWER_LABELS[r.correctAnswer] ?? ''})</span>
-              </div>
-            </div>
+            <QuizAnswerReview
+              options={r.options}
+              studentAnswer={r.studentAnswer}
+              correctAnswer={r.correctAnswer}
+              studentLabel="إجابة الطالب"
+              correctLabel="الإجابة الصحيحة"
+            />
           </div>
         ))}
 

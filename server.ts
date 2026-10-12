@@ -1254,6 +1254,33 @@ app.post('/api/student/logout', (req, res) => {
   res.clearCookie('student_token', COOKIE_OPTS).json({ success: true });
 });
 
+const QUIZ_ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
+
+function normalizeQuestionOptions(question: any): string[] | null {
+  const raw = question?.options ?? question?.choices ?? question?.answers;
+  const toText = (value: any): string => {
+    if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+    if (value && typeof value === 'object') {
+      return String(value.text ?? value.label ?? value.value ?? '').trim();
+    }
+    return '';
+  };
+
+  let options: string[];
+  if (Array.isArray(raw)) {
+    options = raw.slice(0, QUIZ_ANSWER_LETTERS.length).map(toText);
+  } else if (raw && typeof raw === 'object') {
+    options = QUIZ_ANSWER_LETTERS.map((letter, index) =>
+      toText(raw[letter] ?? raw[letter.toLowerCase()] ?? raw[index] ?? raw[String(index + 1)]),
+    );
+  } else {
+    return null;
+  }
+
+  while (options.length < QUIZ_ANSWER_LETTERS.length) options.push('');
+  return options.some(Boolean) ? options : null;
+}
+
 app.get('/api/student/lessons', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
@@ -1268,7 +1295,22 @@ app.get('/api/student/lessons', authenticateStudent, requireCompleteStudentProfi
       'lessons',
       (l: DbLesson) => l.gradeLevel === user.gradeLevel && !l.isHidden
     );
-    const accesses = jsonDb.filter('studentLessonAccess', (a: DbStudentLessonAccess) => a.userId === studentId);
+    const accesses = jsonDb.filter(
+      'studentLessonAccess',
+      (a: DbStudentLessonAccess) => a.userId === studentId,
+    ).map((access: DbStudentLessonAccess) => {
+      const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === access.lessonId);
+      const quizQuestions = Array.isArray(quiz?.questions) ? quiz.questions : [];
+      const quizResults = access.quizResults?.map((result: any, index: number) => {
+        const matchingQuestion = quizQuestions.find((question: any) => question.question === result.question)
+          || quizQuestions[index];
+        return {
+          ...result,
+          options: normalizeQuestionOptions(result) || normalizeQuestionOptions(matchingQuestion),
+        };
+      });
+      return { ...access, ...(quizResults ? { quizResults } : {}) };
+    });
 
     res.json({ lessons: availableLessons, accesses });
   } catch (err: any) {
@@ -1433,7 +1475,7 @@ app.get('/api/student/quiz/:lessonId', authenticateStudent, requireCompleteStude
     const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
       image: q.image || null,
-      options: Array.isArray(q.options) ? q.options : null,
+      options: normalizeQuestionOptions(q),
     }));
     res.json({ questions: sanitized });
   } catch (err: any) {
@@ -1473,7 +1515,17 @@ app.get('/api/student/recent-quizzes', authenticateStudent, requireCompleteStude
     const submissions = [...saved, ...legacy]
       .map((submission: DbQuizSubmission) => {
         const lesson = jsonDb.find('lessons', (l: DbLesson) => l.id === submission.lessonId);
-        return { ...submission, lessonTitle: lesson?.title || 'حصة محذوفة' };
+        const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === submission.lessonId);
+        const quizQuestions = Array.isArray(quiz?.questions) ? quiz.questions : [];
+        const results = (submission.results || []).map((result: any, index: number) => {
+          const matchingQuestion = quizQuestions.find((question: any) => question.question === result.question)
+            || quizQuestions[index];
+          return {
+            ...result,
+            options: normalizeQuestionOptions(result) || normalizeQuestionOptions(matchingQuestion),
+          };
+        });
+        return { ...submission, results, lessonTitle: lesson?.title || 'حصة محذوفة' };
       })
       .sort((a: DbQuizSubmission & { lessonTitle: string }, b: DbQuizSubmission & { lessonTitle: string }) =>
         new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
@@ -1511,6 +1563,7 @@ app.post('/api/student/submit-quiz', authenticateStudent, requireCompleteStudent
       return {
         question: q.question,
         image: q.image || null,
+        options: normalizeQuestionOptions(q),
         studentAnswer,
         correctAnswer: q.correct_answer,
         isCorrect,
@@ -1595,7 +1648,7 @@ app.post('/api/student/exam/unlock', authenticateStudent, requireCompleteStudent
     const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
       image: q.image || null,
-      options: Array.isArray(q.options) ? q.options : null,
+      options: normalizeQuestionOptions(q),
     }));
 
     res.json({ quizExists: true, questions: sanitized, lessonId, examDurationMinutes: quiz.examDurationMinutes || 0 });
@@ -1646,7 +1699,7 @@ app.post('/api/student/exam/start', authenticateStudent, requireCompleteStudentP
     const sanitized = quiz.questions.map((q: any) => ({
       question: q.question,
       image: q.image || null,
-      options: Array.isArray(q.options) ? q.options : null,
+      options: normalizeQuestionOptions(q),
     }));
 
     res.json({ lessonId, questions: sanitized });
@@ -1684,6 +1737,7 @@ app.post('/api/student/exam/submit', authenticateStudent, requireCompleteStudent
       return {
         question: q.question,
         image: q.image || null,
+        options: normalizeQuestionOptions(q),
         studentAnswer,
         correctAnswer: q.correct_answer,
         isCorrect,
@@ -1693,8 +1747,8 @@ app.post('/api/student/exam/submit', authenticateStudent, requireCompleteStudent
     const passed = score >= Math.ceil(total / 2);
 
     // Persist the result
-    const persistResults = results.map(({ question, image, studentAnswer, correctAnswer, isCorrect }) => ({
-      question, image, studentAnswer, correctAnswer, isCorrect,
+    const persistResults = results.map(({ question, image, options, studentAnswer, correctAnswer, isCorrect }) => ({
+      question, image, options, studentAnswer, correctAnswer, isCorrect,
     }));
     const submittedAt = new Date().toISOString();
     jsonDb.update(

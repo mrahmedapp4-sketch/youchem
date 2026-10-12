@@ -10,13 +10,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LanguageContext';
 import { tr } from '../lib/translations';
 import { startPageTransition } from '../lib/viewTransitions';
+import { QuizAnswerReview } from '../components/QuizAnswerReview';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
-const ANSWER_LABELS: Record<string, string> = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
 
 interface Question { question: string; image: string | null; options?: string[] | null; }
 interface Result {
-  question: string; image: string | null;
+  question: string; image: string | null; options?: string[] | null;
   studentAnswer: string | null; correctAnswer: string; isCorrect: boolean;
 }
 
@@ -578,14 +578,13 @@ export function StudentDashboard() {
                                 <div className="min-w-0 flex-1 space-y-2">
                                   <p className="font-semibold text-slate-800 text-sm whitespace-pre-wrap">{result.question}</p>
                                   {result.image && <img src={result.image} alt="" className="max-h-56 max-w-full object-contain rounded-lg bg-white" />}
-                                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
-                                    <span className={result.isCorrect ? 'text-emerald-700' : 'text-red-700'}>
-                                      {tr('yourAnswer', lang)} {result.studentAnswer || '—'}
-                                    </span>
-                                    <span className="font-bold text-emerald-700">
-                                      {tr('correctAnswer', lang)} {result.correctAnswer}
-                                    </span>
-                                  </div>
+                                  <QuizAnswerReview
+                                    options={result.options}
+                                    studentAnswer={result.studentAnswer}
+                                    correctAnswer={result.correctAnswer}
+                                    studentLabel={tr('yourAnswer', lang)}
+                                    correctLabel={tr('correctAnswer', lang)}
+                                  />
                                 </div>
                               </div>
                             </div>
@@ -949,19 +948,13 @@ export function StudentDashboard() {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className={`flex items-center gap-2 rounded-xl px-4 py-3 font-bold ${r.isCorrect ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
-                          <span className="text-xs text-slate-400 font-normal shrink-0">{tr('yourAnswer', lang)}</span>
-                          <span>{r.studentAnswer ?? '—'}</span>
-                          {r.studentAnswer && <span className="text-xs opacity-60">({ANSWER_LABELS[r.studentAnswer] ?? ''})</span>}
-                        </div>
-                        <div className="flex items-center gap-2 rounded-xl px-4 py-3 font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle className="w-4 h-4 shrink-0" />
-                          <span className="text-xs text-slate-400 font-normal shrink-0">{tr('correctAnswer', lang)}</span>
-                          <span>{r.correctAnswer}</span>
-                          <span className="text-xs opacity-60">({ANSWER_LABELS[r.correctAnswer] ?? ''})</span>
-                        </div>
-                      </div>
+                      <QuizAnswerReview
+                        options={r.options}
+                        studentAnswer={r.studentAnswer}
+                        correctAnswer={r.correctAnswer}
+                        studentLabel={tr('yourAnswer', lang)}
+                        correctLabel={tr('correctAnswer', lang)}
+                      />
                     </div>
                   ))}
 

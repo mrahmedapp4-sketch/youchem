@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowRight, Lock, Key, CheckCircle, XCircle, RefreshCw, X } from 'lucide-react';
 import { BunnyVideo } from '../components/BunnyVideo';
+import { QuizAnswerReview } from '../components/QuizAnswerReview';
 import { startPageTransition } from '../lib/viewTransitions';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
@@ -354,15 +355,22 @@ export function LessonView() {
                 </div>
 
                 {/* Per-question breakdown */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   {(quizResult.results || []).map((r: any, idx: number) => (
                     <div key={idx} className={`p-4 rounded-xl border space-y-1 ${r.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
                       <div className="flex items-center gap-2">
                         {r.isCorrect ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
                         <span className="font-bold text-slate-800 text-sm">سؤال {idx + 1}</span>
                       </div>
-                      {!r.isCorrect && <p className="text-red-600 text-xs">إجابتك: {r.studentAnswer || 'ما جبتيش'}</p>}
-                      <p className="text-emerald-700 text-xs font-semibold">الصح: {r.correctAnswer}</p>
+                      <p className="text-slate-800 text-sm whitespace-pre-wrap">{r.question}</p>
+                      {r.image && <img src={r.image} alt="" className="max-h-56 max-w-full object-contain rounded-lg bg-white" />}
+                      <QuizAnswerReview
+                        options={r.options}
+                        studentAnswer={r.studentAnswer}
+                        correctAnswer={r.correctAnswer}
+                        studentLabel="إجابة الطالب"
+                        correctLabel="الإجابة الصحيحة"
+                      />
                     </div>
                   ))}
                 </div>
