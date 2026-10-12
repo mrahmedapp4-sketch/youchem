@@ -84,7 +84,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // Homework PDFs are stored on disk under data/uploads (gitignored, contains
 // no student PII by itself) and served back as static files.
-// Same priority as jsonStore.ts: RAILWAY_VOLUME_MOUNT_PATH → DATA_DIR → ./data
+// Same path priority as jsonStore.ts, with /app/data in production.
 const DATA_ROOT = process.env.RAILWAY_VOLUME_MOUNT_PATH
   ? path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH)
   : process.env.DATA_DIR
@@ -103,14 +103,15 @@ fs.mkdirSync(FILES_DIR, { recursive: true });
 const STUDENT_PDFS_DIR = path.join(DATA_ROOT, 'student-pdfs');
 fs.mkdirSync(STUDENT_PDFS_DIR, { recursive: true });
 
-// Pre-load brand images as base64 once at startup (avoids repeated disk reads)
+// Load and encode report images only when generating a report.
 const _logoPath  = path.join(process.cwd(), 'public', 'logo.png');
 const _stampPath = path.join(process.cwd(), 'attached_assets', 'image_1784762402890.png');
 const _signPath  = path.join(process.cwd(), 'attached_assets', 'Sign_1784906969294.png');
-const LOGO_B64   = fs.existsSync(_logoPath)  ? `data:image/png;base64,${fs.readFileSync(_logoPath).toString('base64')}`  : '';
-const STAMP_B64  = fs.existsSync(_stampPath) ? `data:image/png;base64,${fs.readFileSync(_stampPath).toString('base64')}` : '';
-const SIGN_B64   = fs.existsSync(_signPath)  ? `data:image/png;base64,${fs.readFileSync(_signPath).toString('base64')}`  : '';
-console.log(`[server] Logo: ${LOGO_B64 ? 'yes' : 'NO'}, Stamp: ${STAMP_B64 ? 'yes' : 'NO'}, Sign: ${SIGN_B64 ? 'yes' : 'NO'}`);
+function loadPngDataUrl(filePath: string): string {
+  return fs.existsSync(filePath)
+    ? `data:image/png;base64,${fs.readFileSync(filePath).toString('base64')}`
+    : '';
+}
 
 // The browser HTML report uses normal same-origin image URLs. This avoids
 // making the report depend on inline data URLs or the PDF renderer.
@@ -2001,10 +2002,8 @@ app.get('/api/youchem/student-file/:userId', authenticateTeacher, async (req, re
 /**
  * Build a self-contained HTML report for one student.
  *
- * All three brand images (logo, stamp, signature) are already pre-loaded as
- * Base64 data-URIs at server startup (LOGO_B64 / STAMP_B64 / SIGN_B64) and
- * are injected directly into the `src` attributes — zero external requests,
- * works offline, always visible in the saved PDF.
+ * Brand images are loaded only while the report is built, then injected as
+ * Base64 data-URIs — zero external requests, works offline, always visible.
  *
  * The page is designed to fit on a single A4 sheet when the user presses
  * Ctrl+P / window.print():
@@ -2026,6 +2025,10 @@ function buildStudentPdfHtml(
   manualGrades: DbManualExamGrade[],
   autoPrint = false,
 ): string {
+  const logoB64 = loadPngDataUrl(_logoPath);
+  const stampB64 = loadPngDataUrl(_stampPath);
+  const signB64 = loadPngDataUrl(_signPath);
+
   // ── helpers ────────────────────────────────────────────────────────────────
   const esc = (v: any) =>
     String(v ?? '—')
@@ -2459,7 +2462,7 @@ ${autoPrint
 
   <!-- ══ HEADER ══ -->
   <div class="header">
-    ${LOGO_B64 ? `<img src="${LOGO_B64}" class="header-logo" alt="YouChem Logo">` : '<div></div>'}
+    ${logoB64 ? `<img src="${logoB64}" class="header-logo" alt="YouChem Logo">` : '<div></div>'}
     <div class="header-center">
       <h1>ملف الطالب</h1>
       <p>منصة يوتشيم التعليمية &mdash; YouChem Educational Platform</p>
@@ -2532,13 +2535,13 @@ ${autoPrint
   <!-- ══ VERIFICATION (stamp + signature) ══
        Both images are Base64 data-URIs — no external request, always visible. -->
   <div class="verify-row">
-    ${STAMP_B64 ? `
+    ${stampB64 ? `
     <div class="stamp-box">
-      <img src="${STAMP_B64}" class="stamp-img" alt="ختم YouChem">
+      <img src="${stampB64}" class="stamp-img" alt="ختم YouChem">
       <div class="stamp-label">موثق من Mr.Ahmed</div>
     </div>` : ''}
     <div class="sig-box">
-      ${SIGN_B64 ? `<img src="${SIGN_B64}" class="sig-img" alt="توقيع Mr.Ahmed">` : ''}
+    ${signB64 ? `<img src="${signB64}" class="sig-img" alt="توقيع Mr.Ahmed">` : ''}
       <div class="sig-label">توقيع المعلم / المراجع</div>
     </div>
   </div>
