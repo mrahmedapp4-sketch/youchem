@@ -7,6 +7,7 @@ export interface ImportedExamQuestion {
 
 export interface ExamViewImportResult {
   questions: ImportedExamQuestion[];
+  skippedEssays: number;
   skippedUnsupported: number;
   missingImages: string[];
 }
@@ -36,7 +37,8 @@ export function parseExamViewHtml(html: string): ExamViewImportResult {
   const controls = Array.from(document.querySelectorAll<HTMLSelectElement>('select[name^="MC:"]'));
   const questions: ImportedExamQuestion[] = [];
   const missingImages = new Set<string>();
-  let skippedUnsupported = document.querySelectorAll('textarea[name^="ES:"]').length;
+  const skippedEssays = document.querySelectorAll('textarea[name^="ES:"]').length;
+  let skippedUnsupported = 0;
 
   for (const control of controls) {
     const indexMatch = control.name.match(/:(\d+)$/);
@@ -53,14 +55,23 @@ export function parseExamViewHtml(html: string): ExamViewImportResult {
 
     const prompt = Array.from(contentCell.children).find(child => child.classList.contains('default'));
     const question = prompt ? cleanText(prompt) : '';
-    const optionTable = contentCell.querySelector('table');
+    const optionTable = Array.from(contentCell.querySelectorAll('table'))
+      .find(table => table.querySelector('.choice'));
     const optionRows = optionTable ? Array.from(optionTable.querySelectorAll('tr')) : [];
     const options = ['', '', '', ''];
     for (const optionRow of optionRows) {
-      const label = optionRow.querySelector('.choice')?.textContent?.trim().toUpperCase();
-      const optionIndex = ['A', 'B', 'C', 'D'].indexOf(label || '');
-      const optionTextCell = optionRow.querySelectorAll('td').item(1);
-      if (optionIndex >= 0 && optionTextCell) options[optionIndex] = cleanText(optionTextCell);
+      const cells = Array.from(optionRow.children).filter((child): child is HTMLTableCellElement =>
+        child instanceof HTMLTableCellElement,
+      );
+      for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
+        const label = cells[cellIndex].querySelector('.choice')?.textContent?.trim().toUpperCase();
+        const optionIndex = ['A', 'B', 'C', 'D'].indexOf(label || '');
+        const optionTextCell = cells[cellIndex + 1];
+        if (optionIndex >= 0 && optionTextCell) {
+          options[optionIndex] = cleanText(optionTextCell);
+          cellIndex++;
+        }
+      }
     }
 
     const encoded = encodedAnswers.get(questionIndex);
@@ -87,5 +98,5 @@ export function parseExamViewHtml(html: string): ExamViewImportResult {
     questions.push({ question, correct_answer: correctAnswer, image: '', options });
   }
 
-  return { questions, skippedUnsupported, missingImages: Array.from(missingImages) };
+  return { questions, skippedEssays, skippedUnsupported, missingImages: Array.from(missingImages) };
 }

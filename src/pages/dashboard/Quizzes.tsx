@@ -90,13 +90,16 @@ export function Quizzes() {
     try {
       const imported = parseExamViewHtml(await file.text());
       if (!imported.questions.length) {
-        setImportError('ملقتش أسئلة اختيار من متعدد مدعومة في الملف. تأكد إنه HTML مُصدّر من ExamView.');
+        setImportError(imported.skippedEssays
+          ? `ملقتش أسئلة اختيار من متعدد في الملف. فيه ${imported.skippedEssays} سؤال مقالي، والاستيراد الحالي يدعم الاختيار من متعدد فقط.`
+          : 'ملقتش أسئلة اختيار من متعدد مدعومة في الملف. تأكد إنه HTML مُصدّر من ExamView.');
         return;
       }
       setQuestions(imported.questions);
       const notes = [
         `تم استخراج ${imported.questions.length} سؤال اختيار من متعدد. راجع الأسئلة والإجابات قبل الحفظ.`,
-        imported.skippedUnsupported ? `تم تجاهل ${imported.skippedUnsupported} سؤال غير مدعوم (مثل الأسئلة المقالية).` : '',
+        imported.skippedEssays ? `تم تجاهل ${imported.skippedEssays} أسئلة مقالية؛ الاستيراد الحالي يدعم الاختيار من متعدد فقط.` : '',
+        imported.skippedUnsupported ? `تعذر قراءة ${imported.skippedUnsupported} سؤال اختيار من متعدد بسبب نقص نص السؤال أو الاختيارات أو الإجابة الصحيحة.` : '',
         imported.missingImages.length ? `الصور المشار إليها غير موجودة ضمن الملف، واتضاف اسم الصورة داخل نص السؤال: ${imported.missingImages.join('، ')}.` : '',
       ].filter(Boolean);
       setImportMessage(notes.join(' '));
