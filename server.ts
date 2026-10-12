@@ -2816,7 +2816,7 @@ app.get('/api/student/leaderboard', authenticateStudent, requireCompleteStudentP
       })
       // Only show students who have attempted at least one quiz
       .filter((s: any) => s.quizzesCount > 0)
-      .sort((a: any, b: any) => b.percentage - a.percentage || b.totalScore - a.totalScore);
+      .sort((a: any, b: any) => b.totalScore - a.totalScore || a.name.localeCompare(b.name));
 
     res.json(ranked);
   } catch (err: any) {
