@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { Video, Trash2, Eye, EyeOff, Plus, Pencil, X, Scissors } from 'lucide-react';
 import { BunnyVideo } from '../../components/BunnyVideo';
+import { getYouTubeThumbnailUrl } from '../../lib/videoThumbnail';
 
 export function UploadVideo() {
   const [lessons, setLessons] = useState<any[]>([]);
@@ -205,11 +206,22 @@ export function UploadVideo() {
           <div className="divide-y divide-slate-100">
             {lessons.length === 0 ? (
               <div className="p-10 text-slate-400 text-center text-sm">مفيش حصص مضافة لحد دلوقتي.</div>
-            ) : lessons.map((lesson: any) => (
+            ) : lessons.map((lesson: any) => {
+              const thumbnailUrl = getYouTubeThumbnailUrl(lesson.platform, lesson.videoUrl);
+              return (
               <div key={lesson.id} className={`px-5 py-4 flex items-center justify-between transition-colors hover:bg-slate-50 ${lesson.isHidden ? 'opacity-50' : ''}`}>
                 <div className="flex items-center gap-4 min-w-0">
-                  <div className={`p-2.5 rounded-xl shrink-0 ${lesson.platform === 'youtube' ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
+                  <div className={`relative w-20 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center ${lesson.platform === 'youtube' ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
                     <Video className="w-5 h-5" />
+                    {thumbnailUrl && (
+                      <img
+                        src={thumbnailUrl}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover"
+                        onError={event => { event.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2 flex-wrap">
@@ -241,7 +253,8 @@ export function UploadVideo() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

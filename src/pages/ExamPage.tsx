@@ -4,6 +4,7 @@ import {
   Key, CheckCircle, XCircle, Maximize2, X,
   BookOpen, GraduationCap, ArrowRight, Clock,
 } from 'lucide-react';
+import { getYouTubeThumbnailUrl } from '../lib/videoThumbnail';
 import { QuizAnswerReview } from '../components/QuizAnswerReview';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
@@ -325,6 +326,7 @@ export function ExamPage() {
               {lessons.map((lesson: any, idx: number) => {
                 const hasAccess = accessedIds.has(lesson.id);
                 const isFocused = focusedLessonIdx === idx;
+                const thumbnailUrl = getYouTubeThumbnailUrl(lesson.platform, lesson.videoUrl);
                 return (
                   <button
                     key={lesson.id}
@@ -338,12 +340,21 @@ export function ExamPage() {
                     }}
                     className={`w-full neon-card rounded-2xl p-5 flex items-center gap-4 text-right transition-all hover:ring-2 hover:ring-indigo-200 active:scale-[0.99] ${isFocused ? 'ring-2 ring-indigo-400' : ''}`}
                   >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                    <div className={`relative w-20 aspect-video rounded-xl overflow-hidden flex items-center justify-center shrink-0 ${
                       hasAccess ? 'bg-emerald-50 border border-emerald-200' : 'bg-indigo-50 border border-indigo-100'
                     }`}>
                       {hasAccess
                         ? <CheckCircle className="w-5 h-5 text-emerald-500" />
                         : <BookOpen className="w-5 h-5 text-indigo-500" />}
+                      {thumbnailUrl && (
+                        <img
+                          src={thumbnailUrl}
+                          alt=""
+                          loading="lazy"
+                          className="absolute inset-0 h-full w-full object-cover"
+                          onError={event => { event.currentTarget.style.display = 'none'; }}
+                        />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 text-right">
                       <p className="font-bold text-slate-800 text-sm leading-snug">{lesson.title}</p>

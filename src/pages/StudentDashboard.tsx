@@ -10,6 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LanguageContext';
 import { tr } from '../lib/translations';
 import { startPageTransition } from '../lib/viewTransitions';
+import { getYouTubeThumbnailUrl } from '../lib/videoThumbnail';
 import { QuizAnswerReview } from '../components/QuizAnswerReview';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
@@ -456,6 +457,7 @@ export function StudentDashboard() {
             {lessons.map((lesson) => {
               const access     = accesses.find(a => a.lessonId === lesson.id);
               const isUnlocked = !!access;
+              const thumbnailUrl = getYouTubeThumbnailUrl(lesson.platform, lesson.videoUrl);
 
               const cardInner = (
                 <div className="neon-card rounded-2xl overflow-hidden h-full flex flex-col transition-shadow hover:shadow-md">
@@ -464,6 +466,15 @@ export function StudentDashboard() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Video className="w-10 h-10 text-slate-300 group-hover:text-indigo-400 transition-colors duration-300" />
                     </div>
+                    {thumbnailUrl && (
+                      <img
+                        src={thumbnailUrl}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover"
+                        onError={event => { event.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
                     {/* Lock / check badge */}
                     <div className={`absolute top-3 right-3 p-1.5 rounded-lg shadow-sm ${isUnlocked ? 'bg-emerald-500' : 'bg-white border border-slate-200'}`}>
                       {isUnlocked
