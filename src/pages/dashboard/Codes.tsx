@@ -113,7 +113,7 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
   };
 
   const handleExportTxt = () => {
-    const unusedCodes = codesList.filter(c => !c.isUsed && (c.kind === 'promo') === isPromoPage);
+    const unusedCodes = codesList.filter(c => !c.isUsed && matchesCodeMode(c));
     if (unusedCodes.length === 0) {
       alert('مفيش أكواد غير مستخدمة لتصديرها');
       return;
@@ -133,7 +133,7 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
     if (!exportDate) { alert('اختار تاريخ الأول'); return; }
     const filtered = codesList.filter(c => {
       if (c.isUsed) return false;
-      if ((c.kind === 'promo') !== isPromoPage) return false;
+      if (!matchesCodeMode(c)) return false;
       const created = new Date(c.createdAt).toLocaleDateString('en-CA'); // YYYY-MM-DD
       return created === exportDate;
     });
@@ -152,9 +152,13 @@ export function Codes({ mode = 'regular' }: { mode?: 'regular' | 'promo' }) {
     XLSX.writeFile(wb, `youchem-codes-${exportDate}.xlsx`);
   };
 
+  const matchesCodeMode = (code: any) => isPromoPage
+    ? code.kind === 'promo'
+    : code.kind !== 'promo' && code.kind !== 'multi';
+
   const normalizedSearch = searchQuery.trim().toUpperCase();
   const visibleCodes = codesList.filter(c =>
-    (c.kind === 'promo') === isPromoPage &&
+    matchesCodeMode(c) &&
     (!normalizedSearch || String(c.codeString || '').toUpperCase().includes(normalizedSearch))
   );
 

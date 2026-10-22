@@ -59,7 +59,11 @@ export interface DbCode {
   usedBy?: string | null;
   lessonId?: string; // which exam/lesson this code unlocks
   /** Promo codes unlock a snapshot of the student's current lessons. */
-  kind?: 'lesson' | 'promo';
+  kind?: 'lesson' | 'promo' | 'multi';
+  /** Exact lesson IDs unlocked by a multi-lesson code. */
+  lessonIds?: string[];
+  /** Groups the codes created in one multi-code batch. */
+  batchId?: string;
   /** Calendar date (YYYY-MM-DD) on which a promo code expires. */
   expiresAt?: string | null;
   /** A used promo code can stop opening newly-created lessons without revoking existing access. */

@@ -199,7 +199,9 @@ export function StudentDashboard() {
       if (!res.ok) {
         setPromoCodeError(data.error || tr('errGeneric', lang));
       } else {
-        setPromoCodeMessage(tr('promoCodeSuccess', lang).replace('{count}', String(data.unlockedCount)));
+        setPromoCodeMessage(data.kind === 'multi'
+          ? tr('multiCodeSuccess', lang)
+          : tr('promoCodeSuccess', lang).replace('{count}', String(data.unlockedCount)));
         setPromoCode('');
         await refreshAccesses();
       }

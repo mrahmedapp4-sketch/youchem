@@ -566,11 +566,31 @@ app.get('/api/youchem/codes', authenticateTeacher, async (req, res) => {
 
 app.post('/api/youchem/codes/generate', authenticateTeacher, async (req, res) => {
   try {
-    const { count, lessonId, kind = 'lesson', expiresAt } = req.body;
-    const codeKind = kind === 'promo' ? 'promo' : 'lesson';
+    const { count, lessonId, lessonIds: requestedLessonIds, kind = 'lesson', expiresAt } = req.body;
+    const codeKind = kind === 'promo' || kind === 'multi' ? kind : 'lesson';
     const amount = Number(count);
     if (!Number.isInteger(amount) || amount < 1 || amount > 500) {
       return res.status(400).json({ error: 'عدد الأكواد لازم يكون من 1 إلى 500' });
+    }
+    let selectedLessonIds: string[] = [];
+    let batchId: string | undefined;
+    if (codeKind === 'multi') {
+      if (!Array.isArray(requestedLessonIds)) {
+        return res.status(400).json({ error: 'حدد حصة واحدة على الأقل' });
+      }
+      selectedLessonIds = [...new Set(requestedLessonIds.map((id: unknown) => String(id || '').trim()).filter(Boolean))];
+      if (selectedLessonIds.length === 0) {
+        return res.status(400).json({ error: 'حدد حصة واحدة على الأقل' });
+      }
+      const selectedLessons = selectedLessonIds.map(id => jsonDb.find('lessons', (lesson: DbLesson) => lesson.id === id));
+      if (selectedLessons.some(lesson => !lesson)) {
+        return res.status(400).json({ error: 'في حصة من الاختيارات غير موجودة' });
+      }
+      const grades = new Set(selectedLessons.map(lesson => lesson!.gradeLevel));
+      if (grades.size !== 1) {
+        return res.status(400).json({ error: 'اختار حصص من نفس الصف الدراسي' });
+      }
+      batchId = newId();
     }
     if (codeKind === 'promo') {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(expiresAt || ''))) {
@@ -581,20 +601,33 @@ app.post('/api/youchem/codes/generate', authenticateTeacher, async (req, res) =>
         return res.status(400).json({ error: 'تاريخ انتهاء الكود لازم يكون في المستقبل' });
       }
     }
+    const generatedCodes: DbCode[] = [];
+    const codePrefix = codeKind === 'promo' ? 'PROMO' : codeKind === 'multi' ? 'MULTI' : 'YCH';
     for (let i = 0; i < amount; i++) {
+      let codeString = '';
+      do {
+        codeString = `${codePrefix}-${randomBytes(4).toString('hex').toUpperCase()}`;
+      } while (jsonDb.find('codes', (existing: DbCode) => existing.codeString === codeString));
       const code: DbCode = {
         id: newId(),
-        codeString: `${codeKind === 'promo' ? 'PROMO' : 'YCH'}-${randomBytes(4).toString('hex').toUpperCase()}`,
+        codeString,
         isUsed: false,
         usedBy: null,
         lessonId: codeKind === 'lesson' ? lessonId || undefined : undefined,
+        lessonIds: codeKind === 'multi' ? selectedLessonIds : undefined,
+        batchId,
         kind: codeKind,
         expiresAt: codeKind === 'promo' ? String(expiresAt) : null,
         createdAt: new Date().toISOString(),
       };
       jsonDb.insert('codes', code);
+      generatedCodes.push(code);
     }
-    res.json({ success: true, generated: amount });
+    res.json({
+      success: true,
+      generated: amount,
+      ...(codeKind === 'multi' ? { codes: generatedCodes } : {}),
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1339,7 +1372,7 @@ app.post('/api/student/validate-code', authenticateStudent, requireCompleteStude
 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === code);
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
-    if (key.kind === 'promo') return res.status(400).json({ error: 'استخدم كود Promo Code من قسم البرومو كود' });
+    if (key.kind === 'promo' || key.kind === 'multi') return res.status(400).json({ error: 'استخدم هذا الكود من خانة Promo Code' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم من قبل' });
     // Enforce lesson-specific codes: a code tied to a lesson can ONLY unlock that lesson.
     if (key.lessonId && key.lessonId !== lessonId) {
@@ -1370,10 +1403,61 @@ app.post('/api/student/promo-code/redeem', authenticateStudent, requireCompleteS
     const studentId = (req as any).studentId;
     const code = String(req.body?.code || '').trim().toUpperCase();
     const key = jsonDb.find('codes', (c: DbCode) =>
-      c.codeString === code && c.kind === 'promo'
+      c.codeString === code && (c.kind === 'promo' || c.kind === 'multi')
     );
-    if (!key) return res.status(400).json({ error: 'كود Promo Code غير صحيح' });
+    if (!key) return res.status(400).json({ error: 'الكود غير صحيح أو غير موجود' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم أو محروق من قبل' });
+
+    if (key.kind === 'multi') {
+      const student = jsonDb.find('users', (u: DbUser) => u.id === studentId);
+      if (!student?.gradeLevel) return res.status(400).json({ error: 'الصف الدراسي غير محدد' });
+
+      const selectedLessonIds = Array.isArray(key.lessonIds)
+        ? [...new Set(key.lessonIds.filter(id => typeof id === 'string' && id))]
+        : [];
+      if (selectedLessonIds.length === 0) {
+        return res.status(400).json({ error: 'الكود لا يحتوي على حصص محددة' });
+      }
+      const selectedLessons = selectedLessonIds.map(id => jsonDb.find('lessons', (lesson: DbLesson) => lesson.id === id));
+      if (selectedLessons.some(lesson => !lesson)) {
+        return res.status(400).json({ error: 'إحدى الحصص المرتبطة بالكود لم تعد موجودة' });
+      }
+      if (selectedLessons.some(lesson => lesson!.gradeLevel !== student.gradeLevel)) {
+        return res.status(400).json({ error: 'الكود مخصص لصف دراسي مختلف' });
+      }
+
+      const existingAccesses = jsonDb.filter(
+        'studentLessonAccess',
+        (access: DbStudentLessonAccess) => access.userId === studentId,
+      );
+      const existingLessonIds = new Set(existingAccesses.map(access => access.lessonId));
+      const unlockedAt = new Date().toISOString();
+      let unlockedCount = 0;
+      for (const lessonId of selectedLessonIds) {
+        if (existingLessonIds.has(lessonId)) continue;
+        jsonDb.insert('studentLessonAccess', {
+          userId: studentId,
+          lessonId,
+          unlockedAt,
+          quizPassed: false,
+          quizExempt: false,
+          lessonLocked: false,
+        });
+        unlockedCount++;
+      }
+
+      jsonDb.update('codes', (c: DbCode) => c.id === key.id, {
+        isUsed: true,
+        usedBy: studentId,
+        usedAt: unlockedAt,
+      });
+      return res.json({
+        success: true,
+        kind: 'multi',
+        unlockedCount,
+        selectedCount: selectedLessonIds.length,
+      });
+    }
 
     if (key.expiresAt) {
       const expiry = new Date(`${key.expiresAt}T23:59:59.999Z`);
@@ -1416,7 +1500,7 @@ app.post('/api/student/promo-code/redeem', authenticateStudent, requireCompleteS
       isPaused: false,
     });
 
-    res.json({ success: true, unlockedCount });
+    res.json({ success: true, kind: 'promo', unlockedCount });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1611,7 +1695,7 @@ app.post('/api/student/exam/unlock', authenticateStudent, requireCompleteStudent
 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
-    if (key.kind === 'promo') return res.status(400).json({ error: 'استخدم كود Promo Code من قسم البرومو كود' });
+    if (key.kind === 'promo' || key.kind === 'multi') return res.status(400).json({ error: 'استخدم هذا الكود من خانة Promo Code' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم أو محروق من قبل' });
     // Enforce lesson-specific codes
     if (key.lessonId && key.lessonId !== lessonId) {
@@ -1664,7 +1748,7 @@ app.post('/api/student/exam/start', authenticateStudent, requireCompleteStudentP
 
     const key = jsonDb.find('codes', (c: DbCode) => c.codeString === (code || '').trim().toUpperCase());
     if (!key) return res.status(400).json({ error: 'الكود غير صحيح' });
-    if (key.kind === 'promo') return res.status(400).json({ error: 'استخدم كود Promo Code من قسم البرومو كود' });
+    if (key.kind === 'promo' || key.kind === 'multi') return res.status(400).json({ error: 'استخدم هذا الكود من خانة Promo Code' });
     if (key.isUsed) return res.status(400).json({ error: 'الكود مستخدم أو محروق من قبل' });
     if (!key.lessonId) return res.status(400).json({ error: 'هذا الكود غير مرتبط بامتحان — تواصل مع مستر أحمد' });
 

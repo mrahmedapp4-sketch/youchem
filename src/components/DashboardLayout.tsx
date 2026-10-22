@@ -1,11 +1,12 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Key, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut, FolderOpen, Settings, Sun, Moon, Folder, ClipboardCheck, ListChecks, Sparkles } from 'lucide-react';
+import { Key, Layers, Upload, FileQuestion, FileText, Users, Mail, Menu, X, LogOut, FolderOpen, Settings, Sun, Moon, Folder, ClipboardCheck, ListChecks, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
 const navItems = [
   { path: '/youchem/upload', label: 'إدارة الفيديوهات', icon: Upload },
   { path: '/youchem/codes', label: 'الأكواد', icon: Key },
+  { path: '/youchem/multi-codes', label: 'الأكواد المتعددة', icon: Layers },
   { path: '/youchem/promo-code', label: 'Promo Code', icon: Sparkles },
   { path: '/youchem/quizzes', label: 'الامتحانات', icon: FileQuestion },
   { path: '/youchem/grades', label: 'درجات الامتحان', icon: ClipboardCheck },

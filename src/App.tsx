@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './components/DashboardLayout';
 import { TeacherAuthGuard } from './components/TeacherAuthGuard';
 import { Codes } from './pages/dashboard/Codes';
+import { MultiCodes } from './pages/dashboard/MultiCodes';
 import { UploadVideo } from './pages/dashboard/Upload';
 import { Quizzes } from './pages/dashboard/Quizzes';
 import { Homework } from './pages/dashboard/Homework';
@@ -40,6 +41,7 @@ export default function App() {
             <Route index element={<Navigate to="/youchem/upload" replace />} />
             <Route path="codes" element={<Codes />} />
             <Route path="promo-code" element={<Codes mode="promo" />} />
+            <Route path="multi-codes" element={<MultiCodes />} />
             <Route path="upload" element={<UploadVideo />} />
             <Route path="quizzes" element={<Quizzes />} />
             <Route path="grades" element={<ManualGrades />} />
