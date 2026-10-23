@@ -10,7 +10,7 @@ Or set environment variables:
     YOUCHEM_URL=https://youchem.up.railway.app
     YOUCHEM_KEY=your_api_key_here
 """
-
+#vcvuyvi
 import os, sys, json, time, argparse, threading
 import urllib.request, urllib.error
 import tkinter as tk
