@@ -1313,6 +1313,35 @@ function normalizeQuestionOptions(question: any): string[] | null {
   return options.some(Boolean) ? options : null;
 }
 
+function enrichQuizResult(result: any, quizQuestions: any[], index: number) {
+  const normalizeText = (value: unknown) =>
+    typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().toLocaleLowerCase() : '';
+  const savedQuestion = typeof result?.question === 'string' ? result.question : '';
+  const normalizedSavedQuestion = normalizeText(savedQuestion);
+  const matchingQuestion = normalizedSavedQuestion
+    ? quizQuestions.find((question: any) => normalizeText(question?.question) === normalizedSavedQuestion)
+    : quizQuestions[index];
+  const savedOptions = normalizeQuestionOptions(result);
+  const currentOptions = normalizeQuestionOptions(matchingQuestion);
+  const mergedOptions = Array.from({ length: QUIZ_ANSWER_LETTERS.length }, (_, optionIndex) =>
+    savedOptions?.[optionIndex] || currentOptions?.[optionIndex] || '',
+  );
+  const studentAnswer = result?.studentAnswer ?? result?.student_answer ?? null;
+  const correctAnswer = result?.correctAnswer ?? result?.correct_answer ?? matchingQuestion?.correct_answer ?? '';
+
+  return {
+    ...result,
+    question: savedQuestion || matchingQuestion?.question || '',
+    image: result?.image ?? matchingQuestion?.image ?? null,
+    options: mergedOptions.some(Boolean) ? mergedOptions : null,
+    studentAnswer,
+    correctAnswer,
+    isCorrect: typeof result?.isCorrect === 'boolean'
+      ? result.isCorrect
+      : Boolean(studentAnswer && correctAnswer && studentAnswer === correctAnswer),
+  };
+}
+
 app.get('/api/student/lessons', authenticateStudent, requireCompleteStudentProfile, async (req, res) => {
   try {
     const studentId = (req as any).studentId;
@@ -1333,14 +1362,9 @@ app.get('/api/student/lessons', authenticateStudent, requireCompleteStudentProfi
     ).map((access: DbStudentLessonAccess) => {
       const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === access.lessonId);
       const quizQuestions = Array.isArray(quiz?.questions) ? quiz.questions : [];
-      const quizResults = access.quizResults?.map((result: any, index: number) => {
-        const matchingQuestion = quizQuestions.find((question: any) => question.question === result.question)
-          || quizQuestions[index];
-        return {
-          ...result,
-          options: normalizeQuestionOptions(result) || normalizeQuestionOptions(matchingQuestion),
-        };
-      });
+      const quizResults = access.quizResults?.map((result: any, index: number) =>
+        enrichQuizResult(result, quizQuestions, index),
+      );
       return { ...access, ...(quizResults ? { quizResults } : {}) };
     });
 
@@ -1600,14 +1624,9 @@ app.get('/api/student/recent-quizzes', authenticateStudent, requireCompleteStude
         const lesson = jsonDb.find('lessons', (l: DbLesson) => l.id === submission.lessonId);
         const quiz = jsonDb.find('quizzes', (q: DbQuiz) => q.lessonId === submission.lessonId);
         const quizQuestions = Array.isArray(quiz?.questions) ? quiz.questions : [];
-        const results = (submission.results || []).map((result: any, index: number) => {
-          const matchingQuestion = quizQuestions.find((question: any) => question.question === result.question)
-            || quizQuestions[index];
-          return {
-            ...result,
-            options: normalizeQuestionOptions(result) || normalizeQuestionOptions(matchingQuestion),
-          };
-        });
+        const results = (submission.results || []).map((result: any, index: number) =>
+          enrichQuizResult(result, quizQuestions, index),
+        );
         return { ...submission, results, lessonTitle: lesson?.title || 'حصة محذوفة' };
       })
       .sort((a: DbQuizSubmission & { lessonTitle: string }, b: DbQuizSubmission & { lessonTitle: string }) =>
