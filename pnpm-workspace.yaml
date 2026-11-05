@@ -1,11 +1,8 @@
 packages:
   - '.'
 
-onlyBuiltDependencies:
-  - esbuild
-  - '@firebase/util'
-  - protobufjs
-  - '@tailwindcss/oxide'
-
-overrides:
-  proxy-addr: ^2.0.8
+allowBuilds:
+  '@firebase/util': true
+  '@tailwindcss/oxide': true
+  esbuild: true
+  protobufjs: true

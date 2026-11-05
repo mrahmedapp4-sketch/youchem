@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  proxy-addr: ^2.0.8
-
 importers:
 
   .:
