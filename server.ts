@@ -51,11 +51,16 @@ import {
 import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
 
 const app = express();
+if (typeof (process as any).loadEnvFile === 'function') {
+  try {
+    (process as any).loadEnvFile();
+  } catch {}
+}
 const PORT = process.env.PORT || 5000;
 
 // JWT_SECRET falls back to SESSION_SECRET (a real managed secret) so tokens
 // can never be forged using a hardcoded, publicly-visible default.
-const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'youchem-local-dev-jwt-secret-key';
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET or SESSION_SECRET must be set to sign auth tokens.');
 }
@@ -98,6 +103,9 @@ console.log(`[server] Using uploads directory: ${UPLOADS_DIR}`);
 
 const FILES_DIR = path.join(DATA_ROOT, 'uploads', 'files');
 fs.mkdirSync(FILES_DIR, { recursive: true });
+
+const THUMBNAILS_DIR = path.join(DATA_ROOT, 'uploads', 'thumbnails');
+fs.mkdirSync(THUMBNAILS_DIR, { recursive: true });
 
 // Student PDF files – saved on first registration, overwritten on each download
 const STUDENT_PDFS_DIR = path.join(DATA_ROOT, 'student-pdfs');
@@ -235,6 +243,33 @@ const fileUpload = multer({
     },
   }),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+});
+
+// Serve uploaded lesson thumbnails publicly
+app.get('/uploads/thumbnails/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(THUMBNAILS_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Thumbnail not found' });
+  }
+  res.sendFile(filePath);
+});
+
+const thumbnailUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, THUMBNAILS_DIR),
+    filename: (_req, file, cb) => {
+      const ext = (path.extname(file.originalname) || '.jpg').toLowerCase();
+      cb(null, `${newId()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('يجب أن يكون الملف صورة'));
+    }
+    cb(null, true);
+  },
 });
 
 // Shared cookie options ──────────────────────────────────────────────────────
@@ -459,6 +494,18 @@ app.post('/api/teacher/logout', authenticateTeacher, (req, res) => {
 });
 
 // Lessons API
+app.post('/api/youchem/lessons/thumbnail', authenticateTeacher, (req, res) => {
+  thumbnailUpload.single('thumbnail')(req, res, (err: any) => {
+    if (err) {
+      return res.status(400).json({ error: err.message || 'فشل في رفع الصورة' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'لم يتم اختيار ملف' });
+    }
+    const url = `/uploads/thumbnails/${req.file.filename}`;
+    res.json({ url });
+  });
+});
 app.get('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
   try {
     res.json(jsonDb.getAll('lessons'));
@@ -469,13 +516,14 @@ app.get('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
 
 app.post('/api/youchem/lessons', authenticateTeacher, async (req, res) => {
   try {
-    const { title, gradeLevel, platform, videoUrl } = req.body;
+    const { title, gradeLevel, platform, videoUrl, thumbnailUrl } = req.body;
     const lesson: DbLesson = {
       id: newId(),
       title,
       gradeLevel,
       platform,
       videoUrl,
+      thumbnailUrl: typeof thumbnailUrl === 'string' && thumbnailUrl.trim() ? thumbnailUrl.trim() : null,
       skipFromSeconds: null,
       skipToSeconds: null,
       isFree: false,
@@ -495,7 +543,7 @@ app.patch('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => {
     const lesson = jsonDb.find('lessons', (l: DbLesson) => l.id === id);
     if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
 
-    const { title, gradeLevel, platform, videoUrl, skipFromSeconds, skipToSeconds } = req.body;
+    const { title, gradeLevel, platform, videoUrl, thumbnailUrl, skipFromSeconds, skipToSeconds } = req.body;
     const updates: Partial<DbLesson> = {};
     if (title !== undefined) updates.title = title;
     if (gradeLevel !== undefined) updates.gradeLevel = gradeLevel;
@@ -504,6 +552,9 @@ app.patch('/api/youchem/lessons/:id', authenticateTeacher, async (req, res) => {
       updates.isFree = false;
     }
     if (videoUrl !== undefined) updates.videoUrl = videoUrl;
+    if (thumbnailUrl !== undefined) {
+      updates.thumbnailUrl = typeof thumbnailUrl === 'string' && thumbnailUrl.trim() ? thumbnailUrl.trim() : null;
+    }
     if (skipFromSeconds === null || skipToSeconds === null) {
       updates.skipFromSeconds = null;
       updates.skipToSeconds = null;

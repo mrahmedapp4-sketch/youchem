@@ -10,7 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LanguageContext';
 import { tr } from '../lib/translations';
 import { startPageTransition } from '../lib/viewTransitions';
-import { getYouTubeThumbnailUrl } from '../lib/videoThumbnail';
+import { getLessonThumbnailUrl, getYouTubeThumbnailUrl } from '../lib/videoThumbnail';
 import { QuizAnswerReview } from '../components/QuizAnswerReview';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
@@ -459,7 +459,7 @@ export function StudentDashboard() {
             {lessons.map((lesson) => {
               const access     = accesses.find(a => a.lessonId === lesson.id);
               const isUnlocked = !!access;
-              const thumbnailUrl = getYouTubeThumbnailUrl(lesson.platform, lesson.videoUrl);
+              const thumbnailUrl = getLessonThumbnailUrl(lesson);
 
               const cardInner = (
                 <div className="neon-card rounded-2xl overflow-hidden h-full flex flex-col transition-shadow hover:shadow-md">

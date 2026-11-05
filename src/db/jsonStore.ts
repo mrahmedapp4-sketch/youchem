@@ -36,6 +36,7 @@ export interface DbLesson {
   gradeLevel: '2nd_sec' | '3rd_sec';
   platform: 'youtube' | 'vimeo' | 'bunny';
   videoUrl: string;
+  thumbnailUrl?: string | null;
   /** Optional Bunny playback segment to skip for students and teacher previews. */
   skipFromSeconds?: number | null;
   skipToSeconds?: number | null;

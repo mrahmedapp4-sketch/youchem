@@ -44,3 +44,16 @@ export function getYouTubeThumbnailUrl(
   const videoId = getYouTubeVideoId(videoUrl);
   return videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
 }
+
+export function getLessonThumbnailUrl(
+  lesson: {
+    thumbnailUrl?: string | null;
+    platform?: string | null;
+    videoUrl?: string | null;
+  } | null | undefined,
+): string | null {
+  if (!lesson) return null;
+  const custom = lesson.thumbnailUrl?.trim();
+  if (custom) return custom;
+  return getYouTubeThumbnailUrl(lesson.platform, lesson.videoUrl);
+}

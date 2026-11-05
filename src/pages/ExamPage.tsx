@@ -4,7 +4,7 @@ import {
   Key, CheckCircle, XCircle, Maximize2, X,
   BookOpen, GraduationCap, ArrowRight, Clock,
 } from 'lucide-react';
-import { getYouTubeThumbnailUrl } from '../lib/videoThumbnail';
+import { getLessonThumbnailUrl, getYouTubeThumbnailUrl } from '../lib/videoThumbnail';
 import { QuizAnswerReview } from '../components/QuizAnswerReview';
 
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
@@ -326,7 +326,7 @@ export function ExamPage() {
               {lessons.map((lesson: any, idx: number) => {
                 const hasAccess = accessedIds.has(lesson.id);
                 const isFocused = focusedLessonIdx === idx;
-                const thumbnailUrl = getYouTubeThumbnailUrl(lesson.platform, lesson.videoUrl);
+                const thumbnailUrl = getLessonThumbnailUrl(lesson);
                 return (
                   <button
                     key={lesson.id}
